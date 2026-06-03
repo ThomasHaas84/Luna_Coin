@@ -1,0 +1,91 @@
+package de.meson_labs.luna_coin.models
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class LunaCoinData(
+    val children: List<Child> = emptyList(),
+    val tasks: List<TaskItem> = emptyList(),
+    val shopItems: List<ShopItem> = emptyList(),
+    val dogSchedule: List<DogScheduleItem> = emptyList(),
+    val logs: List<LogEntry> = emptyList()
+)
+
+@Serializable
+data class Child(
+    val id: String,
+    val name: String,
+    val coins: Int = 0,
+    val role: UserRole = UserRole.CHILD
+)
+
+@Serializable
+enum class UserRole {
+    CHILD,
+    PARENT,
+    ADMIN
+}
+
+@Serializable
+data class TaskItem(
+    val id: String,
+    val title: String,
+    val description: String = "",
+    val rewardCoins: Int,
+    val assignedChildId: String? = null,
+    val date: String,
+    val done: Boolean = false,
+    val doneByChildId: String? = null,
+    val doneTimestamp: String? = null
+)
+
+@Serializable
+data class ShopItem(
+    val id: String,
+    val title: String,
+    val description: String = "",
+    val priceCoins: Int
+)
+
+@Serializable
+data class DogScheduleItem(
+    val id: String,
+    val childId: String,
+    val dayOfWeek: DayOfWeekName,
+    val time: String,
+    val type: DogTaskType
+)
+
+@Serializable
+enum class DogTaskType {
+    WALK,
+    FEED
+}
+
+@Serializable
+enum class DayOfWeekName {
+    MONDAY,
+    TUESDAY,
+    WEDNESDAY,
+    THURSDAY,
+    FRIDAY,
+    SATURDAY,
+    SUNDAY
+}
+
+@Serializable
+data class LogEntry(
+    val id: String,
+    val timestamp: String,
+    val childId: String,
+    val type: LogType,
+    val text: String,
+    val coinChange: Int
+)
+
+@Serializable
+enum class LogType {
+    TASK_DONE,
+    SHOP_BUY,
+    SYSTEM
+}
