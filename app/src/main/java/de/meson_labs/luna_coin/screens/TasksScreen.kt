@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.DogScheduleItem
@@ -170,10 +171,18 @@ private fun HeaderRow(
                 style = MaterialTheme.typography.displaySmall
             )
 
-            Text(
-                text = "${selectedChild?.name ?: ""} · ${selectedChild?.coins ?: 0} Luna Coins",
-                style = MaterialTheme.typography.titleMedium
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${selectedChild?.name ?: ""} · ",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                CoinDisplay(
+                    amount = selectedChild?.coins ?: 0
+                )
+            }
         }
 
         OutlinedButton(
@@ -285,16 +294,21 @@ private fun TaskCard(
                     )
                 }
 
-                Text(
-                    text = buildString {
-                        append("+${task.rewardCoins} Luna Coins")
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CoinDisplay(
+                        amount = task.rewardCoins,
+                        showPlus = true
+                    )
 
-                        if (assignedName != null) {
-                            append(" · Für $assignedName")
-                        }
-                    },
-                    style = MaterialTheme.typography.bodySmall
-                )
+                    if (assignedName != null) {
+                        Text(
+                            text = " · Für $assignedName",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
 
                 if (task.done) {
                     Text(

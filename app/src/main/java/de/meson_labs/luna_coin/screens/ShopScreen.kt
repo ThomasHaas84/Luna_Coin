@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.ShopItem
@@ -49,10 +50,18 @@ fun ShopScreen(
                         style = MaterialTheme.typography.displaySmall
                     )
 
-                    Text(
-                        text = "${selectedChild?.name ?: ""} · ${selectedChild?.coins ?: 0} Luna Coins",
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${selectedChild?.name ?: ""} · ",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+
+                        CoinDisplay(
+                            amount = selectedChild?.coins ?: 0
+                        )
+                    }
                 }
 
                 OutlinedButton(
@@ -129,9 +138,8 @@ private fun ShopItemCard(
                     )
                 }
 
-                Text(
-                    text = "${item.priceCoins} Luna Coins",
-                    style = MaterialTheme.typography.bodySmall
+                CoinDisplay(
+                    amount = item.priceCoins
                 )
             }
 

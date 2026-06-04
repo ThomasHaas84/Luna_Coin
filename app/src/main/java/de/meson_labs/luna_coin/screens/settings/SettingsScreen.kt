@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.LunaCoinData
@@ -146,10 +147,24 @@ fun SettingsScreen(
                     defaultElevation = 1.dp
                 )
             ) {
-                Text(
-                    text = "${child.name}: ${child.coins} Luna Coins · ${roleText(child.role)}",
-                    modifier = Modifier.padding(16.dp)
-                )
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${child.name}: ",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+
+                    CoinDisplay(
+                        amount = child.coins
+                    )
+
+                    Text(
+                        text = " · ${roleText(child.role)}",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
             }
         }
 

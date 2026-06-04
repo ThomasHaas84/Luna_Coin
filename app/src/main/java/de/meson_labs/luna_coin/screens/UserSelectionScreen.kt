@@ -2,7 +2,6 @@ package de.meson_labs.luna_coin.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
@@ -11,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.UserRole
 
@@ -116,14 +117,28 @@ private fun UserProfileCard(
             )
         )
 
-        Text(
-            text = when (child.role) {
-                UserRole.CHILD -> "${child.coins} Coins"
-                UserRole.PARENT -> "Eltern"
-                UserRole.ADMIN -> "Admin"
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center
-        )
+        when (child.role) {
+            UserRole.CHILD -> {
+                CoinDisplay(
+                    amount = child.coins
+                )
+            }
+
+            UserRole.PARENT -> {
+                Text(
+                    text = "Eltern",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            UserRole.ADMIN -> {
+                Text(
+                    text = "Admin",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
     }
 }
