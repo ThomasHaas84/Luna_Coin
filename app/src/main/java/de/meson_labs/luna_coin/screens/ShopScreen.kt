@@ -54,7 +54,7 @@ fun ShopScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "${selectedChild?.name ?: ""} · ",
+                            text = "${selectedChild?.name ?: ""} ",
                             style = MaterialTheme.typography.titleMedium
                         )
 

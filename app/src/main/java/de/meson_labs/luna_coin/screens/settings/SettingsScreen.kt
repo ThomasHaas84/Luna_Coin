@@ -159,11 +159,6 @@ fun SettingsScreen(
                     CoinDisplay(
                         amount = child.coins
                     )
-
-                    Text(
-                        text = " · ${roleText(child.role)}",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
                 }
             }
         }
