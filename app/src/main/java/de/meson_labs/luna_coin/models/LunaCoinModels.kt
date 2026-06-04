@@ -52,15 +52,11 @@ data class DogScheduleItem(
     val id: String,
     val childId: String,
     val dayOfWeek: DayOfWeekName,
-    val time: String,
-    val type: DogTaskType
+    val careStartTime: String,
+    val careEndTime: String,
+    val feedingTime: String,
+    val walkTime: String
 )
-
-@Serializable
-enum class DogTaskType {
-    WALK,
-    FEED
-}
 
 @Serializable
 enum class DayOfWeekName {

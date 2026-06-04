@@ -24,7 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
-import de.meson_labs.luna_coin.models.DogTaskType
+import de.meson_labs.luna_coin.models.DogScheduleItem
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.TaskItem
 import java.time.LocalDate
@@ -144,9 +144,8 @@ fun TasksScreen(
                 }?.name ?: "Unbekannt"
 
                 DogScheduleCard(
-                    childName = childName,
-                    time = dogTask.time,
-                    taskType = dogTask.type
+                    dogTask = dogTask,
+                    childName = childName
                 )
             }
         }
@@ -310,9 +309,8 @@ private fun TaskCard(
 
 @Composable
 private fun DogScheduleCard(
-    childName: String,
-    time: String,
-    taskType: DogTaskType
+    dogTask: DogScheduleItem,
+    childName: String
 ) {
     Card(
         modifier = Modifier
@@ -328,15 +326,22 @@ private fun DogScheduleCard(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = when (taskType) {
-                    DogTaskType.WALK -> "Mit dem Hund rausgehen"
-                    DogTaskType.FEED -> "Hund füttern"
-                },
+                text = childName,
                 style = MaterialTheme.typography.titleMedium
             )
 
             Text(
-                text = "$childName · $time Uhr",
+                text = "Betreuung: ${dogTask.careStartTime} - ${dogTask.careEndTime} Uhr",
+                style = MaterialTheme.typography.bodyLarge
+            )
+
+            Text(
+                text = "Füttern: ${dogTask.feedingTime} Uhr",
+                style = MaterialTheme.typography.bodyLarge
+            )
+
+            Text(
+                text = "Gassi: ${dogTask.walkTime} Uhr",
                 style = MaterialTheme.typography.bodyLarge
             )
         }

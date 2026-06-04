@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModelProvider
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.DogScheduleItem
-import de.meson_labs.luna_coin.models.DogTaskType
 import de.meson_labs.luna_coin.models.LogEntry
 import de.meson_labs.luna_coin.models.LogType
 import de.meson_labs.luna_coin.models.LunaCoinData
@@ -143,6 +142,204 @@ class LunaCoinViewModel(
         )
     }
 
+    fun addTask(
+        title: String,
+        description: String,
+        rewardCoins: Int,
+        date: String
+    ) {
+        val currentData = _data.value
+
+        val newTask = TaskItem(
+            id = uuid(),
+            title = title,
+            description = description,
+            rewardCoins = rewardCoins,
+            assignedChildId = null,
+            date = date,
+            done = false
+        )
+
+        updateData(
+            currentData.copy(
+                tasks = currentData.tasks + newTask
+            )
+        )
+    }
+
+    fun updateTask(
+        taskId: String,
+        title: String,
+        description: String,
+        rewardCoins: Int,
+        date: String
+    ) {
+        val currentData = _data.value
+
+        val updatedTasks = currentData.tasks.map { task ->
+            if (task.id == taskId) {
+                task.copy(
+                    title = title,
+                    description = description,
+                    rewardCoins = rewardCoins,
+                    date = date
+                )
+            } else {
+                task
+            }
+        }
+
+        updateData(
+            currentData.copy(
+                tasks = updatedTasks
+            )
+        )
+    }
+
+    fun deleteTask(taskId: String) {
+        val currentData = _data.value
+
+        updateData(
+            currentData.copy(
+                tasks = currentData.tasks.filterNot { task ->
+                    task.id == taskId
+                }
+            )
+        )
+    }
+
+    fun addShopItem(
+        title: String,
+        description: String,
+        priceCoins: Int
+    ) {
+        val currentData = _data.value
+
+        val newItem = ShopItem(
+            id = uuid(),
+            title = title,
+            description = description,
+            priceCoins = priceCoins
+        )
+
+        updateData(
+            currentData.copy(
+                shopItems = currentData.shopItems + newItem
+            )
+        )
+    }
+
+    fun updateShopItem(
+        itemId: String,
+        title: String,
+        description: String,
+        priceCoins: Int
+    ) {
+        val currentData = _data.value
+
+        val updatedItems = currentData.shopItems.map { item ->
+            if (item.id == itemId) {
+                item.copy(
+                    title = title,
+                    description = description,
+                    priceCoins = priceCoins
+                )
+            } else {
+                item
+            }
+        }
+
+        updateData(
+            currentData.copy(
+                shopItems = updatedItems
+            )
+        )
+    }
+
+    fun deleteShopItem(itemId: String) {
+        val currentData = _data.value
+
+        updateData(
+            currentData.copy(
+                shopItems = currentData.shopItems.filterNot { item ->
+                    item.id == itemId
+                }
+            )
+        )
+    }
+
+    fun addDogSchedule(
+        childId: String,
+        dayOfWeek: DayOfWeekName,
+        careStartTime: String,
+        careEndTime: String,
+        feedingTime: String,
+        walkTime: String
+    ) {
+        val currentData = _data.value
+
+        val newEntry = DogScheduleItem(
+            id = uuid(),
+            childId = childId,
+            dayOfWeek = dayOfWeek,
+            careStartTime = careStartTime,
+            careEndTime = careEndTime,
+            feedingTime = feedingTime,
+            walkTime = walkTime
+        )
+
+        updateData(
+            currentData.copy(
+                dogSchedule = currentData.dogSchedule + newEntry
+            )
+        )
+    }
+
+    fun updateDogSchedule(
+        scheduleId: String,
+        childId: String,
+        dayOfWeek: DayOfWeekName,
+        careStartTime: String,
+        careEndTime: String,
+        feedingTime: String,
+        walkTime: String
+    ) {
+        val currentData = _data.value
+
+        val updatedSchedule = currentData.dogSchedule.map { entry ->
+            if (entry.id == scheduleId) {
+                entry.copy(
+                    childId = childId,
+                    dayOfWeek = dayOfWeek,
+                    careStartTime = careStartTime,
+                    careEndTime = careEndTime,
+                    feedingTime = feedingTime,
+                    walkTime = walkTime
+                )
+            } else {
+                entry
+            }
+        }
+
+        updateData(
+            currentData.copy(
+                dogSchedule = updatedSchedule
+            )
+        )
+    }
+
+    fun deleteDogSchedule(scheduleId: String) {
+        val currentData = _data.value
+
+        updateData(
+            currentData.copy(
+                dogSchedule = currentData.dogSchedule.filterNot { entry ->
+                    entry.id == scheduleId
+                }
+            )
+        )
+    }
+
     fun resetDemoData() {
         updateData(createDemoData())
         _selectedChildId.value = null
@@ -174,16 +371,68 @@ class LunaCoinViewModel(
         val today = LocalDate.now()
         val dateText = today.toString()
 
-        val clara = Child(id = "child_clara", name = "Clara", coins = 0, role = UserRole.CHILD)
-        val jakob = Child(id = "child_jakob", name = "Jakob", coins = 0, role = UserRole.CHILD)
-        val lukas = Child(id = "child_lukas", name = "Lukas", coins = 0, role = UserRole.CHILD)
-        val noah = Child(id = "child_noah", name = "Noah", coins = 0, role = UserRole.CHILD)
-        val max = Child(id = "child_max", name = "Max", coins = 0, role = UserRole.CHILD)
-        val felix = Child(id = "child_felix", name = "Felix", coins = 0, role = UserRole.CHILD)
-        val marie = Child(id = "child_marie", name = "Marie", coins = 0, role = UserRole.CHILD)
+        val clara = Child(
+            id = "child_clara",
+            name = "Clara",
+            coins = 0,
+            role = UserRole.CHILD
+        )
 
-        val lisa = Child(id = "parent_lisa", name = "Lisa", coins = 0, role = UserRole.PARENT)
-        val thomas = Child(id = "admin_thomas", name = "Thomas", coins = 0, role = UserRole.ADMIN)
+        val jakob = Child(
+            id = "child_jakob",
+            name = "Jakob",
+            coins = 0,
+            role = UserRole.CHILD
+        )
+
+        val lukas = Child(
+            id = "child_lukas",
+            name = "Lukas",
+            coins = 0,
+            role = UserRole.CHILD
+        )
+
+        val noah = Child(
+            id = "child_noah",
+            name = "Noah",
+            coins = 0,
+            role = UserRole.CHILD
+        )
+
+        val max = Child(
+            id = "child_max",
+            name = "Max",
+            coins = 0,
+            role = UserRole.CHILD
+        )
+
+        val felix = Child(
+            id = "child_felix",
+            name = "Felix",
+            coins = 0,
+            role = UserRole.CHILD
+        )
+
+        val marie = Child(
+            id = "child_marie",
+            name = "Marie",
+            coins = 0,
+            role = UserRole.CHILD
+        )
+
+        val lisa = Child(
+            id = "parent_lisa",
+            name = "Lisa",
+            coins = 0,
+            role = UserRole.PARENT
+        )
+
+        val thomas = Child(
+            id = "admin_thomas",
+            name = "Thomas",
+            coins = 0,
+            role = UserRole.ADMIN
+        )
 
         val children = listOf(
             clara,
@@ -258,29 +507,64 @@ class LunaCoinViewModel(
                 id = uuid(),
                 childId = clara.id,
                 dayOfWeek = DayOfWeekName.MONDAY,
-                time = "07:30",
-                type = DogTaskType.WALK
+                careStartTime = "08:00",
+                careEndTime = "16:00",
+                feedingTime = "07:30",
+                walkTime = "18:00"
             ),
             DogScheduleItem(
                 id = uuid(),
                 childId = jakob.id,
-                dayOfWeek = DayOfWeekName.MONDAY,
-                time = "18:00",
-                type = DogTaskType.FEED
+                dayOfWeek = DayOfWeekName.TUESDAY,
+                careStartTime = "08:00",
+                careEndTime = "16:00",
+                feedingTime = "07:30",
+                walkTime = "18:00"
             ),
             DogScheduleItem(
                 id = uuid(),
                 childId = lukas.id,
-                dayOfWeek = DayOfWeekName.TUESDAY,
-                time = "07:30",
-                type = DogTaskType.WALK
+                dayOfWeek = DayOfWeekName.WEDNESDAY,
+                careStartTime = "08:00",
+                careEndTime = "16:00",
+                feedingTime = "07:30",
+                walkTime = "18:00"
             ),
             DogScheduleItem(
                 id = uuid(),
                 childId = noah.id,
-                dayOfWeek = DayOfWeekName.TUESDAY,
-                time = "18:00",
-                type = DogTaskType.FEED
+                dayOfWeek = DayOfWeekName.THURSDAY,
+                careStartTime = "08:00",
+                careEndTime = "16:00",
+                feedingTime = "07:30",
+                walkTime = "18:00"
+            ),
+            DogScheduleItem(
+                id = uuid(),
+                childId = max.id,
+                dayOfWeek = DayOfWeekName.FRIDAY,
+                careStartTime = "08:00",
+                careEndTime = "16:00",
+                feedingTime = "07:30",
+                walkTime = "18:00"
+            ),
+            DogScheduleItem(
+                id = uuid(),
+                childId = felix.id,
+                dayOfWeek = DayOfWeekName.SATURDAY,
+                careStartTime = "09:00",
+                careEndTime = "17:00",
+                feedingTime = "08:00",
+                walkTime = "18:30"
+            ),
+            DogScheduleItem(
+                id = uuid(),
+                childId = marie.id,
+                dayOfWeek = DayOfWeekName.SUNDAY,
+                careStartTime = "09:00",
+                careEndTime = "17:00",
+                feedingTime = "08:00",
+                walkTime = "18:30"
             )
         )
 

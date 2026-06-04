@@ -19,6 +19,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import de.meson_labs.luna_coin.screens.settings.SettingsScreen
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 
 @Composable
@@ -50,9 +51,7 @@ fun MainScreen(
                         NavigationBar {
                             NavigationBarItem(
                                 selected = selectedTab == 0,
-                                onClick = {
-                                    selectedTab = 0
-                                },
+                                onClick = { selectedTab = 0 },
                                 icon = {
                                     Icon(
                                         imageVector = Icons.Default.CheckCircle,
@@ -66,9 +65,7 @@ fun MainScreen(
 
                             NavigationBarItem(
                                 selected = selectedTab == 1,
-                                onClick = {
-                                    selectedTab = 1
-                                },
+                                onClick = { selectedTab = 1 },
                                 icon = {
                                     Icon(
                                         imageVector = Icons.Default.ShoppingCart,
@@ -82,9 +79,7 @@ fun MainScreen(
 
                             NavigationBarItem(
                                 selected = selectedTab == 2,
-                                onClick = {
-                                    selectedTab = 2
-                                },
+                                onClick = { selectedTab = 2 },
                                 icon = {
                                     Icon(
                                         imageVector = Icons.Default.Settings,
@@ -122,7 +117,18 @@ fun MainScreen(
                         2 -> SettingsScreen(
                             modifier = Modifier.padding(innerPadding),
                             data = data,
+                            selectedChild = selectedChild,
+                            selectedDate = selectedDate,
                             jsonText = viewModel.getJsonText(),
+                            onAddTask = viewModel::addTask,
+                            onUpdateTask = viewModel::updateTask,
+                            onDeleteTask = viewModel::deleteTask,
+                            onAddShopItem = viewModel::addShopItem,
+                            onUpdateShopItem = viewModel::updateShopItem,
+                            onDeleteShopItem = viewModel::deleteShopItem,
+                            onAddDogSchedule = viewModel::addDogSchedule,
+                            onUpdateDogSchedule = viewModel::updateDogSchedule,
+                            onDeleteDogSchedule = viewModel::deleteDogSchedule,
                             onResetDemoData = viewModel::resetDemoData,
                             onLogout = viewModel::logout
                         )
