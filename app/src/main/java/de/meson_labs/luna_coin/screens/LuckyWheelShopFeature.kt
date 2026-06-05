@@ -1,6 +1,6 @@
 package de.meson_labs.luna_coin.screens
 
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -33,6 +33,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -41,9 +42,6 @@ import de.meson_labs.luna_coin.components.CoinDisplay
 import kotlinx.coroutines.delay
 import kotlin.math.cos
 import kotlin.math.sin
-import kotlin.random.Random
-import androidx.compose.ui.graphics.nativeCanvas
-
 
 data class LuckyWheelResult(
     val rewardCoins: Int,
@@ -66,21 +64,14 @@ fun LuckyWheelShopCard(
     isPurchaseLocked: Boolean,
     onSpinClick: () -> Unit
 ) {
-    val price = if (isFreeToday) {
-        0
-    } else {
-        1
-    }
-
+    val price = if (isFreeToday) 0 else 1
     val canSpin = isFreeToday || currentCoins >= price
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        )
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
@@ -88,9 +79,7 @@ fun LuckyWheelShopCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Glücksrad",
                     style = MaterialTheme.typography.titleMedium
@@ -106,9 +95,7 @@ fun LuckyWheelShopCard(
                 )
 
                 if (price > 0) {
-                    CoinDisplay(
-                        amount = price
-                    )
+                    CoinDisplay(amount = price)
                 } else {
                     Text(
                         text = "Heute kostenlos",
@@ -149,10 +136,6 @@ fun LuckyWheelDialog(
         wheelSegments.random()
     }
 
-    var animationStarted by remember {
-        mutableStateOf(false)
-    }
-
     var result by remember {
         mutableStateOf<LuckyWheelResult?>(null)
     }
@@ -164,22 +147,26 @@ fun LuckyWheelDialog(
     val rotation by animateFloatAsState(
         targetValue = targetRotation,
         animationSpec = tween(
-            durationMillis = 3500,
-            easing = FastOutSlowInEasing
+            durationMillis = 6500,
+            easing = CubicBezierEasing(
+                0.08f,
+                0.95f,
+                0.12f,
+                1f
+            )
         ),
         label = "luckyWheelRotation"
     )
 
     LaunchedEffect(Unit) {
         val selectedIndex = wheelSegments.indexOf(selectedSegment)
+
         targetRotation = calculateTargetRotation(
             selectedIndex = selectedIndex,
             segmentCount = wheelSegments.size
         )
 
-        animationStarted = true
-
-        delay(3600)
+        delay(6600)
 
         val newResult = LuckyWheelResult(
             rewardCoins = selectedSegment.rewardCoins,
@@ -304,7 +291,7 @@ fun LuckyWheelDialog(
                             id = R.drawable.luna_coin_small
                         ),
                         contentDescription = "Luna Coin",
-                        modifier = Modifier.size(220.dp),
+                        modifier = Modifier.size(58.dp),
                         contentScale = ContentScale.Fit
                     )
                 }
@@ -312,11 +299,7 @@ fun LuckyWheelDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = if (animationStarted && result == null) {
-                        "Das Glücksrad dreht sich..."
-                    } else {
-                        result?.message ?: "Das Glücksrad dreht sich..."
-                    },
+                    text = result?.message ?: "Das Glücksrad dreht sich...",
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
@@ -379,38 +362,6 @@ private fun LuckyWheelLabels(
                 }
             )
         }
-    }
-}
-
-@Composable
-private fun WheelSegmentLabel(
-    index: Int,
-    segmentCount: Int,
-    label: String,
-    rotation: Float
-) {
-    val sweepAngle = 360f / segmentCount
-    val angleDegrees =
-        index * sweepAngle + sweepAngle / 2f + rotation
-
-    val angleRadians =
-        Math.toRadians(angleDegrees.toDouble())
-
-    val radius = 88.dp
-
-    Box(
-        modifier = Modifier
-            .size(260.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(
-                start = ((cos(angleRadians).toFloat() * radius.value) + 130f).dp,
-                top = ((sin(angleRadians).toFloat() * radius.value) + 130f).dp
-            )
-        )
     }
 }
 
@@ -519,14 +470,16 @@ private fun calculateTargetRotation(
     segmentCount: Int
 ): Float {
     val sweepAngle = 360f / segmentCount
+
     val selectedSegmentCenterAngle =
         selectedIndex * sweepAngle + sweepAngle / 2f
 
     val pointerAngle = 270f
+
     val baseRotation =
         pointerAngle - selectedSegmentCenterAngle
 
-    val fullRotations = 360f * 7f
+    val fullRotations = 360f * 10f
 
     return fullRotations + baseRotation
 }
