@@ -207,7 +207,8 @@ class LunaCoinViewModel(
         assignedChildId: String?,
         startDate: String,
         dueDate: String?,
-        weeklyDay: DayOfWeekName?
+        weeklyDay: DayOfWeekName?,
+        isWatchlist: Boolean
     ) {
         val currentData = _data.value
 
@@ -227,7 +228,8 @@ class LunaCoinViewModel(
             startDate = startDate,
             dueDate = dueDate?.takeIf { it.isNotBlank() },
             weeklyDay = weeklyDay,
-            completions = emptyList()
+            completions = emptyList(),
+            isWatchlist = isWatchlist
         )
 
         updateData(
@@ -248,7 +250,8 @@ class LunaCoinViewModel(
         assignedChildId: String?,
         startDate: String,
         dueDate: String?,
-        weeklyDay: DayOfWeekName?
+        weeklyDay: DayOfWeekName?,
+        isWatchlist: Boolean
     ) {
         val currentData = _data.value
 
@@ -268,7 +271,8 @@ class LunaCoinViewModel(
                     repeatType = repeatType,
                     startDate = startDate,
                     dueDate = dueDate?.takeIf { it.isNotBlank() },
-                    weeklyDay = weeklyDay
+                    weeklyDay = weeklyDay,
+                    isWatchlist = isWatchlist
                 )
             } else {
                 task

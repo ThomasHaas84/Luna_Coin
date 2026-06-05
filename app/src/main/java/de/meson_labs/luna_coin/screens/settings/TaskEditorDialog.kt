@@ -12,6 +12,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -50,7 +51,8 @@ fun TaskEditorDialog(
         String?,
         String,
         String?,
-        DayOfWeekName?
+        DayOfWeekName?,
+        Boolean
     ) -> Unit,
     onUpdateTask: (
         String,
@@ -63,60 +65,45 @@ fun TaskEditorDialog(
         String?,
         String,
         String?,
-        DayOfWeekName?
+        DayOfWeekName?,
+        Boolean
     ) -> Unit,
     onDeleteTask: (String) -> Unit
 ) {
-    var selectedTask by remember {
-        mutableStateOf<TaskItem?>(null)
-    }
+    var selectedTask by remember { mutableStateOf<TaskItem?>(null) }
+    var taskToDelete by remember { mutableStateOf<TaskItem?>(null) }
 
-    var taskToDelete by remember {
-        mutableStateOf<TaskItem?>(null)
-    }
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var coinsText by remember { mutableStateOf("1") }
 
-    var title by remember {
-        mutableStateOf("")
-    }
+    var assignmentType by remember { mutableStateOf(TaskAssignmentType.FREE_FOR_ALL) }
+    var completionMode by remember { mutableStateOf(TaskCompletionMode.EACH_PERSON) }
+    var repeatType by remember { mutableStateOf(TaskRepeatType.DAILY) }
 
-    var description by remember {
-        mutableStateOf("")
-    }
-
-    var coinsText by remember {
-        mutableStateOf("1")
-    }
-
-    var assignmentType by remember {
-        mutableStateOf(TaskAssignmentType.FREE_FOR_ALL)
-    }
-
-    var completionMode by remember {
-        mutableStateOf(TaskCompletionMode.EACH_PERSON)
-    }
-
-    var repeatType by remember {
-        mutableStateOf(TaskRepeatType.DAILY)
-    }
-
-    var selectedChildId by remember {
-        mutableStateOf<String?>(null)
-    }
-
-    var startDate by remember {
-        mutableStateOf(LocalDate.now().toString())
-    }
-
-    var dueDate by remember {
-        mutableStateOf("")
-    }
-
-    var selectedWeeklyDay by remember {
-        mutableStateOf(DayOfWeekName.SATURDAY)
-    }
+    var selectedChildId by remember { mutableStateOf<String?>(null) }
+    var startDate by remember { mutableStateOf(isoDateToGerman(LocalDate.now().toString())) }
+    var dueDate by remember { mutableStateOf("") }
+    var selectedWeeklyDay by remember { mutableStateOf(DayOfWeekName.SATURDAY) }
+    var isWatchlist by remember { mutableStateOf(false) }
 
     val childUsers = children.filter { child ->
         child.role == UserRole.CHILD
+    }
+
+    fun resetFields() {
+        selectedTask = null
+        title = ""
+        description = ""
+        coinsText = "1"
+        assignmentType = TaskAssignmentType.FREE_FOR_ALL
+        completionMode = TaskCompletionMode.EACH_PERSON
+        repeatType = TaskRepeatType.DAILY
+        selectedChildId = null
+        startDate = isoDateToGerman(LocalDate.now().toString())
+        dueDate = ""
+        selectedWeeklyDay = DayOfWeekName.SATURDAY
+        isWatchlist = false
     }
 
     AlertDialog(
@@ -366,7 +353,7 @@ fun TaskEditorDialog(
                             startDate = it
                         },
                         label = {
-                            Text("Startdatum, z.B. 2026-07-12")
+                            Text("Startdatum, z.B. 30.06.26")
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -377,7 +364,7 @@ fun TaskEditorDialog(
                             dueDate = it
                         },
                         label = {
-                            Text("Ablauffrist optional, z.B. 2026-07-12")
+                            Text("Ablauffrist optional, z.B. 30.06.26")
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -410,6 +397,27 @@ fun TaskEditorDialog(
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Optionen",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    Row {
+                        Checkbox(
+                            checked = isWatchlist,
+                            onCheckedChange = {
+                                isWatchlist = it
+                            }
+                        )
+
+                        Text(
+                            text = "In Watchlist anzeigen",
+                            modifier = Modifier.padding(top = 12.dp)
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Row {
@@ -421,10 +429,30 @@ fun TaskEditorDialog(
                                     assignmentType == TaskAssignmentType.FREE_FOR_ALL ||
                                             selectedChildId != null
 
+                                val startDateIso =
+                                    germanDateToIsoOrNull(startDate) ?: startDate
+
+                                val dueDateIso =
+                                    if (dueDate.isBlank()) {
+                                        null
+                                    } else {
+                                        germanDateToIsoOrNull(dueDate) ?: dueDate
+                                    }
+
+                                val weeklyDay =
+                                    if (
+                                        repeatType == TaskRepeatType.WEEKLY ||
+                                        repeatType == TaskRepeatType.BIWEEKLY
+                                    ) {
+                                        selectedWeeklyDay
+                                    } else {
+                                        null
+                                    }
+
                                 if (
                                     title.isNotBlank() &&
                                     coins > 0 &&
-                                    startDate.isNotBlank() &&
+                                    startDateIso.isNotBlank() &&
                                     validAssigned
                                 ) {
                                     if (selectedTask == null) {
@@ -436,16 +464,10 @@ fun TaskEditorDialog(
                                             completionMode,
                                             repeatType,
                                             selectedChildId,
-                                            startDate,
-                                            dueDate,
-                                            if (
-                                                repeatType == TaskRepeatType.WEEKLY ||
-                                                repeatType == TaskRepeatType.BIWEEKLY
-                                            ) {
-                                                selectedWeeklyDay
-                                            } else {
-                                                null
-                                            }
+                                            startDateIso,
+                                            dueDateIso,
+                                            weeklyDay,
+                                            isWatchlist
                                         )
                                     } else {
                                         onUpdateTask(
@@ -457,30 +479,14 @@ fun TaskEditorDialog(
                                             completionMode,
                                             repeatType,
                                             selectedChildId,
-                                            startDate,
-                                            dueDate,
-                                            if (
-                                                repeatType == TaskRepeatType.WEEKLY ||
-                                                repeatType == TaskRepeatType.BIWEEKLY
-                                            ) {
-                                                selectedWeeklyDay
-                                            } else {
-                                                null
-                                            }
+                                            startDateIso,
+                                            dueDateIso,
+                                            weeklyDay,
+                                            isWatchlist
                                         )
                                     }
 
-                                    selectedTask = null
-                                    title = ""
-                                    description = ""
-                                    coinsText = "1"
-                                    assignmentType = TaskAssignmentType.FREE_FOR_ALL
-                                    completionMode = TaskCompletionMode.EACH_PERSON
-                                    repeatType = TaskRepeatType.DAILY
-                                    selectedChildId = null
-                                    startDate = LocalDate.now().toString()
-                                    dueDate = ""
-                                    selectedWeeklyDay = DayOfWeekName.SATURDAY
+                                    resetFields()
                                 }
                             }
                         ) {
@@ -497,17 +503,7 @@ fun TaskEditorDialog(
 
                         OutlinedButton(
                             onClick = {
-                                selectedTask = null
-                                title = ""
-                                description = ""
-                                coinsText = "1"
-                                assignmentType = TaskAssignmentType.FREE_FOR_ALL
-                                completionMode = TaskCompletionMode.EACH_PERSON
-                                repeatType = TaskRepeatType.DAILY
-                                selectedChildId = null
-                                startDate = LocalDate.now().toString()
-                                dueDate = ""
-                                selectedWeeklyDay = DayOfWeekName.SATURDAY
+                                resetFields()
                             }
                         ) {
                             Text(
@@ -546,7 +542,11 @@ fun TaskEditorDialog(
                             modifier = Modifier.padding(12.dp)
                         ) {
                             Text(
-                                text = task.title,
+                                text = if (task.isWatchlist) {
+                                    "👁 ${task.title}"
+                                } else {
+                                    task.title
+                                },
                                 style = MaterialTheme.typography.titleMedium
                             )
 
@@ -587,7 +587,11 @@ fun TaskEditorDialog(
 
                                     if (!task.dueDate.isNullOrBlank()) {
                                         append(" · Fällig: ")
-                                        append(task.dueDate)
+                                        append(isoDateToGerman(task.dueDate))
+                                    }
+
+                                    if (task.isWatchlist) {
+                                        append(" · Watchlist")
                                     }
                                 },
                                 style = MaterialTheme.typography.bodySmall,
@@ -605,10 +609,13 @@ fun TaskEditorDialog(
                                         completionMode = task.completionMode
                                         repeatType = task.repeatType
                                         selectedChildId = task.assignedChildId
-                                        startDate = task.startDate
-                                        dueDate = task.dueDate ?: ""
+                                        startDate = isoDateToGerman(task.startDate)
+                                        dueDate = task.dueDate?.let {
+                                            isoDateToGerman(it)
+                                        } ?: ""
                                         selectedWeeklyDay =
                                             task.weeklyDay ?: DayOfWeekName.SATURDAY
+                                        isWatchlist = task.isWatchlist
                                     }
                                 ) {
                                     Text("Bearbeiten")
@@ -643,17 +650,7 @@ fun TaskEditorDialog(
                 onDeleteTask(task.id)
 
                 if (selectedTask?.id == task.id) {
-                    selectedTask = null
-                    title = ""
-                    description = ""
-                    coinsText = "1"
-                    assignmentType = TaskAssignmentType.FREE_FOR_ALL
-                    completionMode = TaskCompletionMode.EACH_PERSON
-                    repeatType = TaskRepeatType.DAILY
-                    selectedChildId = null
-                    startDate = LocalDate.now().toString()
-                    dueDate = ""
-                    selectedWeeklyDay = DayOfWeekName.SATURDAY
+                    resetFields()
                 }
 
                 taskToDelete = null
@@ -706,5 +703,51 @@ private fun dayToGerman(
         DayOfWeekName.FRIDAY -> "Freitag"
         DayOfWeekName.SATURDAY -> "Samstag"
         DayOfWeekName.SUNDAY -> "Sonntag"
+    }
+}
+
+private fun germanDateToIsoOrNull(
+    input: String
+): String? {
+    val cleaned = input.trim()
+
+    return try {
+        val parts = cleaned.split(".")
+        if (parts.size != 3) return null
+
+        val day = parts[0].toInt()
+        val month = parts[1].toInt()
+        val yearRaw = parts[2].toInt()
+
+        val year = if (yearRaw < 100) {
+            2000 + yearRaw
+        } else {
+            yearRaw
+        }
+
+        LocalDate.of(
+            year,
+            month,
+            day
+        ).toString()
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun isoDateToGerman(
+    input: String
+): String {
+    return try {
+        val date = LocalDate.parse(input)
+
+        String.format(
+            "%02d.%02d.%02d",
+            date.dayOfMonth,
+            date.monthValue,
+            date.year % 100
+        )
+    } catch (_: Exception) {
+        input
     }
 }

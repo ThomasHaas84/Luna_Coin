@@ -45,6 +45,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 
+
 @Composable
 fun TasksScreen(
     modifier: Modifier = Modifier,
@@ -158,6 +159,26 @@ fun TasksScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun dueDateColor(
+    dueDateText: String
+): Color {
+    val dueDate = dueDateText.toLocalDateOrNull()
+        ?: return MaterialTheme.colorScheme.tertiary
+
+    val daysLeft = ChronoUnit.DAYS.between(
+        LocalDate.now(),
+        dueDate
+    )
+
+    return when {
+        daysLeft < 0 -> MaterialTheme.colorScheme.error
+        daysLeft <= 2 -> Color(0xFFF97316)
+        daysLeft <= 7 -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 }
 
@@ -346,7 +367,7 @@ private fun TaskCard(
                     Text(
                         text = "Fällig bis: ${formatDateGerman(dueDate)}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.tertiary
+                        color = dueDateColor(dueDate)
                     )
                 }
 

@@ -31,6 +31,7 @@ import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.TaskAssignmentType
 import de.meson_labs.luna_coin.models.TaskCompletionMode
+import de.meson_labs.luna_coin.models.TaskItem
 import de.meson_labs.luna_coin.models.TaskRepeatType
 import de.meson_labs.luna_coin.models.UserRole
 import java.time.LocalDate
@@ -52,7 +53,8 @@ fun SettingsScreen(
         String?,
         String,
         String?,
-        DayOfWeekName?
+        DayOfWeekName?,
+        Boolean
     ) -> Unit,
     onUpdateTask: (
         String,
@@ -65,7 +67,8 @@ fun SettingsScreen(
         String?,
         String,
         String?,
-        DayOfWeekName?
+        DayOfWeekName?,
+        Boolean
     ) -> Unit,
     onDeleteTask: (String) -> Unit,
     onAddShopItem: (String, String, Int) -> Unit,
@@ -78,21 +81,14 @@ fun SettingsScreen(
     onResetDemoData: () -> Unit,
     onLogout: () -> Unit
 ) {
-    var showResetDialog by remember {
-        mutableStateOf(false)
-    }
+    var showResetDialog by remember { mutableStateOf(false) }
+    var showTaskEditor by remember { mutableStateOf(false) }
+    var showShopEditor by remember { mutableStateOf(false) }
+    var showDogScheduleEditor by remember { mutableStateOf(false) }
 
-    var showTaskEditor by remember {
-        mutableStateOf(false)
-    }
-
-    var showShopEditor by remember {
-        mutableStateOf(false)
-    }
-
-    var showDogScheduleEditor by remember {
-        mutableStateOf(false)
-    }
+    var showUsersAndCoins by remember { mutableStateOf(false) }
+    var showLogs by remember { mutableStateOf(false) }
+    var showWatchlist by remember { mutableStateOf(true) }
 
     val canEdit =
         selectedChild?.role == UserRole.PARENT ||
@@ -114,6 +110,11 @@ fun SettingsScreen(
             data.logs.filter { log ->
                 log.childId == selectedChild?.id
             }
+        }
+
+    val watchlistTasks =
+        data.tasks.filter { task ->
+            task.isWatchlist
         }
 
     LazyColumn(
@@ -147,58 +148,120 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(
-                modifier = Modifier.height(24.dp)
-            )
+            Spacer(modifier = Modifier.height(24.dp))
 
-            Text(
-                text = if (canEdit) {
-                    "Benutzer"
-                } else {
-                    "Meine Coins"
-                },
-                style = MaterialTheme.typography.headlineSmall
-            )
-
-            Spacer(
-                modifier = Modifier.height(8.dp)
-            )
-        }
-
-        items(visibleUsers) { child ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                elevation = CardDefaults.cardElevation(
-                    defaultElevation = 1.dp
-                )
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            if (canEdit) {
+                Button(
+                    onClick = {
+                        showUsersAndCoins = !showUsersAndCoins
+                    }
                 ) {
                     Text(
-                        text = "${child.name}: ",
-                        style = MaterialTheme.typography.bodyLarge
+                        if (showUsersAndCoins) {
+                            "Benutzer & Coins ausblenden"
+                        } else {
+                            "Benutzer & Coins anzeigen"
+                        }
                     )
+                }
 
-                    CoinDisplay(
-                        amount = child.coins
+                Spacer(modifier = Modifier.height(8.dp))
+            } else {
+                Text(
+                    text = "Meine Coins",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
+        if (!canEdit || showUsersAndCoins) {
+            items(visibleUsers) { child ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    elevation = CardDefaults.cardElevation(
+                        defaultElevation = 1.dp
                     )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${child.name}: ",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
 
+                        CoinDisplay(
+                            amount = child.coins
+                        )
+
+                        Text(
+                            text = " · ${roleText(child.role)}",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+
+            if (canEdit) {
+                Text(
+                    text = "Watchlist",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = {
+                        showWatchlist = !showWatchlist
+                    }
+                ) {
                     Text(
-                        text = " · ${roleText(child.role)}",
-                        style = MaterialTheme.typography.bodyLarge
+                        if (showWatchlist) {
+                            "Watchlist ausblenden"
+                        } else {
+                            "Watchlist anzeigen"
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
+        if (canEdit && showWatchlist) {
+            if (watchlistTasks.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Keine Aufgaben auf der Watchlist.",
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+            } else {
+                items(watchlistTasks) { task ->
+                    WatchlistTaskCard(
+                        task = task,
+                        selectedDate = selectedDate,
+                        children = data.children
                     )
                 }
             }
         }
 
         item {
-            Spacer(
-                modifier = Modifier.height(24.dp)
-            )
+            Spacer(modifier = Modifier.height(24.dp))
 
             if (canEdit) {
                 Text(
@@ -206,9 +269,7 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.headlineSmall
                 )
 
-                Spacer(
-                    modifier = Modifier.height(8.dp)
-                )
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Row {
                     Button(
@@ -219,9 +280,7 @@ fun SettingsScreen(
                         Text("Aufgaben bearbeiten")
                     }
 
-                    Spacer(
-                        modifier = Modifier.padding(8.dp)
-                    )
+                    Spacer(modifier = Modifier.padding(8.dp))
 
                     Button(
                         onClick = {
@@ -231,9 +290,7 @@ fun SettingsScreen(
                         Text("Shop bearbeiten")
                     }
 
-                    Spacer(
-                        modifier = Modifier.padding(8.dp)
-                    )
+                    Spacer(modifier = Modifier.padding(8.dp))
 
                     Button(
                         onClick = {
@@ -244,9 +301,7 @@ fun SettingsScreen(
                     }
                 }
 
-                Spacer(
-                    modifier = Modifier.height(24.dp)
-                )
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
             if (selectedChild?.role == UserRole.ADMIN) {
@@ -258,54 +313,68 @@ fun SettingsScreen(
                     Text("Demo-Daten zurücksetzen")
                 }
 
-                Spacer(
-                    modifier = Modifier.height(24.dp)
-                )
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
-            Text(
-                text = if (canEdit) {
-                    "Log"
-                } else {
-                    "Mein Log"
-                },
-                style = MaterialTheme.typography.headlineSmall
-            )
-
             if (canEdit) {
+                Button(
+                    onClick = {
+                        showLogs = !showLogs
+                    }
+                ) {
+                    Text(
+                        if (showLogs) {
+                            "Logs ausblenden"
+                        } else {
+                            "Logs anzeigen"
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+            } else {
+                Text(
+                    text = "Mein Log",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            if (canEdit && showLogs) {
                 Text(
                     text = "Einträge lange drücken, um sie rückgängig zu machen.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
                 )
-            }
 
-            Spacer(
-                modifier = Modifier.height(8.dp)
-            )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
         }
 
-        if (visibleLogs.isEmpty()) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Noch keine Einträge vorhanden.",
-                        modifier = Modifier.padding(16.dp)
+        if (!canEdit || showLogs) {
+            if (visibleLogs.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Noch keine Einträge vorhanden.",
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+            } else {
+                items(visibleLogs) { log ->
+                    LogCard(
+                        log = log,
+                        canUndo = canEdit,
+                        onUndo = {
+                            onUndoLogEntry(log.id)
+                        }
                     )
                 }
-            }
-        } else {
-            items(visibleLogs) { log ->
-                LogCard(
-                    log = log,
-                    canUndo = canEdit,
-                    onUndo = {
-                        onUndoLogEntry(log.id)
-                    }
-                )
             }
         }
     }
@@ -357,9 +426,7 @@ fun SettingsScreen(
                 Text("Demo-Daten zurücksetzen?")
             },
             text = {
-                Text(
-                    "Alle aktuellen Daten werden durch Demo-Daten ersetzt."
-                )
+                Text("Alle aktuellen Daten werden durch Demo-Daten ersetzt.")
             },
             dismissButton = {
                 TextButton(
@@ -381,5 +448,103 @@ fun SettingsScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun WatchlistTaskCard(
+    task: TaskItem,
+    selectedDate: LocalDate,
+    children: List<Child>
+) {
+    val selectedDateText = selectedDate.toString()
+    val isDoneToday =
+        when (task.completionMode) {
+            TaskCompletionMode.ONCE_TOTAL -> {
+                task.completions.any { completion ->
+                    completion.date == selectedDateText
+                }
+            }
+
+            TaskCompletionMode.EACH_PERSON -> {
+                val relevantChildren =
+                    if (task.assignmentType == TaskAssignmentType.ASSIGNED && task.assignedChildId != null) {
+                        children.filter { child ->
+                            child.id == task.assignedChildId
+                        }
+                    } else {
+                        children.filter { child ->
+                            child.role == UserRole.CHILD
+                        }
+                    }
+
+                relevantChildren.isNotEmpty() &&
+                        relevantChildren.all { child ->
+                            task.completions.any { completion ->
+                                completion.childId == child.id &&
+                                        completion.date == selectedDateText
+                            }
+                        }
+            }
+        }
+
+    val assignedName =
+        task.assignedChildId?.let { childId ->
+            children.firstOrNull { child ->
+                child.id == childId
+            }?.name
+        }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 1.dp
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = if (isDoneToday) {
+                    "✅ ${task.title}"
+                } else {
+                    "⬜ ${task.title}"
+                },
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            if (task.description.isNotBlank()) {
+                Text(
+                    text = task.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Text(
+                text = buildString {
+                    append(task.rewardCoins)
+                    append(" Coins")
+
+                    if (assignedName != null) {
+                        append(" · ")
+                        append(assignedName)
+                    }
+
+                    append(" · ")
+                    append(
+                        if (isDoneToday) {
+                            "Heute erledigt"
+                        } else {
+                            "Heute noch offen"
+                        }
+                    )
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }

@@ -78,8 +78,8 @@ fun SettingsScreenChildPreview() {
         selectedDate = LocalDate.now(),
         jsonText = "",
 
-        onAddTask = { _, _, _, _, _, _, _, _, _, _ -> },
-        onUpdateTask = { _, _, _, _, _, _, _, _, _, _, _ -> },
+        onAddTask = { _, _, _, _, _, _, _, _, _, _, _ -> },
+        onUpdateTask = { _, _, _, _, _, _, _, _, _, _, _, _ -> },
         onDeleteTask = {},
 
         onAddShopItem = { _, _, _ -> },
@@ -115,8 +115,8 @@ fun SettingsScreenAdminPreview() {
         selectedDate = LocalDate.now(),
         jsonText = "",
 
-        onAddTask = { _, _, _, _, _, _, _, _, _, _ -> },
-        onUpdateTask = { _, _, _, _, _, _, _, _, _, _, _ -> },
+        onAddTask = { _, _, _, _, _, _, _, _, _, _, _ -> },
+        onUpdateTask = { _, _, _, _, _, _, _, _, _, _, _, _ -> },
         onDeleteTask = {},
 
         onAddShopItem = { _, _, _ -> },

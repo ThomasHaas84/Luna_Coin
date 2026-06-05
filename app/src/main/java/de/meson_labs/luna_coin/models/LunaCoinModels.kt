@@ -68,7 +68,8 @@ data class TaskItem(
     val startDate: String = "",
     val dueDate: String? = null,
     val weeklyDay: DayOfWeekName? = null,
-    val completions: List<TaskCompletion> = emptyList()
+    val completions: List<TaskCompletion> = emptyList(),
+    val isWatchlist: Boolean = false
 )
 
 @Serializable
