@@ -1,6 +1,8 @@
 package de.meson_labs.luna_coin.screens
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -29,10 +31,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -249,7 +256,7 @@ fun LuckyWheelDialog(
                             color = Color.Black.copy(alpha = 0.18f),
                             radius = radius,
                             center = center,
-                            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                            style = Stroke(
                                 width = 4.dp.toPx()
                             )
                         )
@@ -296,6 +303,12 @@ fun LuckyWheelDialog(
                     )
                 }
 
+                if (result?.isFortuneCookie == true) {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    FortuneCookieBreakAnimation()
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
@@ -311,6 +324,292 @@ fun LuckyWheelDialog(
             ) {
                 Text("OK")
             }
+        }
+    )
+}
+
+@Composable
+private fun FortuneCookieBreakAnimation() {
+    val progress = remember {
+        Animatable(0f)
+    }
+
+    LaunchedEffect(Unit) {
+        progress.snapTo(0f)
+
+        progress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(
+                durationMillis = 900,
+                easing = FastOutSlowInEasing
+            )
+        )
+    }
+
+    Canvas(
+        modifier = Modifier.size(
+            width = 220.dp,
+            height = 110.dp
+        )
+    ) {
+        val animatedProgress = progress.value
+
+        val centerY = size.height * 0.56f
+        val centerX = size.width / 2f
+
+        val leftOffset = -42.dp.toPx() * animatedProgress
+        val rightOffset = 42.dp.toPx() * animatedProgress
+        val lift = -10.dp.toPx() * animatedProgress
+
+        val cookieBase = Color(0xFFD89428)
+        val cookieEdge = Color(0xFF8F5412)
+        val cookieLight = Color(0xFFF7C766)
+        val cookieShadow = Color(0xFF6F3F0B)
+
+        val paperAlpha = ((animatedProgress - 0.25f) / 0.75f)
+            .coerceIn(0f, 1f)
+
+        drawOval(
+            color = Color.Black.copy(alpha = 0.14f),
+            topLeft = Offset(
+                x = centerX - 66.dp.toPx(),
+                y = centerY + 22.dp.toPx()
+            ),
+            size = Size(
+                width = 132.dp.toPx(),
+                height = 18.dp.toPx()
+            )
+        )
+
+        rotate(
+            degrees = -18f * animatedProgress,
+            pivot = Offset(centerX + leftOffset, centerY + lift)
+        ) {
+            translate(
+                left = leftOffset,
+                top = lift
+            ) {
+                drawCookieHalf(
+                    center = Offset(centerX, centerY),
+                    isLeft = true,
+                    cookieColor = cookieBase,
+                    cookieDark = cookieEdge,
+                    cookieLight = cookieLight,
+                    cookieShadow = cookieShadow
+                )
+            }
+        }
+
+        rotate(
+            degrees = 18f * animatedProgress,
+            pivot = Offset(centerX + rightOffset, centerY + lift)
+        ) {
+            translate(
+                left = rightOffset,
+                top = lift
+            ) {
+                drawCookieHalf(
+                    center = Offset(centerX, centerY),
+                    isLeft = false,
+                    cookieColor = cookieBase,
+                    cookieDark = cookieEdge,
+                    cookieLight = cookieLight,
+                    cookieShadow = cookieShadow
+                )
+            }
+        }
+
+        if (paperAlpha > 0f) {
+            val paperWidth = 94.dp.toPx()
+            val paperHeight = 19.dp.toPx()
+
+            drawRoundRect(
+                color = Color.White.copy(alpha = paperAlpha),
+                topLeft = Offset(
+                    x = centerX - paperWidth / 2f,
+                    y = centerY - 12.dp.toPx()
+                ),
+                size = Size(
+                    width = paperWidth,
+                    height = paperHeight
+                ),
+                cornerRadius = CornerRadius(
+                    x = 6.dp.toPx(),
+                    y = 6.dp.toPx()
+                )
+            )
+
+            drawLine(
+                color = Color(0xFFCBD5E1).copy(alpha = paperAlpha),
+                start = Offset(centerX - 32.dp.toPx(), centerY - 4.dp.toPx()),
+                end = Offset(centerX + 32.dp.toPx(), centerY - 4.dp.toPx()),
+                strokeWidth = 1.6.dp.toPx()
+            )
+
+            drawLine(
+                color = Color(0xFFCBD5E1).copy(alpha = paperAlpha * 0.8f),
+                start = Offset(centerX - 24.dp.toPx(), centerY + 3.dp.toPx()),
+                end = Offset(centerX + 24.dp.toPx(), centerY + 3.dp.toPx()),
+                strokeWidth = 1.3.dp.toPx()
+            )
+        }
+    }
+}
+
+private fun DrawScope.drawCookieHalf(
+    center: Offset,
+    isLeft: Boolean,
+    cookieColor: Color,
+    cookieDark: Color,
+    cookieLight: Color,
+    cookieShadow: Color
+) {
+    val width = 64.dp.toPx()
+    val height = 58.dp.toPx()
+
+    val path = Path()
+
+    if (isLeft) {
+        path.moveTo(center.x + 2.dp.toPx(), center.y - height / 2f)
+
+        path.cubicTo(
+            center.x - 48.dp.toPx(),
+            center.y - 38.dp.toPx(),
+            center.x - 72.dp.toPx(),
+            center.y - 4.dp.toPx(),
+            center.x - 54.dp.toPx(),
+            center.y + 30.dp.toPx()
+        )
+
+        path.cubicTo(
+            center.x - 36.dp.toPx(),
+            center.y + 52.dp.toPx(),
+            center.x - 6.dp.toPx(),
+            center.y + 34.dp.toPx(),
+            center.x + 1.dp.toPx(),
+            center.y + 24.dp.toPx()
+        )
+
+        path.lineTo(center.x - 8.dp.toPx(), center.y + 13.dp.toPx())
+        path.lineTo(center.x + 4.dp.toPx(), center.y + 3.dp.toPx())
+        path.lineTo(center.x - 5.dp.toPx(), center.y - 8.dp.toPx())
+        path.lineTo(center.x + 3.dp.toPx(), center.y - 18.dp.toPx())
+        path.close()
+    } else {
+        path.moveTo(center.x - 2.dp.toPx(), center.y - height / 2f)
+
+        path.cubicTo(
+            center.x + 48.dp.toPx(),
+            center.y - 38.dp.toPx(),
+            center.x + 72.dp.toPx(),
+            center.y - 4.dp.toPx(),
+            center.x + 54.dp.toPx(),
+            center.y + 30.dp.toPx()
+        )
+
+        path.cubicTo(
+            center.x + 36.dp.toPx(),
+            center.y + 52.dp.toPx(),
+            center.x + 6.dp.toPx(),
+            center.y + 34.dp.toPx(),
+            center.x - 1.dp.toPx(),
+            center.y + 24.dp.toPx()
+        )
+
+        path.lineTo(center.x + 8.dp.toPx(), center.y + 13.dp.toPx())
+        path.lineTo(center.x - 4.dp.toPx(), center.y + 3.dp.toPx())
+        path.lineTo(center.x + 5.dp.toPx(), center.y - 8.dp.toPx())
+        path.lineTo(center.x - 3.dp.toPx(), center.y - 18.dp.toPx())
+        path.close()
+    }
+
+    drawPath(
+        path = path,
+        color = cookieColor
+    )
+
+    drawPath(
+        path = path,
+        color = cookieDark.copy(alpha = 0.9f),
+        style = Stroke(
+            width = 3.dp.toPx()
+        )
+    )
+
+    drawOval(
+        color = cookieLight.copy(alpha = 0.38f),
+        topLeft = if (isLeft) {
+            Offset(center.x - 51.dp.toPx(), center.y - 24.dp.toPx())
+        } else {
+            Offset(center.x + 12.dp.toPx(), center.y - 24.dp.toPx())
+        },
+        size = Size(
+            width = 36.dp.toPx(),
+            height = 18.dp.toPx()
+        )
+    )
+
+    drawArc(
+        color = cookieShadow.copy(alpha = 0.25f),
+        startAngle = if (isLeft) 95f else 265f,
+        sweepAngle = if (isLeft) 115f else -115f,
+        useCenter = false,
+        topLeft = if (isLeft) {
+            Offset(center.x - 58.dp.toPx(), center.y - 17.dp.toPx())
+        } else {
+            Offset(center.x + 6.dp.toPx(), center.y - 17.dp.toPx())
+        },
+        size = Size(
+            width = 58.dp.toPx(),
+            height = 52.dp.toPx()
+        ),
+        style = Stroke(
+            width = 3.dp.toPx()
+        )
+    )
+
+    val crackX = if (isLeft) center.x - 3.dp.toPx() else center.x + 3.dp.toPx()
+
+    drawLine(
+        color = cookieShadow.copy(alpha = 0.55f),
+        start = Offset(crackX, center.y - 18.dp.toPx()),
+        end = Offset(
+            x = crackX + if (isLeft) -8.dp.toPx() else 8.dp.toPx(),
+            y = center.y - 7.dp.toPx()
+        ),
+        strokeWidth = 2.dp.toPx()
+    )
+
+    drawLine(
+        color = cookieShadow.copy(alpha = 0.45f),
+        start = Offset(
+            x = crackX + if (isLeft) -8.dp.toPx() else 8.dp.toPx(),
+            y = center.y - 7.dp.toPx()
+        ),
+        end = Offset(
+            x = crackX + if (isLeft) -2.dp.toPx() else 2.dp.toPx(),
+            y = center.y + 7.dp.toPx()
+        ),
+        strokeWidth = 1.6.dp.toPx()
+    )
+
+    drawCircle(
+        color = cookieDark.copy(alpha = 0.28f),
+        radius = 2.2.dp.toPx(),
+        center = if (isLeft) {
+            Offset(center.x - 35.dp.toPx(), center.y + 8.dp.toPx())
+        } else {
+            Offset(center.x + 35.dp.toPx(), center.y + 8.dp.toPx())
+        }
+    )
+
+    drawCircle(
+        color = cookieDark.copy(alpha = 0.22f),
+        radius = 1.7.dp.toPx(),
+        center = if (isLeft) {
+            Offset(center.x - 23.dp.toPx(), center.y - 12.dp.toPx())
+        } else {
+            Offset(center.x + 23.dp.toPx(), center.y - 12.dp.toPx())
         }
     )
 }
@@ -374,7 +673,37 @@ private fun createLuckyWheelSegments(): List<LuckyWheelSegment> {
         "Dein Glückskeks sagt: Morgen wartet neues Glück.",
         "Dein Glückskeks sagt: Das Sofa ruft, aber die Aufgabe ruft lauter.",
         "Dein Glückskeks sagt: Ordnung ist nur Chaos mit Plan.",
-        "Dein Glückskeks sagt: Ein Luna Coin kommt selten allein."
+        "Dein Glückskeks sagt: Ein Luna Coin kommt selten allein.",
+        "Dein Glückskeks sagt: Heute findest du etwas, das du gestern gesucht hast.",
+        "Dein Glückskeks sagt: Gute Laune ist ansteckend.",
+        "Dein Glückskeks sagt: Wer früh beginnt, hat früher Freizeit.",
+        "Dein Glückskeks sagt: Ein aufgeräumtes Zimmer bringt klare Gedanken.",
+        "Dein Glückskeks sagt: Manchmal ist ein kleiner Schritt ein großer Erfolg.",
+        "Dein Glückskeks sagt: Deine nächste gute Idee kommt überraschend.",
+        "Dein Glückskeks sagt: Heute lohnt es sich, neugierig zu sein.",
+        "Dein Glückskeks sagt: Freundlichkeit kostet keine Coins.",
+        "Dein Glückskeks sagt: Eine erledigte Aufgabe ist ein kleines Abenteuer.",
+        "Dein Glückskeks sagt: Glück versteckt sich oft in den kleinen Dingen.",
+        "Dein Glückskeks sagt: Wer hilft, gewinnt doppelt.",
+        "Dein Glückskeks sagt: Dein zukünftiges Ich bedankt sich fürs Aufräumen.",
+        "Dein Glückskeks sagt: Heute könnte dein Glückstag sein. Oder morgen.",
+        "Dein Glückskeks sagt: Jede große Leistung beginnt mit einem kleinen Klick.",
+        "Dein Glückskeks sagt: Ein bisschen Fleiß schlägt viel Ausreden.",
+        "Dein Glückskeks sagt: Es ist nie zu spät für einen guten Plan.",
+        "Dein Glückskeks sagt: Manchmal ist der Weg spannender als das Ziel.",
+        "Dein Glückskeks sagt: Gute Dinge kommen zu denen, die dranbleiben.",
+        "Dein Glückskeks sagt: Auch Helden müssen gelegentlich ihr Zimmer aufräumen.",
+        "Dein Glückskeks sagt: Heute könnte ein Keks genau die richtige Antwort sein.",
+        "Dein Glückskeks sagt: Wer Luna Coins sammelt, sammelt auch Geschichten.",
+        "Dein Glückskeks sagt: Eine Pause ist erlaubt, Aufgeben nicht.",
+        "Dein Glückskeks sagt: Das Universum mag Menschen, die ihre Aufgaben erledigen.",
+        "Dein Glückskeks sagt: Hinter der nächsten Ecke wartet vielleicht eine Überraschung.",
+        "Dein Glückskeks sagt: Du bist näher am Ziel als du denkst.",
+        "Dein Glückskeks sagt: Selbst Drachen müssen manchmal ihre Socken wegräumen.",
+        "Dein Glückskeks sagt: Heute ist ein guter Tag, um etwas Neues auszuprobieren.",
+        "Dein Glückskeks sagt: Glück ist oft nur Fleiß in Verkleidung.",
+        "Dein Glückskeks sagt: Epstein hat sich nicht selbst umgebracht.",
+        "Dein Glückskeks sagt: Merz leck Eier."
     )
 
     return listOf(
