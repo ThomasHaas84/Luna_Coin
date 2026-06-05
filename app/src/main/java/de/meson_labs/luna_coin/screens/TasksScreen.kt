@@ -470,21 +470,23 @@ private fun AnimatedStrikeThroughText(
         Canvas(
             modifier = Modifier.matchParentSize()
         ) {
-            val y = size.height * 0.58f
+            if (progress > 0f) {
+                val y = size.height * 0.58f
 
-            drawLine(
-                color = lineColor,
-                start = Offset(
-                    x = 0f,
-                    y = y
-                ),
-                end = Offset(
-                    x = size.width * progress,
-                    y = y
-                ),
-                strokeWidth = 3.dp.toPx(),
-                cap = StrokeCap.Round
-            )
+                drawLine(
+                    color = lineColor,
+                    start = Offset(
+                        x = 0f,
+                        y = y
+                    ),
+                    end = Offset(
+                        x = size.width * progress,
+                        y = y
+                    ),
+                    strokeWidth = 3.dp.toPx(),
+                    cap = StrokeCap.Round
+                )
+            }
         }
     }
 }

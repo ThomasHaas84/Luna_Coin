@@ -21,6 +21,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +40,7 @@ import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.ShopItem
+import kotlinx.coroutines.delay
 
 @Composable
 fun ShopScreen(
@@ -56,80 +58,135 @@ fun ShopScreen(
         mutableStateOf(false)
     }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp)
-    ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = "Shop",
-                        style = MaterialTheme.typography.displaySmall
-                    )
+    var purchaseMessage by remember {
+        mutableStateOf<String?>(null)
+    }
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
+    var isPurchaseLocked by remember {
+        mutableStateOf(false)
+    }
+
+    LaunchedEffect(purchaseMessage) {
+        if (purchaseMessage != null) {
+            delay(3000)
+            purchaseMessage = null
+            isPurchaseLocked = false
+        }
+    }
+
+    Box(
+        modifier = modifier.fillMaxSize()
+    ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+        ) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = "${selectedChild?.name ?: ""}  ",
-                            style = MaterialTheme.typography.titleLarge
+                            text = "Shop",
+                            style = MaterialTheme.typography.displaySmall
                         )
 
-                        CoinDisplay(
-                            amount = selectedChild?.coins ?: 0
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "${selectedChild?.name ?: ""}  ",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+
+                            CoinDisplay(
+                                amount = selectedChild?.coins ?: 0
+                            )
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = onLogout
+                    ) {
+                        Text("Benutzer wechseln")
                     }
                 }
 
-                OutlinedButton(
-                    onClick = onLogout
-                ) {
-                    Text("Benutzer wechseln")
-                }
+                Spacer(
+                    modifier = Modifier.height(24.dp)
+                )
             }
 
-            Spacer(
-                modifier = Modifier.height(24.dp)
-            )
-        }
+            if (data.shopItems.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Noch keine Shop-Artikel vorhanden.",
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+            } else {
+                items(data.shopItems) { item ->
+                    ShopItemCard(
+                        item = item,
+                        currentCoins = selectedChild?.coins ?: 0,
+                        isPurchaseLocked = isPurchaseLocked,
+                        onBuyItem = {
+                            if (isPurchaseLocked) {
+                                return@ShopItemCard
+                            }
 
-        if (data.shopItems.isEmpty()) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Noch keine Shop-Artikel vorhanden.",
-                        modifier = Modifier.padding(16.dp)
+                            val hasEnoughCoins =
+                                (selectedChild?.coins ?: 0) >= item.priceCoins
+
+                            if (hasEnoughCoins) {
+                                isPurchaseLocked = true
+                                onBuyItem(item.id)
+
+                                purchaseMessage =
+                                    "Gekauft: ${item.title}\nLogeintrag wurde erstellt."
+
+                                if (item.title == "Gib mir Zucker!") {
+                                    showSugarVideo = true
+                                }
+                            } else {
+                                showNotEnoughCoinsDialog = true
+                            }
+                        }
                     )
                 }
             }
-        } else {
-            items(data.shopItems) { item ->
-                ShopItemCard(
-                    item = item,
-                    currentCoins = selectedChild?.coins ?: 0,
-                    onBuyItem = {
-                        val hasEnoughCoins =
-                            (selectedChild?.coins ?: 0) >= item.priceCoins
+        }
 
-                        if (hasEnoughCoins) {
-                            onBuyItem(item.id)
-
-                            if (item.title == "Gib mir Zucker!") {
-                                showSugarVideo = true
-                            }
-                        } else {
-                            showNotEnoughCoinsDialog = true
-                        }
-                    }
+        purchaseMessage?.let { message ->
+            Card(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(
+                        start = 24.dp,
+                        end = 24.dp,
+                        bottom = 24.dp
+                    ),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                ),
+                elevation = CardDefaults.cardElevation(
+                    defaultElevation = 12.dp
+                )
+            ) {
+                Text(
+                    text = message,
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
         }
@@ -156,19 +213,20 @@ fun ShopScreen(
 private fun ShopItemCard(
     item: ShopItem,
     currentCoins: Int,
+    isPurchaseLocked: Boolean,
     onBuyItem: () -> Unit
 ) {
     val canBuy = currentCoins >= item.priceCoins
 
     val buttonContainerColor =
-        if (canBuy) {
+        if (canBuy && !isPurchaseLocked) {
             MaterialTheme.colorScheme.primary
         } else {
             MaterialTheme.colorScheme.surfaceVariant
         }
 
     val buttonContentColor =
-        if (canBuy) {
+        if (canBuy && !isPurchaseLocked) {
             MaterialTheme.colorScheme.onPrimary
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant
@@ -216,14 +274,24 @@ private fun ShopItemCard(
                         color = MaterialTheme.colorScheme.error
                     )
                 }
+
+                if (isPurchaseLocked) {
+                    Text(
+                        text = "Kauf wird verarbeitet...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Button(
                 onClick = onBuyItem,
-                enabled = true,
+                enabled = !isPurchaseLocked,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = buttonContainerColor,
-                    contentColor = buttonContentColor
+                    contentColor = buttonContentColor,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             ) {
                 Text("Kaufen")
