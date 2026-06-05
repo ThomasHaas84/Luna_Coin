@@ -22,12 +22,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
@@ -37,6 +39,7 @@ import de.meson_labs.luna_coin.models.TaskCompletionMode
 import de.meson_labs.luna_coin.models.TaskItem
 import de.meson_labs.luna_coin.models.TaskRepeatType
 import de.meson_labs.luna_coin.models.UserRole
+import de.meson_labs.luna_coin.screens.LunaGifDialog
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 
@@ -96,6 +99,12 @@ fun SettingsScreen(
     var showAppSettings by remember { mutableStateOf(false) }
 
     var languageMessage by remember { mutableStateOf<String?>(null) }
+
+    var showLanguageGif by remember { mutableStateOf(false) }
+    var languageGifTitle by remember { mutableStateOf("") }
+    var languageGifMessage by remember { mutableStateOf("") }
+    var languageGifResId by remember { mutableIntStateOf(0) }
+
     var mimiModeEnabled by remember { mutableStateOf(false) }
 
     LaunchedEffect(languageMessage) {
@@ -229,7 +238,10 @@ fun SettingsScreen(
 
                                 TextButton(
                                     onClick = {
-                                        languageMessage = "Haha, gay..."
+                                        languageGifTitle = "Französisch"
+                                        languageGifMessage = "Haha, gay..."
+                                        languageGifResId = R.drawable.gay
+                                        showLanguageGif = true
                                     }
                                 ) {
                                     Text("Französisch")
@@ -568,6 +580,18 @@ fun SettingsScreen(
             onAddDogSchedule = onAddDogSchedule,
             onUpdateDogSchedule = onUpdateDogSchedule,
             onDeleteDogSchedule = onDeleteDogSchedule
+        )
+    }
+
+    if (showLanguageGif) {
+        LunaGifDialog(
+            title = languageGifTitle,
+            message = languageGifMessage,
+            gifResId = languageGifResId,
+            contentDescription = languageGifTitle,
+            onDismiss = {
+                showLanguageGif = false
+            }
         )
     }
 

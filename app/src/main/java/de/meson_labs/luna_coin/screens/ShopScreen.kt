@@ -201,7 +201,11 @@ fun ShopScreen(
     }
 
     if (showNotEnoughCoinsDialog) {
-        NotEnoughCoinsDialog(
+        LunaGifDialog(
+            title = "Computer sagt Nein",
+            message = "Dafür hast du leider nicht genug Coins.",
+            gifResId = R.drawable.nein,
+            contentDescription = "Computer sagt Nein",
             onDismiss = {
                 showNotEnoughCoinsDialog = false
             }
