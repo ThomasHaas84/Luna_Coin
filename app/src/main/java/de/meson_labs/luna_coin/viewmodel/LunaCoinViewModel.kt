@@ -9,7 +9,9 @@ import de.meson_labs.luna_coin.models.LogEntry
 import de.meson_labs.luna_coin.models.LogType
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.ShopItem
+import de.meson_labs.luna_coin.models.TaskCompletion
 import de.meson_labs.luna_coin.models.TaskItem
+import de.meson_labs.luna_coin.models.TaskRepeatType
 import de.meson_labs.luna_coin.storage.LunaCoinStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,19 +57,38 @@ class LunaCoinViewModel(
     fun completeTask(taskId: String) {
         val childId = _selectedChildId.value ?: return
         val currentData = _data.value
-        val task = currentData.tasks.firstOrNull { it.id == taskId } ?: return
+        val selectedDateText = _selectedDate.value.toString()
 
-        if (task.done) return
-        if (task.assignedChildId != null && task.assignedChildId != childId) return
+        val task = currentData.tasks.firstOrNull { task ->
+            task.id == taskId
+        } ?: return
+
+        val alreadyDoneToday = task.completions.any { completion ->
+            completion.childId == childId &&
+                    completion.date == selectedDateText
+        }
+
+        if (alreadyDoneToday) return
+
+        if (
+            task.repeatType == TaskRepeatType.WEEKLY &&
+            task.assignedChildId != childId
+        ) {
+            return
+        }
 
         val timestamp = nowText()
+
+        val newCompletion = TaskCompletion(
+            childId = childId,
+            date = selectedDateText,
+            timestamp = timestamp
+        )
 
         val updatedTasks = currentData.tasks.map { currentTask ->
             if (currentTask.id == taskId) {
                 currentTask.copy(
-                    done = true,
-                    doneByChildId = childId,
-                    doneTimestamp = timestamp
+                    completions = currentTask.completions + newCompletion
                 )
             } else {
                 currentTask
@@ -84,7 +105,9 @@ class LunaCoinViewModel(
             }
         }
 
-        val child = currentData.children.firstOrNull { it.id == childId }
+        val child = currentData.children.firstOrNull { currentChild ->
+            currentChild.id == childId
+        }
 
         val log = LogEntry(
             id = uuid(),
@@ -107,8 +130,14 @@ class LunaCoinViewModel(
     fun buyShopItem(shopItemId: String) {
         val childId = _selectedChildId.value ?: return
         val currentData = _data.value
-        val child = currentData.children.firstOrNull { it.id == childId } ?: return
-        val item = currentData.shopItems.firstOrNull { it.id == shopItemId } ?: return
+
+        val child = currentData.children.firstOrNull { currentChild ->
+            currentChild.id == childId
+        } ?: return
+
+        val item = currentData.shopItems.firstOrNull { shopItem ->
+            shopItem.id == shopItemId
+        } ?: return
 
         if (child.coins < item.priceCoins) return
 
@@ -143,7 +172,10 @@ class LunaCoinViewModel(
 
     fun undoLogEntry(logId: String) {
         val currentData = _data.value
-        val log = currentData.logs.firstOrNull { it.id == logId } ?: return
+
+        val log = currentData.logs.firstOrNull { entry ->
+            entry.id == logId
+        } ?: return
 
         val updatedChildren = currentData.children.map { child ->
             if (child.id == log.childId) {
@@ -155,7 +187,9 @@ class LunaCoinViewModel(
             }
         }
 
-        val updatedLogs = currentData.logs.filterNot { it.id == logId }
+        val updatedLogs = currentData.logs.filterNot { entry ->
+            entry.id == logId
+        }
 
         updateData(
             currentData.copy(
@@ -169,7 +203,9 @@ class LunaCoinViewModel(
         title: String,
         description: String,
         rewardCoins: Int,
-        date: String
+        repeatType: TaskRepeatType,
+        assignedChildId: String?,
+        weeklyDay: DayOfWeekName?
     ) {
         val currentData = _data.value
 
@@ -178,9 +214,19 @@ class LunaCoinViewModel(
             title = title,
             description = description,
             rewardCoins = rewardCoins,
-            assignedChildId = null,
-            date = date,
-            done = false
+            assignedChildId = if (repeatType == TaskRepeatType.WEEKLY) {
+                assignedChildId
+            } else {
+                null
+            },
+            date = "",
+            repeatType = repeatType,
+            weeklyDay = if (repeatType == TaskRepeatType.WEEKLY) {
+                weeklyDay
+            } else {
+                null
+            },
+            completions = emptyList()
         )
 
         updateData(
@@ -195,7 +241,9 @@ class LunaCoinViewModel(
         title: String,
         description: String,
         rewardCoins: Int,
-        date: String
+        repeatType: TaskRepeatType,
+        assignedChildId: String?,
+        weeklyDay: DayOfWeekName?
     ) {
         val currentData = _data.value
 
@@ -205,7 +253,17 @@ class LunaCoinViewModel(
                     title = title,
                     description = description,
                     rewardCoins = rewardCoins,
-                    date = date
+                    assignedChildId = if (repeatType == TaskRepeatType.WEEKLY) {
+                        assignedChildId
+                    } else {
+                        null
+                    },
+                    repeatType = repeatType,
+                    weeklyDay = if (repeatType == TaskRepeatType.WEEKLY) {
+                        weeklyDay
+                    } else {
+                        null
+                    }
                 )
             } else {
                 task
@@ -224,7 +282,9 @@ class LunaCoinViewModel(
 
         updateData(
             currentData.copy(
-                tasks = currentData.tasks.filterNot { it.id == taskId }
+                tasks = currentData.tasks.filterNot { task ->
+                    task.id == taskId
+                }
             )
         )
     }
@@ -282,7 +342,9 @@ class LunaCoinViewModel(
 
         updateData(
             currentData.copy(
-                shopItems = currentData.shopItems.filterNot { it.id == itemId }
+                shopItems = currentData.shopItems.filterNot { item ->
+                    item.id == itemId
+                }
             )
         )
     }
@@ -352,7 +414,9 @@ class LunaCoinViewModel(
 
         updateData(
             currentData.copy(
-                dogSchedule = currentData.dogSchedule.filterNot { it.id == scheduleId }
+                dogSchedule = currentData.dogSchedule.filterNot { entry ->
+                    entry.id == scheduleId
+                }
             )
         )
     }
@@ -383,8 +447,14 @@ class LunaCoinViewModel(
             val fixedData = savedData.copy(
                 children = savedData.children.map { child ->
                     when (child.id) {
-                        "parent_lisa" -> child.copy(password = "5611")
-                        "admin_thomas" -> child.copy(password = "5761")
+                        "parent_lisa" -> child.copy(
+                            password = "6511"
+                        )
+
+                        "admin_thomas" -> child.copy(
+                            password = "5761"
+                        )
+
                         else -> child
                     }
                 }

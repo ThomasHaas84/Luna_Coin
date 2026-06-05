@@ -28,16 +28,29 @@ enum class UserRole {
 }
 
 @Serializable
+enum class TaskRepeatType {
+    DAILY,
+    WEEKLY
+}
+
+@Serializable
+data class TaskCompletion(
+    val childId: String,
+    val date: String,
+    val timestamp: String
+)
+
+@Serializable
 data class TaskItem(
     val id: String,
     val title: String,
     val description: String = "",
     val rewardCoins: Int,
     val assignedChildId: String? = null,
-    val date: String,
-    val done: Boolean = false,
-    val doneByChildId: String? = null,
-    val doneTimestamp: String? = null
+    val date: String = "",
+    val repeatType: TaskRepeatType = TaskRepeatType.DAILY,
+    val weeklyDay: DayOfWeekName? = null,
+    val completions: List<TaskCompletion> = emptyList()
 )
 
 @Serializable

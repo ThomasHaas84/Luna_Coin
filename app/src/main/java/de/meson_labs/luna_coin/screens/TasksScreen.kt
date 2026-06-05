@@ -37,6 +37,7 @@ import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.DogScheduleItem
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.TaskItem
+import de.meson_labs.luna_coin.models.TaskRepeatType
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -55,17 +56,23 @@ fun TasksScreen(
 ) {
     val childId = selectedChild?.id
     val dateText = selectedDate.toString()
+    val selectedDay = selectedDate.toDayOfWeekName()
 
     val tasksForDate = data.tasks.filter { task ->
-        task.date == dateText &&
-                (
-                        task.assignedChildId == null ||
-                                task.assignedChildId == childId
-                        )
+        when (task.repeatType) {
+            TaskRepeatType.DAILY -> {
+                true
+            }
+
+            TaskRepeatType.WEEKLY -> {
+                task.assignedChildId == childId &&
+                        task.weeklyDay == selectedDay
+            }
+        }
     }
 
     val dogTasksForDay = data.dogSchedule.filter { dogTask ->
-        dogTask.dayOfWeek == selectedDate.toDayOfWeekName()
+        dogTask.dayOfWeek == selectedDay
     }
 
     LazyColumn(
@@ -110,6 +117,8 @@ fun TasksScreen(
                 TaskCard(
                     task = task,
                     children = data.children,
+                    selectedChild = selectedChild,
+                    selectedDate = selectedDate,
                     onCompleteTask = onCompleteTask
                 )
             }
@@ -123,7 +132,7 @@ fun TasksScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Hunde-Plan",
+                text = "Hund-Plan",
                 style = MaterialTheme.typography.headlineSmall
             )
 
@@ -133,7 +142,7 @@ fun TasksScreen(
         if (dogTasksForDay.isEmpty()) {
             item {
                 EmptyCard(
-                    text = "Für diesen Tag ist kein Hunde-Dienst eingetragen."
+                    text = "Für diesen Tag ist kein Hund-Dienst eingetragen."
                 )
             }
         } else {
@@ -174,7 +183,7 @@ private fun HeaderRow(
             ) {
                 Text(
                     text = "${selectedChild?.name ?: ""}  ",
-                    style = MaterialTheme.typography.titleLarge
+                    style = MaterialTheme.typography.headlineSmall
                 )
 
                 CoinDisplay(
@@ -253,12 +262,22 @@ private fun DateSelector(
 private fun TaskCard(
     task: TaskItem,
     children: List<Child>,
+    selectedChild: Child?,
+    selectedDate: LocalDate,
     onCompleteTask: (String) -> Unit
 ) {
-    val assignedName = task.assignedChildId?.let { childId ->
+    val childId = selectedChild?.id
+    val dateText = selectedDate.toString()
+
+    val assignedName = task.assignedChildId?.let { assignedChildId ->
         children.firstOrNull { child ->
-            child.id == childId
+            child.id == assignedChildId
         }?.name
+    }
+
+    val isDone = task.completions.any { completion ->
+        completion.childId == childId &&
+                completion.date == dateText
     }
 
     Card(
@@ -276,13 +295,13 @@ private fun TaskCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
-                checked = task.done,
+                checked = isDone,
                 onCheckedChange = {
-                    if (!task.done) {
+                    if (!isDone) {
                         onCompleteTask(task.id)
                     }
                 },
-                enabled = !task.done
+                enabled = !isDone
             )
 
             Column(
@@ -292,14 +311,14 @@ private fun TaskCard(
             ) {
                 AnimatedStrikeThroughText(
                     text = task.title,
-                    strikeThrough = task.done,
+                    strikeThrough = isDone,
                     style = MaterialTheme.typography.titleMedium
                 )
 
                 if (task.description.isNotBlank()) {
                     AnimatedStrikeThroughText(
                         text = task.description,
-                        strikeThrough = task.done,
+                        strikeThrough = isDone,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -309,7 +328,8 @@ private fun TaskCard(
                 ) {
                     CoinDisplay(
                         amount = task.rewardCoins,
-                        showPlus = true
+                        showPlus = true,
+                        coinSize = 32.dp
                     )
 
                     if (assignedName != null) {
@@ -318,9 +338,17 @@ private fun TaskCard(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
+
+                    if (task.repeatType == TaskRepeatType.WEEKLY) {
+                        Text(
+                            text = " · Wöchentlich",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
-                if (task.done) {
+                if (isDone) {
                     Text(
                         text = "Erledigt",
                         style = MaterialTheme.typography.bodySmall

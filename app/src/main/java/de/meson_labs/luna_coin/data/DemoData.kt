@@ -6,16 +6,13 @@ import de.meson_labs.luna_coin.models.DogScheduleItem
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.ShopItem
 import de.meson_labs.luna_coin.models.TaskItem
+import de.meson_labs.luna_coin.models.TaskRepeatType
 import de.meson_labs.luna_coin.models.UserRole
-import java.time.LocalDate
 import java.util.UUID
 
 object DemoData {
 
     fun create(): LunaCoinData {
-        val today = LocalDate.now()
-        val dateText = today.toString()
-
         val clara = Child(
             id = "child_clara",
             name = "Clara",
@@ -100,7 +97,7 @@ object DemoData {
                 description = "Vor dem Essen Teller und Besteck auf den Tisch legen.",
                 rewardCoins = 2,
                 assignedChildId = null,
-                date = dateText
+                repeatType = TaskRepeatType.DAILY
             ),
             TaskItem(
                 id = uuid(),
@@ -108,7 +105,7 @@ object DemoData {
                 description = "Sauberes Geschirr einsortieren.",
                 rewardCoins = 4,
                 assignedChildId = null,
-                date = dateText
+                repeatType = TaskRepeatType.DAILY
             ),
             TaskItem(
                 id = uuid(),
@@ -116,7 +113,7 @@ object DemoData {
                 description = "Boden frei räumen und Spielsachen einsortieren.",
                 rewardCoins = 5,
                 assignedChildId = null,
-                date = dateText
+                repeatType = TaskRepeatType.DAILY
             ),
             TaskItem(
                 id = uuid(),
@@ -124,7 +121,25 @@ object DemoData {
                 description = "Mülleimer leeren.",
                 rewardCoins = 3,
                 assignedChildId = null,
-                date = dateText
+                repeatType = TaskRepeatType.DAILY
+            ),
+            TaskItem(
+                id = uuid(),
+                title = "Bad putzen",
+                description = "Waschbecken, Toilette und Boden sauber machen.",
+                rewardCoins = 12,
+                assignedChildId = felix.id,
+                repeatType = TaskRepeatType.WEEKLY,
+                weeklyDay = DayOfWeekName.SATURDAY
+            ),
+            TaskItem(
+                id = uuid(),
+                title = "Treppe kehren",
+                description = "Die Treppe gründlich kehren.",
+                rewardCoins = 10,
+                assignedChildId = max.id,
+                repeatType = TaskRepeatType.WEEKLY,
+                weeklyDay = DayOfWeekName.SATURDAY
             )
         )
 

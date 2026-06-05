@@ -77,8 +77,8 @@ fun SettingsScreenChildPreview() {
         selectedChild = demoData.children.firstOrNull(),
         selectedDate = LocalDate.now(),
         jsonText = "",
-        onAddTask = { _, _, _, _ -> },
-        onUpdateTask = { _, _, _, _, _ -> },
+        onAddTask = { _, _, _, _, _, _ -> },
+        onUpdateTask = { _, _, _, _, _, _, _ -> },
         onDeleteTask = {},
         onAddShopItem = { _, _, _ -> },
         onUpdateShopItem = { _, _, _, _ -> },
@@ -86,8 +86,8 @@ fun SettingsScreenChildPreview() {
         onAddDogSchedule = { _, _, _, _, _, _ -> },
         onUpdateDogSchedule = { _, _, _, _, _, _, _ -> },
         onDeleteDogSchedule = {},
-        onResetDemoData = {},
         onUndoLogEntry = {},
+        onResetDemoData = {},
         onLogout = {}
     )
 }
@@ -101,15 +101,17 @@ fun SettingsScreenChildPreview() {
 @Composable
 fun SettingsScreenAdminPreview() {
     val demoData = DemoData.create()
-    val admin = demoData.children.firstOrNull { it.name == "Thomas" }
+    val admin = demoData.children.firstOrNull { child ->
+        child.name == "Thomas"
+    }
 
     SettingsScreen(
         data = demoData,
         selectedChild = admin,
         selectedDate = LocalDate.now(),
         jsonText = "",
-        onAddTask = { _, _, _, _ -> },
-        onUpdateTask = { _, _, _, _, _ -> },
+        onAddTask = { _, _, _, _, _, _ -> },
+        onUpdateTask = { _, _, _, _, _, _, _ -> },
         onDeleteTask = {},
         onAddShopItem = { _, _, _ -> },
         onUpdateShopItem = { _, _, _, _ -> },
@@ -117,8 +119,8 @@ fun SettingsScreenAdminPreview() {
         onAddDogSchedule = { _, _, _, _, _, _ -> },
         onUpdateDogSchedule = { _, _, _, _, _, _, _ -> },
         onDeleteDogSchedule = {},
-        onResetDemoData = {},
         onUndoLogEntry = {},
+        onResetDemoData = {},
         onLogout = {}
     )
 }

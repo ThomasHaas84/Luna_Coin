@@ -29,6 +29,7 @@ import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.LunaCoinData
+import de.meson_labs.luna_coin.models.TaskRepeatType
 import de.meson_labs.luna_coin.models.UserRole
 import java.time.LocalDate
 
@@ -39,8 +40,8 @@ fun SettingsScreen(
     selectedChild: Child?,
     selectedDate: LocalDate,
     jsonText: String,
-    onAddTask: (String, String, Int, String) -> Unit,
-    onUpdateTask: (String, String, String, Int, String) -> Unit,
+    onAddTask: (String, String, Int, TaskRepeatType, String?, DayOfWeekName?) -> Unit,
+    onUpdateTask: (String, String, String, Int, TaskRepeatType, String?, DayOfWeekName?) -> Unit,
     onDeleteTask: (String) -> Unit,
     onAddShopItem: (String, String, Int) -> Unit,
     onUpdateShopItem: (String, String, String, Int) -> Unit,
@@ -159,6 +160,11 @@ fun SettingsScreen(
 
                     CoinDisplay(
                         amount = child.coins
+                    )
+
+                    Text(
+                        text = " · ${roleText(child.role)}",
+                        style = MaterialTheme.typography.bodyLarge
                     )
                 }
             }
@@ -282,7 +288,7 @@ fun SettingsScreen(
     if (showTaskEditor) {
         TaskEditorDialog(
             tasks = data.tasks,
-            defaultDate = selectedDate.toString(),
+            children = data.children,
             onDismiss = {
                 showTaskEditor = false
             },
