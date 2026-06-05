@@ -77,15 +77,19 @@ fun SettingsScreenChildPreview() {
         selectedChild = demoData.children.firstOrNull(),
         selectedDate = LocalDate.now(),
         jsonText = "",
-        onAddTask = { _, _, _, _, _, _ -> },
-        onUpdateTask = { _, _, _, _, _, _, _ -> },
+
+        onAddTask = { _, _, _, _, _, _, _, _, _, _ -> },
+        onUpdateTask = { _, _, _, _, _, _, _, _, _, _, _ -> },
         onDeleteTask = {},
+
         onAddShopItem = { _, _, _ -> },
         onUpdateShopItem = { _, _, _, _ -> },
         onDeleteShopItem = {},
+
         onAddDogSchedule = { _, _, _, _, _, _ -> },
         onUpdateDogSchedule = { _, _, _, _, _, _, _ -> },
         onDeleteDogSchedule = {},
+
         onUndoLogEntry = {},
         onResetDemoData = {},
         onLogout = {}
@@ -110,15 +114,19 @@ fun SettingsScreenAdminPreview() {
         selectedChild = admin,
         selectedDate = LocalDate.now(),
         jsonText = "",
-        onAddTask = { _, _, _, _, _, _ -> },
-        onUpdateTask = { _, _, _, _, _, _, _ -> },
+
+        onAddTask = { _, _, _, _, _, _, _, _, _, _ -> },
+        onUpdateTask = { _, _, _, _, _, _, _, _, _, _, _ -> },
         onDeleteTask = {},
+
         onAddShopItem = { _, _, _ -> },
         onUpdateShopItem = { _, _, _, _ -> },
         onDeleteShopItem = {},
+
         onAddDogSchedule = { _, _, _, _, _, _ -> },
         onUpdateDogSchedule = { _, _, _, _, _, _, _ -> },
         onDeleteDogSchedule = {},
+
         onUndoLogEntry = {},
         onResetDemoData = {},
         onLogout = {}

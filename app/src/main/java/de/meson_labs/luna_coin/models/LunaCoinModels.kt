@@ -28,9 +28,24 @@ enum class UserRole {
 }
 
 @Serializable
+enum class TaskAssignmentType {
+    FREE_FOR_ALL,
+    ASSIGNED
+}
+
+@Serializable
+enum class TaskCompletionMode {
+    EACH_PERSON,
+    ONCE_TOTAL
+}
+
+@Serializable
 enum class TaskRepeatType {
     DAILY,
-    WEEKLY
+    WEEKLY,
+    BIWEEKLY,
+    YEARLY,
+    EVERY_TWO_YEARS
 }
 
 @Serializable
@@ -46,9 +61,12 @@ data class TaskItem(
     val title: String,
     val description: String = "",
     val rewardCoins: Int,
+    val assignmentType: TaskAssignmentType = TaskAssignmentType.FREE_FOR_ALL,
+    val completionMode: TaskCompletionMode = TaskCompletionMode.EACH_PERSON,
     val assignedChildId: String? = null,
-    val date: String = "",
     val repeatType: TaskRepeatType = TaskRepeatType.DAILY,
+    val startDate: String = "",
+    val dueDate: String? = null,
     val weeklyDay: DayOfWeekName? = null,
     val completions: List<TaskCompletion> = emptyList()
 )

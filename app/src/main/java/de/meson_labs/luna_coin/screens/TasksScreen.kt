@@ -36,10 +36,13 @@ import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.DogScheduleItem
 import de.meson_labs.luna_coin.models.LunaCoinData
+import de.meson_labs.luna_coin.models.TaskAssignmentType
+import de.meson_labs.luna_coin.models.TaskCompletionMode
 import de.meson_labs.luna_coin.models.TaskItem
 import de.meson_labs.luna_coin.models.TaskRepeatType
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 @Composable
@@ -55,19 +58,17 @@ fun TasksScreen(
     onLogout: () -> Unit
 ) {
     val childId = selectedChild?.id
-    val dateText = selectedDate.toString()
     val selectedDay = selectedDate.toDayOfWeekName()
 
     val tasksForDate = data.tasks.filter { task ->
-        when (task.repeatType) {
-            TaskRepeatType.DAILY -> {
-                true
-            }
-
-            TaskRepeatType.WEEKLY -> {
-                task.assignedChildId == childId &&
-                        task.weeklyDay == selectedDay
-            }
+        if (childId == null) {
+            false
+        } else {
+            isTaskVisibleForChildAndDate(
+                task = task,
+                childId = childId,
+                date = selectedDate
+            )
         }
     }
 
@@ -275,10 +276,28 @@ private fun TaskCard(
         }?.name
     }
 
-    val isDone = task.completions.any { completion ->
-        completion.childId == childId &&
+    val isDone = when (task.completionMode) {
+        TaskCompletionMode.EACH_PERSON -> {
+            task.completions.any { completion ->
+                completion.childId == childId &&
+                        completion.date == dateText
+            }
+        }
+
+        TaskCompletionMode.ONCE_TOTAL -> {
+            task.completions.any { completion ->
                 completion.date == dateText
+            }
+        }
     }
+
+    val canComplete =
+        childId != null &&
+                canTaskBeCompleted(
+                    task = task,
+                    childId = childId,
+                    date = selectedDate
+                )
 
     Card(
         modifier = Modifier
@@ -297,11 +316,11 @@ private fun TaskCard(
             Checkbox(
                 checked = isDone,
                 onCheckedChange = {
-                    if (!isDone) {
+                    if (canComplete) {
                         onCompleteTask(task.id)
                     }
                 },
-                enabled = !isDone
+                enabled = canComplete || isDone
             )
 
             Column(
@@ -323,6 +342,14 @@ private fun TaskCard(
                     )
                 }
 
+                task.dueDate?.let { dueDate ->
+                    Text(
+                        text = "Fällig bis: ${formatDateGerman(dueDate)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                }
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -332,20 +359,42 @@ private fun TaskCard(
                         coinSize = 32.dp
                     )
 
-                    if (assignedName != null) {
-                        Text(
-                            text = " · Für $assignedName",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
+                    Text(
+                        text = " · ${repeatTypeText(task.repeatType)}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
 
-                    if (task.repeatType == TaskRepeatType.WEEKLY) {
-                        Text(
-                            text = " · Wöchentlich",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    when (task.assignmentType) {
+                        TaskAssignmentType.FREE_FOR_ALL -> {
+                            Text(
+                                text = if (task.completionMode == TaskCompletionMode.ONCE_TOTAL) {
+                                    " · Für alle · einmal insgesamt"
+                                } else {
+                                    " · Für alle"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        TaskAssignmentType.ASSIGNED -> {
+                            Text(
+                                text = " · Für ${assignedName ?: "Unbekannt"}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
+                }
+
+                if (task.repeatType == TaskRepeatType.DAILY &&
+                    selectedDate != LocalDate.now()
+                ) {
+                    Text(
+                        text = "Tägliche Aufgaben können nur heute abgehakt werden.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
                 if (isDone) {
@@ -474,6 +523,124 @@ private fun EmptyCard(
     }
 }
 
+private fun isTaskVisibleForChildAndDate(
+    task: TaskItem,
+    childId: String,
+    date: LocalDate
+): Boolean {
+    if (task.assignmentType == TaskAssignmentType.ASSIGNED &&
+        task.assignedChildId != childId
+    ) {
+        return false
+    }
+
+    if (!isTaskDueOnDate(task, date)) {
+        return false
+    }
+
+    if (task.completionMode == TaskCompletionMode.ONCE_TOTAL) {
+        val alreadyCompletedOnDate = task.completions.any { completion ->
+            completion.date == date.toString()
+        }
+
+        if (alreadyCompletedOnDate) {
+            return false
+        }
+    }
+
+    return true
+}
+
+private fun canTaskBeCompleted(
+    task: TaskItem,
+    childId: String,
+    date: LocalDate
+): Boolean {
+    if (task.repeatType == TaskRepeatType.DAILY &&
+        date != LocalDate.now()
+    ) {
+        return false
+    }
+
+    if (task.assignmentType == TaskAssignmentType.ASSIGNED &&
+        task.assignedChildId != childId
+    ) {
+        return false
+    }
+
+    return when (task.completionMode) {
+        TaskCompletionMode.EACH_PERSON -> {
+            task.completions.none { completion ->
+                completion.childId == childId &&
+                        completion.date == date.toString()
+            }
+        }
+
+        TaskCompletionMode.ONCE_TOTAL -> {
+            task.completions.none { completion ->
+                completion.date == date.toString()
+            }
+        }
+    }
+}
+
+private fun isTaskDueOnDate(
+    task: TaskItem,
+    date: LocalDate
+): Boolean {
+    val startDate = task.startDate.toLocalDateOrNull() ?: return true
+
+    if (date.isBefore(startDate)) {
+        return false
+    }
+
+    return when (task.repeatType) {
+        TaskRepeatType.DAILY -> {
+            true
+        }
+
+        TaskRepeatType.WEEKLY -> {
+            task.weeklyDay == date.toDayOfWeekName()
+        }
+
+        TaskRepeatType.BIWEEKLY -> {
+            task.weeklyDay == date.toDayOfWeekName() &&
+                    ChronoUnit.WEEKS.between(startDate, date) % 2L == 0L
+        }
+
+        TaskRepeatType.YEARLY -> {
+            date.month == startDate.month &&
+                    date.dayOfMonth == startDate.dayOfMonth
+        }
+
+        TaskRepeatType.EVERY_TWO_YEARS -> {
+            date.month == startDate.month &&
+                    date.dayOfMonth == startDate.dayOfMonth &&
+                    ChronoUnit.YEARS.between(startDate, date) % 2L == 0L
+        }
+    }
+}
+
+private fun repeatTypeText(
+    repeatType: TaskRepeatType
+): String {
+    return when (repeatType) {
+        TaskRepeatType.DAILY -> "Täglich"
+        TaskRepeatType.WEEKLY -> "Wöchentlich"
+        TaskRepeatType.BIWEEKLY -> "Zweiwöchentlich"
+        TaskRepeatType.YEARLY -> "Jährlich"
+        TaskRepeatType.EVERY_TWO_YEARS -> "Alle zwei Jahre"
+    }
+}
+
+private fun formatDateGerman(
+    dateText: String
+): String {
+    val date = dateText.toLocalDateOrNull() ?: return dateText
+    val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+    return date.format(formatter)
+}
+
 private fun LocalDate.toDayOfWeekName(): DayOfWeekName {
     return when (this.dayOfWeek.value) {
         1 -> DayOfWeekName.MONDAY
@@ -483,5 +650,13 @@ private fun LocalDate.toDayOfWeekName(): DayOfWeekName {
         5 -> DayOfWeekName.FRIDAY
         6 -> DayOfWeekName.SATURDAY
         else -> DayOfWeekName.SUNDAY
+    }
+}
+
+private fun String.toLocalDateOrNull(): LocalDate? {
+    return try {
+        LocalDate.parse(this)
+    } catch (_: Exception) {
+        null
     }
 }

@@ -28,17 +28,43 @@ import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
+import de.meson_labs.luna_coin.models.TaskAssignmentType
+import de.meson_labs.luna_coin.models.TaskCompletionMode
 import de.meson_labs.luna_coin.models.TaskItem
 import de.meson_labs.luna_coin.models.TaskRepeatType
 import de.meson_labs.luna_coin.models.UserRole
+import java.time.LocalDate
 
 @Composable
 fun TaskEditorDialog(
     tasks: List<TaskItem>,
     children: List<Child>,
     onDismiss: () -> Unit,
-    onAddTask: (String, String, Int, TaskRepeatType, String?, DayOfWeekName?) -> Unit,
-    onUpdateTask: (String, String, String, Int, TaskRepeatType, String?, DayOfWeekName?) -> Unit,
+    onAddTask: (
+        String,
+        String,
+        Int,
+        TaskAssignmentType,
+        TaskCompletionMode,
+        TaskRepeatType,
+        String?,
+        String,
+        String?,
+        DayOfWeekName?
+    ) -> Unit,
+    onUpdateTask: (
+        String,
+        String,
+        String,
+        Int,
+        TaskAssignmentType,
+        TaskCompletionMode,
+        TaskRepeatType,
+        String?,
+        String,
+        String?,
+        DayOfWeekName?
+    ) -> Unit,
     onDeleteTask: (String) -> Unit
 ) {
     var selectedTask by remember {
@@ -61,12 +87,28 @@ fun TaskEditorDialog(
         mutableStateOf("1")
     }
 
+    var assignmentType by remember {
+        mutableStateOf(TaskAssignmentType.FREE_FOR_ALL)
+    }
+
+    var completionMode by remember {
+        mutableStateOf(TaskCompletionMode.EACH_PERSON)
+    }
+
     var repeatType by remember {
         mutableStateOf(TaskRepeatType.DAILY)
     }
 
     var selectedChildId by remember {
         mutableStateOf<String?>(null)
+    }
+
+    var startDate by remember {
+        mutableStateOf(LocalDate.now().toString())
+    }
+
+    var dueDate by remember {
+        mutableStateOf("")
     }
 
     var selectedWeeklyDay by remember {
@@ -94,9 +136,7 @@ fun TaskEditorDialog(
                         style = MaterialTheme.typography.titleMedium
                     )
 
-                    Spacer(
-                        modifier = Modifier.height(8.dp)
-                    )
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     OutlinedTextField(
                         value = title,
@@ -134,63 +174,51 @@ fun TaskEditorDialog(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(
-                        modifier = Modifier.height(16.dp)
-                    )
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "Aufgabentyp",
+                        text = "Sichtbarkeit",
                         style = MaterialTheme.typography.titleMedium
                     )
 
                     Row {
                         TextButton(
                             onClick = {
-                                repeatType = TaskRepeatType.DAILY
+                                assignmentType = TaskAssignmentType.FREE_FOR_ALL
                                 selectedChildId = null
                             }
                         ) {
                             Text(
-                                text = if (repeatType == TaskRepeatType.DAILY) {
-                                    "✓ Täglich"
+                                if (assignmentType == TaskAssignmentType.FREE_FOR_ALL) {
+                                    "✓ Für alle"
                                 } else {
-                                    "Täglich"
+                                    "Für alle"
                                 }
                             )
                         }
 
                         TextButton(
                             onClick = {
-                                repeatType = TaskRepeatType.WEEKLY
+                                assignmentType = TaskAssignmentType.ASSIGNED
 
                                 if (selectedChildId == null) {
                                     selectedChildId = childUsers.firstOrNull()?.id
                                 }
+
+                                completionMode = TaskCompletionMode.EACH_PERSON
                             }
                         ) {
                             Text(
-                                text = if (repeatType == TaskRepeatType.WEEKLY) {
-                                    "✓ Wöchentlich"
+                                if (assignmentType == TaskAssignmentType.ASSIGNED) {
+                                    "✓ Person"
                                 } else {
-                                    "Wöchentlich"
+                                    "Person"
                                 }
                             )
                         }
                     }
 
-                    if (repeatType == TaskRepeatType.DAILY) {
-                        Text(
-                            text = "Tägliche Aufgaben werden jedem Kind jeden Tag angezeigt.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    if (repeatType == TaskRepeatType.WEEKLY) {
-                        Spacer(
-                            modifier = Modifier.height(12.dp)
-                        )
-
+                    if (assignmentType == TaskAssignmentType.ASSIGNED) {
                         Text(
                             text = "Person",
                             style = MaterialTheme.typography.titleMedium
@@ -203,7 +231,7 @@ fun TaskEditorDialog(
                                 }
                             ) {
                                 Text(
-                                    text = if (selectedChildId == child.id) {
+                                    if (selectedChildId == child.id) {
                                         "✓ ${child.name}"
                                     } else {
                                         child.name
@@ -211,10 +239,154 @@ fun TaskEditorDialog(
                                 )
                             }
                         }
+                    }
 
-                        Spacer(
-                            modifier = Modifier.height(8.dp)
-                        )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Erledigung",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    Row {
+                        TextButton(
+                            onClick = {
+                                completionMode = TaskCompletionMode.EACH_PERSON
+                            }
+                        ) {
+                            Text(
+                                if (completionMode == TaskCompletionMode.EACH_PERSON) {
+                                    "✓ Jeder einzeln"
+                                } else {
+                                    "Jeder einzeln"
+                                }
+                            )
+                        }
+
+                        TextButton(
+                            onClick = {
+                                completionMode = TaskCompletionMode.ONCE_TOTAL
+                            },
+                            enabled = assignmentType == TaskAssignmentType.FREE_FOR_ALL
+                        ) {
+                            Text(
+                                if (completionMode == TaskCompletionMode.ONCE_TOTAL) {
+                                    "✓ Einmal insgesamt"
+                                } else {
+                                    "Einmal insgesamt"
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Intervall",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    Column {
+                        TextButton(
+                            onClick = {
+                                repeatType = TaskRepeatType.DAILY
+                            }
+                        ) {
+                            Text(
+                                if (repeatType == TaskRepeatType.DAILY) {
+                                    "✓ Täglich"
+                                } else {
+                                    "Täglich"
+                                }
+                            )
+                        }
+
+                        TextButton(
+                            onClick = {
+                                repeatType = TaskRepeatType.WEEKLY
+                            }
+                        ) {
+                            Text(
+                                if (repeatType == TaskRepeatType.WEEKLY) {
+                                    "✓ Wöchentlich"
+                                } else {
+                                    "Wöchentlich"
+                                }
+                            )
+                        }
+
+                        TextButton(
+                            onClick = {
+                                repeatType = TaskRepeatType.BIWEEKLY
+                            }
+                        ) {
+                            Text(
+                                if (repeatType == TaskRepeatType.BIWEEKLY) {
+                                    "✓ Zweiwöchentlich"
+                                } else {
+                                    "Zweiwöchentlich"
+                                }
+                            )
+                        }
+
+                        TextButton(
+                            onClick = {
+                                repeatType = TaskRepeatType.YEARLY
+                            }
+                        ) {
+                            Text(
+                                if (repeatType == TaskRepeatType.YEARLY) {
+                                    "✓ Jährlich"
+                                } else {
+                                    "Jährlich"
+                                }
+                            )
+                        }
+
+                        TextButton(
+                            onClick = {
+                                repeatType = TaskRepeatType.EVERY_TWO_YEARS
+                            }
+                        ) {
+                            Text(
+                                if (repeatType == TaskRepeatType.EVERY_TWO_YEARS) {
+                                    "✓ Alle zwei Jahre"
+                                } else {
+                                    "Alle zwei Jahre"
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = startDate,
+                        onValueChange = {
+                            startDate = it
+                        },
+                        label = {
+                            Text("Startdatum, z.B. 2026-07-12")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = dueDate,
+                        onValueChange = {
+                            dueDate = it
+                        },
+                        label = {
+                            Text("Ablauffrist optional, z.B. 2026-07-12")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (
+                        repeatType == TaskRepeatType.WEEKLY ||
+                        repeatType == TaskRepeatType.BIWEEKLY
+                    ) {
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
                             text = "Wochentag",
@@ -228,7 +400,7 @@ fun TaskEditorDialog(
                                 }
                             ) {
                                 Text(
-                                    text = if (selectedWeeklyDay == day) {
+                                    if (selectedWeeklyDay == day) {
                                         "✓ ${dayToGerman(day)}"
                                     } else {
                                         dayToGerman(day)
@@ -238,39 +410,38 @@ fun TaskEditorDialog(
                         }
                     }
 
-                    Spacer(
-                        modifier = Modifier.height(12.dp)
-                    )
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Row {
                         Button(
                             onClick = {
                                 val coins = coinsText.toIntOrNull() ?: 0
 
-                                val canSaveDaily =
-                                    repeatType == TaskRepeatType.DAILY
-
-                                val canSaveWeekly =
-                                    repeatType == TaskRepeatType.WEEKLY &&
+                                val validAssigned =
+                                    assignmentType == TaskAssignmentType.FREE_FOR_ALL ||
                                             selectedChildId != null
 
                                 if (
                                     title.isNotBlank() &&
                                     coins > 0 &&
-                                    (canSaveDaily || canSaveWeekly)
+                                    startDate.isNotBlank() &&
+                                    validAssigned
                                 ) {
                                     if (selectedTask == null) {
                                         onAddTask(
                                             title,
                                             description,
                                             coins,
+                                            assignmentType,
+                                            completionMode,
                                             repeatType,
-                                            if (repeatType == TaskRepeatType.WEEKLY) {
-                                                selectedChildId
-                                            } else {
-                                                null
-                                            },
-                                            if (repeatType == TaskRepeatType.WEEKLY) {
+                                            selectedChildId,
+                                            startDate,
+                                            dueDate,
+                                            if (
+                                                repeatType == TaskRepeatType.WEEKLY ||
+                                                repeatType == TaskRepeatType.BIWEEKLY
+                                            ) {
                                                 selectedWeeklyDay
                                             } else {
                                                 null
@@ -282,13 +453,16 @@ fun TaskEditorDialog(
                                             title,
                                             description,
                                             coins,
+                                            assignmentType,
+                                            completionMode,
                                             repeatType,
-                                            if (repeatType == TaskRepeatType.WEEKLY) {
-                                                selectedChildId
-                                            } else {
-                                                null
-                                            },
-                                            if (repeatType == TaskRepeatType.WEEKLY) {
+                                            selectedChildId,
+                                            startDate,
+                                            dueDate,
+                                            if (
+                                                repeatType == TaskRepeatType.WEEKLY ||
+                                                repeatType == TaskRepeatType.BIWEEKLY
+                                            ) {
                                                 selectedWeeklyDay
                                             } else {
                                                 null
@@ -300,8 +474,12 @@ fun TaskEditorDialog(
                                     title = ""
                                     description = ""
                                     coinsText = "1"
+                                    assignmentType = TaskAssignmentType.FREE_FOR_ALL
+                                    completionMode = TaskCompletionMode.EACH_PERSON
                                     repeatType = TaskRepeatType.DAILY
                                     selectedChildId = null
+                                    startDate = LocalDate.now().toString()
+                                    dueDate = ""
                                     selectedWeeklyDay = DayOfWeekName.SATURDAY
                                 }
                             }
@@ -315,9 +493,7 @@ fun TaskEditorDialog(
                             )
                         }
 
-                        Spacer(
-                            modifier = Modifier.padding(6.dp)
-                        )
+                        Spacer(modifier = Modifier.padding(6.dp))
 
                         OutlinedButton(
                             onClick = {
@@ -325,8 +501,12 @@ fun TaskEditorDialog(
                                 title = ""
                                 description = ""
                                 coinsText = "1"
+                                assignmentType = TaskAssignmentType.FREE_FOR_ALL
+                                completionMode = TaskCompletionMode.EACH_PERSON
                                 repeatType = TaskRepeatType.DAILY
                                 selectedChildId = null
+                                startDate = LocalDate.now().toString()
+                                dueDate = ""
                                 selectedWeeklyDay = DayOfWeekName.SATURDAY
                             }
                         ) {
@@ -340,23 +520,14 @@ fun TaskEditorDialog(
                         }
                     }
 
-                    Spacer(
-                        modifier = Modifier.height(16.dp)
-                    )
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
                         text = "Aufgaben",
                         style = MaterialTheme.typography.titleMedium
                     )
 
-                    Text(
-                        text = "Zum Bearbeiten auf 'Bearbeiten' tippen.",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-
-                    Spacer(
-                        modifier = Modifier.height(8.dp)
-                    )
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
 
                 items(tasks) { task ->
@@ -386,21 +557,37 @@ fun TaskEditorDialog(
                                 )
                             }
 
-                            Row {
-                                CoinDisplay(
-                                    amount = task.rewardCoins,
-                                    coinSize = 28.dp
-                                )
-                            }
+                            CoinDisplay(
+                                amount = task.rewardCoins,
+                                coinSize = 28.dp
+                            )
 
                             Text(
-                                text = when (task.repeatType) {
-                                    TaskRepeatType.DAILY -> {
-                                        "Täglich · Für alle Kinder"
+                                text = buildString {
+                                    append(assignmentTypeText(task.assignmentType))
+
+                                    if (task.assignmentType == TaskAssignmentType.ASSIGNED) {
+                                        append(" · ")
+                                        append(assignedName ?: "Unbekannt")
                                     }
 
-                                    TaskRepeatType.WEEKLY -> {
-                                        "Wöchentlich · ${dayToGerman(task.weeklyDay ?: DayOfWeekName.MONDAY)} · ${assignedName ?: "Unbekannt"}"
+                                    append(" · ")
+                                    append(completionModeText(task.completionMode))
+
+                                    append(" · ")
+                                    append(repeatTypeText(task.repeatType))
+
+                                    if (
+                                        task.repeatType == TaskRepeatType.WEEKLY ||
+                                        task.repeatType == TaskRepeatType.BIWEEKLY
+                                    ) {
+                                        append(" · ")
+                                        append(dayToGerman(task.weeklyDay ?: DayOfWeekName.MONDAY))
+                                    }
+
+                                    if (!task.dueDate.isNullOrBlank()) {
+                                        append(" · Fällig: ")
+                                        append(task.dueDate)
                                     }
                                 },
                                 style = MaterialTheme.typography.bodySmall,
@@ -414,8 +601,12 @@ fun TaskEditorDialog(
                                         title = task.title
                                         description = task.description
                                         coinsText = task.rewardCoins.toString()
+                                        assignmentType = task.assignmentType
+                                        completionMode = task.completionMode
                                         repeatType = task.repeatType
                                         selectedChildId = task.assignedChildId
+                                        startDate = task.startDate
+                                        dueDate = task.dueDate ?: ""
                                         selectedWeeklyDay =
                                             task.weeklyDay ?: DayOfWeekName.SATURDAY
                                     }
@@ -456,8 +647,12 @@ fun TaskEditorDialog(
                     title = ""
                     description = ""
                     coinsText = "1"
+                    assignmentType = TaskAssignmentType.FREE_FOR_ALL
+                    completionMode = TaskCompletionMode.EACH_PERSON
                     repeatType = TaskRepeatType.DAILY
                     selectedChildId = null
+                    startDate = LocalDate.now().toString()
+                    dueDate = ""
                     selectedWeeklyDay = DayOfWeekName.SATURDAY
                 }
 
@@ -467,6 +662,36 @@ fun TaskEditorDialog(
                 taskToDelete = null
             }
         )
+    }
+}
+
+private fun assignmentTypeText(
+    assignmentType: TaskAssignmentType
+): String {
+    return when (assignmentType) {
+        TaskAssignmentType.FREE_FOR_ALL -> "Für alle"
+        TaskAssignmentType.ASSIGNED -> "Person"
+    }
+}
+
+private fun completionModeText(
+    completionMode: TaskCompletionMode
+): String {
+    return when (completionMode) {
+        TaskCompletionMode.EACH_PERSON -> "Jeder einzeln"
+        TaskCompletionMode.ONCE_TOTAL -> "Einmal insgesamt"
+    }
+}
+
+private fun repeatTypeText(
+    repeatType: TaskRepeatType
+): String {
+    return when (repeatType) {
+        TaskRepeatType.DAILY -> "Täglich"
+        TaskRepeatType.WEEKLY -> "Wöchentlich"
+        TaskRepeatType.BIWEEKLY -> "Zweiwöchentlich"
+        TaskRepeatType.YEARLY -> "Jährlich"
+        TaskRepeatType.EVERY_TWO_YEARS -> "Alle zwei Jahre"
     }
 }
 

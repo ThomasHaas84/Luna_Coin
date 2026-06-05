@@ -5,14 +5,20 @@ import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.DogScheduleItem
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.ShopItem
+import de.meson_labs.luna_coin.models.TaskAssignmentType
+import de.meson_labs.luna_coin.models.TaskCompletionMode
 import de.meson_labs.luna_coin.models.TaskItem
 import de.meson_labs.luna_coin.models.TaskRepeatType
 import de.meson_labs.luna_coin.models.UserRole
+import java.time.LocalDate
 import java.util.UUID
 
 object DemoData {
 
     fun create(): LunaCoinData {
+        val today = LocalDate.now()
+        val todayText = today.toString()
+
         val clara = Child(
             id = "child_clara",
             name = "Clara",
@@ -96,40 +102,52 @@ object DemoData {
                 title = "Tisch decken",
                 description = "Vor dem Essen Teller und Besteck auf den Tisch legen.",
                 rewardCoins = 2,
-                assignedChildId = null,
-                repeatType = TaskRepeatType.DAILY
+                assignmentType = TaskAssignmentType.FREE_FOR_ALL,
+                completionMode = TaskCompletionMode.EACH_PERSON,
+                repeatType = TaskRepeatType.DAILY,
+                startDate = todayText
             ),
             TaskItem(
                 id = uuid(),
                 title = "Spülmaschine ausräumen",
                 description = "Sauberes Geschirr einsortieren.",
                 rewardCoins = 4,
-                assignedChildId = null,
-                repeatType = TaskRepeatType.DAILY
-            ),
-            TaskItem(
-                id = uuid(),
-                title = "Zimmer aufräumen",
-                description = "Boden frei räumen und Spielsachen einsortieren.",
-                rewardCoins = 5,
-                assignedChildId = null,
-                repeatType = TaskRepeatType.DAILY
+                assignmentType = TaskAssignmentType.FREE_FOR_ALL,
+                completionMode = TaskCompletionMode.EACH_PERSON,
+                repeatType = TaskRepeatType.DAILY,
+                startDate = todayText
             ),
             TaskItem(
                 id = uuid(),
                 title = "Müll rausbringen",
                 description = "Mülleimer leeren.",
                 rewardCoins = 3,
-                assignedChildId = null,
-                repeatType = TaskRepeatType.DAILY
+                assignmentType = TaskAssignmentType.FREE_FOR_ALL,
+                completionMode = TaskCompletionMode.EACH_PERSON,
+                repeatType = TaskRepeatType.DAILY,
+                startDate = todayText
+            ),
+            TaskItem(
+                id = uuid(),
+                title = "Straße kehren",
+                description = "Straße oder Gehweg sauber kehren.",
+                rewardCoins = 8,
+                assignmentType = TaskAssignmentType.FREE_FOR_ALL,
+                completionMode = TaskCompletionMode.ONCE_TOTAL,
+                repeatType = TaskRepeatType.WEEKLY,
+                startDate = todayText,
+                weeklyDay = DayOfWeekName.SATURDAY
             ),
             TaskItem(
                 id = uuid(),
                 title = "Bad putzen",
                 description = "Waschbecken, Toilette und Boden sauber machen.",
                 rewardCoins = 12,
+                assignmentType = TaskAssignmentType.ASSIGNED,
+                completionMode = TaskCompletionMode.EACH_PERSON,
                 assignedChildId = felix.id,
                 repeatType = TaskRepeatType.WEEKLY,
+                startDate = todayText,
                 weeklyDay = DayOfWeekName.SATURDAY
             ),
             TaskItem(
@@ -137,8 +155,23 @@ object DemoData {
                 title = "Treppe kehren",
                 description = "Die Treppe gründlich kehren.",
                 rewardCoins = 10,
+                assignmentType = TaskAssignmentType.ASSIGNED,
+                completionMode = TaskCompletionMode.EACH_PERSON,
                 assignedChildId = max.id,
                 repeatType = TaskRepeatType.WEEKLY,
+                startDate = todayText,
+                weeklyDay = DayOfWeekName.SATURDAY
+            ),
+            TaskItem(
+                id = uuid(),
+                title = "Beispiel mit Frist",
+                description = "Diese Aufgabe zeigt, wie eine Aufgabe mit Fälligkeitsdatum aussieht.",
+                rewardCoins = 6,
+                assignmentType = TaskAssignmentType.FREE_FOR_ALL,
+                completionMode = TaskCompletionMode.ONCE_TOTAL,
+                repeatType = TaskRepeatType.WEEKLY,
+                startDate = todayText,
+                dueDate = "2026-07-12",
                 weeklyDay = DayOfWeekName.SATURDAY
             )
         )

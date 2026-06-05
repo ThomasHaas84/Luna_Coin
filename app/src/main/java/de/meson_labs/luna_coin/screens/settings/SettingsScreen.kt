@@ -29,6 +29,8 @@ import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.LunaCoinData
+import de.meson_labs.luna_coin.models.TaskAssignmentType
+import de.meson_labs.luna_coin.models.TaskCompletionMode
 import de.meson_labs.luna_coin.models.TaskRepeatType
 import de.meson_labs.luna_coin.models.UserRole
 import java.time.LocalDate
@@ -40,8 +42,31 @@ fun SettingsScreen(
     selectedChild: Child?,
     selectedDate: LocalDate,
     jsonText: String,
-    onAddTask: (String, String, Int, TaskRepeatType, String?, DayOfWeekName?) -> Unit,
-    onUpdateTask: (String, String, String, Int, TaskRepeatType, String?, DayOfWeekName?) -> Unit,
+    onAddTask: (
+        String,
+        String,
+        Int,
+        TaskAssignmentType,
+        TaskCompletionMode,
+        TaskRepeatType,
+        String?,
+        String,
+        String?,
+        DayOfWeekName?
+    ) -> Unit,
+    onUpdateTask: (
+        String,
+        String,
+        String,
+        Int,
+        TaskAssignmentType,
+        TaskCompletionMode,
+        TaskRepeatType,
+        String?,
+        String,
+        String?,
+        DayOfWeekName?
+    ) -> Unit,
     onDeleteTask: (String) -> Unit,
     onAddShopItem: (String, String, Int) -> Unit,
     onUpdateShopItem: (String, String, String, Int) -> Unit,

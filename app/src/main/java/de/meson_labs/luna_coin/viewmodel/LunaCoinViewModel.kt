@@ -9,7 +9,9 @@ import de.meson_labs.luna_coin.models.LogEntry
 import de.meson_labs.luna_coin.models.LogType
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.ShopItem
+import de.meson_labs.luna_coin.models.TaskAssignmentType
 import de.meson_labs.luna_coin.models.TaskCompletion
+import de.meson_labs.luna_coin.models.TaskCompletionMode
 import de.meson_labs.luna_coin.models.TaskItem
 import de.meson_labs.luna_coin.models.TaskRepeatType
 import de.meson_labs.luna_coin.storage.LunaCoinStorage
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 class LunaCoinViewModel(
@@ -57,23 +60,18 @@ class LunaCoinViewModel(
     fun completeTask(taskId: String) {
         val childId = _selectedChildId.value ?: return
         val currentData = _data.value
-        val selectedDateText = _selectedDate.value.toString()
+        val selectedDate = _selectedDate.value
+        val selectedDateText = selectedDate.toString()
 
         val task = currentData.tasks.firstOrNull { task ->
             task.id == taskId
         } ?: return
 
-        val alreadyDoneToday = task.completions.any { completion ->
-            completion.childId == childId &&
-                    completion.date == selectedDateText
+        if (!isTaskVisibleForChildAndDate(task, childId, selectedDate)) {
+            return
         }
 
-        if (alreadyDoneToday) return
-
-        if (
-            task.repeatType == TaskRepeatType.WEEKLY &&
-            task.assignedChildId != childId
-        ) {
+        if (!canTaskBeCompleted(task, childId, selectedDate)) {
             return
         }
 
@@ -203,8 +201,12 @@ class LunaCoinViewModel(
         title: String,
         description: String,
         rewardCoins: Int,
+        assignmentType: TaskAssignmentType,
+        completionMode: TaskCompletionMode,
         repeatType: TaskRepeatType,
         assignedChildId: String?,
+        startDate: String,
+        dueDate: String?,
         weeklyDay: DayOfWeekName?
     ) {
         val currentData = _data.value
@@ -214,18 +216,17 @@ class LunaCoinViewModel(
             title = title,
             description = description,
             rewardCoins = rewardCoins,
-            assignedChildId = if (repeatType == TaskRepeatType.WEEKLY) {
+            assignmentType = assignmentType,
+            completionMode = completionMode,
+            assignedChildId = if (assignmentType == TaskAssignmentType.ASSIGNED) {
                 assignedChildId
             } else {
                 null
             },
-            date = "",
             repeatType = repeatType,
-            weeklyDay = if (repeatType == TaskRepeatType.WEEKLY) {
-                weeklyDay
-            } else {
-                null
-            },
+            startDate = startDate,
+            dueDate = dueDate?.takeIf { it.isNotBlank() },
+            weeklyDay = weeklyDay,
             completions = emptyList()
         )
 
@@ -241,8 +242,12 @@ class LunaCoinViewModel(
         title: String,
         description: String,
         rewardCoins: Int,
+        assignmentType: TaskAssignmentType,
+        completionMode: TaskCompletionMode,
         repeatType: TaskRepeatType,
         assignedChildId: String?,
+        startDate: String,
+        dueDate: String?,
         weeklyDay: DayOfWeekName?
     ) {
         val currentData = _data.value
@@ -253,17 +258,17 @@ class LunaCoinViewModel(
                     title = title,
                     description = description,
                     rewardCoins = rewardCoins,
-                    assignedChildId = if (repeatType == TaskRepeatType.WEEKLY) {
+                    assignmentType = assignmentType,
+                    completionMode = completionMode,
+                    assignedChildId = if (assignmentType == TaskAssignmentType.ASSIGNED) {
                         assignedChildId
                     } else {
                         null
                     },
                     repeatType = repeatType,
-                    weeklyDay = if (repeatType == TaskRepeatType.WEEKLY) {
-                        weeklyDay
-                    } else {
-                        null
-                    }
+                    startDate = startDate,
+                    dueDate = dueDate?.takeIf { it.isNotBlank() },
+                    weeklyDay = weeklyDay
                 )
             } else {
                 task
@@ -431,6 +436,104 @@ class LunaCoinViewModel(
         return storage.getJsonText()
     }
 
+    private fun isTaskVisibleForChildAndDate(
+        task: TaskItem,
+        childId: String,
+        date: LocalDate
+    ): Boolean {
+        if (task.assignmentType == TaskAssignmentType.ASSIGNED &&
+            task.assignedChildId != childId
+        ) {
+            return false
+        }
+
+        if (!isTaskDueOnDate(task, date)) {
+            return false
+        }
+
+        if (task.completionMode == TaskCompletionMode.ONCE_TOTAL) {
+            val alreadyCompletedOnDate = task.completions.any { completion ->
+                completion.date == date.toString()
+            }
+
+            if (alreadyCompletedOnDate) {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    private fun canTaskBeCompleted(
+        task: TaskItem,
+        childId: String,
+        date: LocalDate
+    ): Boolean {
+        if (task.repeatType == TaskRepeatType.DAILY &&
+            date != LocalDate.now()
+        ) {
+            return false
+        }
+
+        if (task.assignmentType == TaskAssignmentType.ASSIGNED &&
+            task.assignedChildId != childId
+        ) {
+            return false
+        }
+
+        return when (task.completionMode) {
+            TaskCompletionMode.EACH_PERSON -> {
+                task.completions.none { completion ->
+                    completion.childId == childId &&
+                            completion.date == date.toString()
+                }
+            }
+
+            TaskCompletionMode.ONCE_TOTAL -> {
+                task.completions.none { completion ->
+                    completion.date == date.toString()
+                }
+            }
+        }
+    }
+
+    private fun isTaskDueOnDate(
+        task: TaskItem,
+        date: LocalDate
+    ): Boolean {
+        val startDate = task.startDate.toLocalDateOrNull() ?: return true
+
+        if (date.isBefore(startDate)) {
+            return false
+        }
+
+        return when (task.repeatType) {
+            TaskRepeatType.DAILY -> {
+                true
+            }
+
+            TaskRepeatType.WEEKLY -> {
+                task.weeklyDay == date.toDayOfWeekName()
+            }
+
+            TaskRepeatType.BIWEEKLY -> {
+                task.weeklyDay == date.toDayOfWeekName() &&
+                        ChronoUnit.WEEKS.between(startDate, date) % 2L == 0L
+            }
+
+            TaskRepeatType.YEARLY -> {
+                date.month == startDate.month &&
+                        date.dayOfMonth == startDate.dayOfMonth
+            }
+
+            TaskRepeatType.EVERY_TWO_YEARS -> {
+                date.month == startDate.month &&
+                        date.dayOfMonth == startDate.dayOfMonth &&
+                        ChronoUnit.YEARS.between(startDate, date) % 2L == 0L
+            }
+        }
+    }
+
     private fun updateData(newData: LunaCoinData) {
         _data.value = newData
         storage.saveData(newData)
@@ -462,6 +565,26 @@ class LunaCoinViewModel(
 
             storage.saveData(fixedData)
             fixedData
+        }
+    }
+
+    private fun LocalDate.toDayOfWeekName(): DayOfWeekName {
+        return when (this.dayOfWeek.value) {
+            1 -> DayOfWeekName.MONDAY
+            2 -> DayOfWeekName.TUESDAY
+            3 -> DayOfWeekName.WEDNESDAY
+            4 -> DayOfWeekName.THURSDAY
+            5 -> DayOfWeekName.FRIDAY
+            6 -> DayOfWeekName.SATURDAY
+            else -> DayOfWeekName.SUNDAY
+        }
+    }
+
+    private fun String.toLocalDateOrNull(): LocalDate? {
+        return try {
+            LocalDate.parse(this)
+        } catch (_: Exception) {
+            null
         }
     }
 

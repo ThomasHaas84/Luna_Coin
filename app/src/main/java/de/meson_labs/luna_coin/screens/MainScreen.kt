@@ -124,16 +124,21 @@ fun MainScreen(
                         selectedChild = selectedChild,
                         selectedDate = selectedDate,
                         jsonText = viewModel.getJsonText(),
+
                         onAddTask = viewModel::addTask,
                         onUpdateTask = viewModel::updateTask,
                         onDeleteTask = viewModel::deleteTask,
+
                         onAddShopItem = viewModel::addShopItem,
                         onUpdateShopItem = viewModel::updateShopItem,
                         onDeleteShopItem = viewModel::deleteShopItem,
+
                         onAddDogSchedule = viewModel::addDogSchedule,
                         onUpdateDogSchedule = viewModel::updateDogSchedule,
                         onDeleteDogSchedule = viewModel::deleteDogSchedule,
+
                         onUndoLogEntry = viewModel::undoLogEntry,
+
                         onResetDemoData = viewModel::resetDemoData,
                         onLogout = viewModel::logout
                     )
