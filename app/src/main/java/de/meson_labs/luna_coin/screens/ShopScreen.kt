@@ -1,6 +1,5 @@
 package de.meson_labs.luna_coin.screens
 
-import android.net.Uri
 import android.widget.VideoView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -33,12 +33,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.net.toUri
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.ShopItem
-import androidx.core.net.toUri
 
 @Composable
 fun ShopScreen(
@@ -49,6 +49,10 @@ fun ShopScreen(
     onLogout: () -> Unit
 ) {
     var showSugarVideo by remember {
+        mutableStateOf(false)
+    }
+
+    var showNotEnoughCoinsDialog by remember {
         mutableStateOf(false)
     }
 
@@ -113,10 +117,17 @@ fun ShopScreen(
                     item = item,
                     currentCoins = selectedChild?.coins ?: 0,
                     onBuyItem = {
-                        onBuyItem(item.id)
+                        val hasEnoughCoins =
+                            (selectedChild?.coins ?: 0) >= item.priceCoins
 
-                        if (item.title == "Gib mir Zucker!") {
-                            showSugarVideo = true
+                        if (hasEnoughCoins) {
+                            onBuyItem(item.id)
+
+                            if (item.title == "Gib mir Zucker!") {
+                                showSugarVideo = true
+                            }
+                        } else {
+                            showNotEnoughCoinsDialog = true
                         }
                     }
                 )
@@ -131,6 +142,14 @@ fun ShopScreen(
             }
         )
     }
+
+    if (showNotEnoughCoinsDialog) {
+        NotEnoughCoinsDialog(
+            onDismiss = {
+                showNotEnoughCoinsDialog = false
+            }
+        )
+    }
 }
 
 @Composable
@@ -140,6 +159,20 @@ private fun ShopItemCard(
     onBuyItem: () -> Unit
 ) {
     val canBuy = currentCoins >= item.priceCoins
+
+    val buttonContainerColor =
+        if (canBuy) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        }
+
+    val buttonContentColor =
+        if (canBuy) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
 
     Card(
         modifier = Modifier
@@ -175,11 +208,23 @@ private fun ShopItemCard(
                 CoinDisplay(
                     amount = item.priceCoins
                 )
+
+                if (!canBuy) {
+                    Text(
+                        text = "Nicht genug Coins",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
 
             Button(
                 onClick = onBuyItem,
-                enabled = canBuy
+                enabled = true,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = buttonContainerColor,
+                    contentColor = buttonContentColor
+                )
             ) {
                 Text("Kaufen")
             }
