@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.R
 
@@ -17,7 +18,8 @@ fun CoinDisplay(
     amount: Int,
     modifier: Modifier = Modifier,
     showPlus: Boolean = false,
-    showMinus: Boolean = false
+    showMinus: Boolean = false,
+    coinSize: Dp = 60.dp
 ) {
     Row(
         modifier = modifier,
@@ -28,7 +30,7 @@ fun CoinDisplay(
                 id = R.drawable.luna_coin_small
             ),
             contentDescription = "Luna Coin",
-            modifier = Modifier.size(90.dp)
+            modifier = Modifier.size(coinSize)
         )
 
         Text(
@@ -45,7 +47,8 @@ fun CoinDisplay(
 
                 append(amount)
             },
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.tertiary
         )
     }
 }

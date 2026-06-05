@@ -123,7 +123,7 @@ fun TasksScreen(
             )
 
             Text(
-                text = "Hund-Plan",
+                text = "Hunde-Plan",
                 style = MaterialTheme.typography.headlineSmall
             )
 

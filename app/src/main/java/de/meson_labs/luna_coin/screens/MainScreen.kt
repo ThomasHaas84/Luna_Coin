@@ -6,7 +6,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -30,109 +29,113 @@ fun MainScreen(
     val selectedChildId by viewModel.selectedChildId.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
 
-    MaterialTheme {
-        Surface {
-            if (selectedChildId == null) {
-                UserSelectionScreen(
-                    children = data.children,
-                    onChildSelected = viewModel::selectChild
-                )
-            } else {
-                val selectedChild = data.children.firstOrNull { child ->
-                    child.id == selectedChildId
-                }
+    Surface {
+        if (selectedChildId == null) {
+            UserSelectionScreen(
+                children = data.children,
+                onChildSelected = viewModel::selectChild
+            )
+        } else {
+            val selectedChild = data.children.firstOrNull { child ->
+                child.id == selectedChildId
+            }
 
-                var selectedTab by remember {
-                    mutableIntStateOf(0)
-                }
+            var selectedTab by remember {
+                mutableIntStateOf(0)
+            }
 
-                Scaffold(
-                    bottomBar = {
-                        NavigationBar {
-                            NavigationBarItem(
-                                selected = selectedTab == 0,
-                                onClick = { selectedTab = 0 },
-                                icon = {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = "Aufgaben"
-                                    )
-                                },
-                                label = {
-                                    Text("Aufgaben")
-                                }
-                            )
-
-                            NavigationBarItem(
-                                selected = selectedTab == 1,
-                                onClick = { selectedTab = 1 },
-                                icon = {
-                                    Icon(
-                                        imageVector = Icons.Default.ShoppingCart,
-                                        contentDescription = "Shop"
-                                    )
-                                },
-                                label = {
-                                    Text("Shop")
-                                }
-                            )
-
-                            NavigationBarItem(
-                                selected = selectedTab == 2,
-                                onClick = { selectedTab = 2 },
-                                icon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Settings,
-                                        contentDescription = "Einstellungen"
-                                    )
-                                },
-                                label = {
-                                    Text("Einstellungen")
-                                }
-                            )
-                        }
-                    }
-                ) { innerPadding ->
-                    when (selectedTab) {
-                        0 -> TasksScreen(
-                            modifier = Modifier.padding(innerPadding),
-                            data = data,
-                            selectedChild = selectedChild,
-                            selectedDate = selectedDate,
-                            onPreviousDay = viewModel::previousDay,
-                            onNextDay = viewModel::nextDay,
-                            onToday = viewModel::today,
-                            onCompleteTask = viewModel::completeTask,
-                            onLogout = viewModel::logout
+            Scaffold(
+                bottomBar = {
+                    NavigationBar {
+                        NavigationBarItem(
+                            selected = selectedTab == 0,
+                            onClick = {
+                                selectedTab = 0
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Aufgaben"
+                                )
+                            },
+                            label = {
+                                Text("Aufgaben")
+                            }
                         )
 
-                        1 -> ShopScreen(
-                            modifier = Modifier.padding(innerPadding),
-                            data = data,
-                            selectedChild = selectedChild,
-                            onBuyItem = viewModel::buyShopItem,
-                            onLogout = viewModel::logout
+                        NavigationBarItem(
+                            selected = selectedTab == 1,
+                            onClick = {
+                                selectedTab = 1
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Default.ShoppingCart,
+                                    contentDescription = "Shop"
+                                )
+                            },
+                            label = {
+                                Text("Shop")
+                            }
                         )
 
-                        2 -> SettingsScreen(
-                            modifier = Modifier.padding(innerPadding),
-                            data = data,
-                            selectedChild = selectedChild,
-                            selectedDate = selectedDate,
-                            jsonText = viewModel.getJsonText(),
-                            onAddTask = viewModel::addTask,
-                            onUpdateTask = viewModel::updateTask,
-                            onDeleteTask = viewModel::deleteTask,
-                            onAddShopItem = viewModel::addShopItem,
-                            onUpdateShopItem = viewModel::updateShopItem,
-                            onDeleteShopItem = viewModel::deleteShopItem,
-                            onAddDogSchedule = viewModel::addDogSchedule,
-                            onUpdateDogSchedule = viewModel::updateDogSchedule,
-                            onDeleteDogSchedule = viewModel::deleteDogSchedule,
-                            onResetDemoData = viewModel::resetDemoData,
-                            onLogout = viewModel::logout
+                        NavigationBarItem(
+                            selected = selectedTab == 2,
+                            onClick = {
+                                selectedTab = 2
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "Einstellungen"
+                                )
+                            },
+                            label = {
+                                Text("Einstellungen")
+                            }
                         )
                     }
+                }
+            ) { innerPadding ->
+                when (selectedTab) {
+                    0 -> TasksScreen(
+                        modifier = Modifier.padding(innerPadding),
+                        data = data,
+                        selectedChild = selectedChild,
+                        selectedDate = selectedDate,
+                        onPreviousDay = viewModel::previousDay,
+                        onNextDay = viewModel::nextDay,
+                        onToday = viewModel::today,
+                        onCompleteTask = viewModel::completeTask,
+                        onLogout = viewModel::logout
+                    )
+
+                    1 -> ShopScreen(
+                        modifier = Modifier.padding(innerPadding),
+                        data = data,
+                        selectedChild = selectedChild,
+                        onBuyItem = viewModel::buyShopItem,
+                        onLogout = viewModel::logout
+                    )
+
+                    2 -> SettingsScreen(
+                        modifier = Modifier.padding(innerPadding),
+                        data = data,
+                        selectedChild = selectedChild,
+                        selectedDate = selectedDate,
+                        jsonText = viewModel.getJsonText(),
+                        onAddTask = viewModel::addTask,
+                        onUpdateTask = viewModel::updateTask,
+                        onDeleteTask = viewModel::deleteTask,
+                        onAddShopItem = viewModel::addShopItem,
+                        onUpdateShopItem = viewModel::updateShopItem,
+                        onDeleteShopItem = viewModel::deleteShopItem,
+                        onAddDogSchedule = viewModel::addDogSchedule,
+                        onUpdateDogSchedule = viewModel::updateDogSchedule,
+                        onDeleteDogSchedule = viewModel::deleteDogSchedule,
+                        onResetDemoData = viewModel::resetDemoData,
+                        onLogout = viewModel::logout
+                    )
                 }
             }
         }
