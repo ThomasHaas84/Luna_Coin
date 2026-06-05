@@ -133,6 +133,7 @@ fun MainScreen(
                         onAddDogSchedule = viewModel::addDogSchedule,
                         onUpdateDogSchedule = viewModel::updateDogSchedule,
                         onDeleteDogSchedule = viewModel::deleteDogSchedule,
+                        onUndoLogEntry = viewModel::undoLogEntry,
                         onResetDemoData = viewModel::resetDemoData,
                         onLogout = viewModel::logout
                     )

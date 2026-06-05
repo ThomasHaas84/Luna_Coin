@@ -173,8 +173,8 @@ private fun HeaderRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${selectedChild?.name ?: ""} · ",
-                    style = MaterialTheme.typography.titleMedium
+                    text = "${selectedChild?.name ?: ""}  ",
+                    style = MaterialTheme.typography.titleLarge
                 )
 
                 CoinDisplay(

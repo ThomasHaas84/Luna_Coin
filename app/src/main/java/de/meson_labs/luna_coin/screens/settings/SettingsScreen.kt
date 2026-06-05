@@ -48,6 +48,7 @@ fun SettingsScreen(
     onAddDogSchedule: (String, DayOfWeekName, String, String, String, String) -> Unit,
     onUpdateDogSchedule: (String, String, DayOfWeekName, String, String, String, String) -> Unit,
     onDeleteDogSchedule: (String) -> Unit,
+    onUndoLogEntry: (String) -> Unit,
     onResetDemoData: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -240,6 +241,15 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.headlineSmall
             )
 
+            if (canEdit) {
+                Text(
+                    text = "Einträge lange drücken, um sie rückgängig zu machen.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
             Spacer(
                 modifier = Modifier.height(8.dp)
             )
@@ -258,7 +268,13 @@ fun SettingsScreen(
             }
         } else {
             items(visibleLogs) { log ->
-                LogCard(log)
+                LogCard(
+                    log = log,
+                    canUndo = canEdit,
+                    onUndo = {
+                        onUndoLogEntry(log.id)
+                    }
+                )
             }
         }
     }

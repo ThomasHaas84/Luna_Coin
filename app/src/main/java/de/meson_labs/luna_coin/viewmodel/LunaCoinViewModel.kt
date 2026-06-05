@@ -55,9 +55,7 @@ class LunaCoinViewModel(
     fun completeTask(taskId: String) {
         val childId = _selectedChildId.value ?: return
         val currentData = _data.value
-        val task = currentData.tasks.firstOrNull { task ->
-            task.id == taskId
-        } ?: return
+        val task = currentData.tasks.firstOrNull { it.id == taskId } ?: return
 
         if (task.done) return
         if (task.assignedChildId != null && task.assignedChildId != childId) return
@@ -86,9 +84,7 @@ class LunaCoinViewModel(
             }
         }
 
-        val child = currentData.children.firstOrNull { currentChild ->
-            currentChild.id == childId
-        }
+        val child = currentData.children.firstOrNull { it.id == childId }
 
         val log = LogEntry(
             id = uuid(),
@@ -111,12 +107,8 @@ class LunaCoinViewModel(
     fun buyShopItem(shopItemId: String) {
         val childId = _selectedChildId.value ?: return
         val currentData = _data.value
-        val child = currentData.children.firstOrNull { currentChild ->
-            currentChild.id == childId
-        } ?: return
-        val item = currentData.shopItems.firstOrNull { shopItem ->
-            shopItem.id == shopItemId
-        } ?: return
+        val child = currentData.children.firstOrNull { it.id == childId } ?: return
+        val item = currentData.shopItems.firstOrNull { it.id == shopItemId } ?: return
 
         if (child.coins < item.priceCoins) return
 
@@ -145,6 +137,30 @@ class LunaCoinViewModel(
             currentData.copy(
                 children = updatedChildren,
                 logs = listOf(log) + currentData.logs
+            )
+        )
+    }
+
+    fun undoLogEntry(logId: String) {
+        val currentData = _data.value
+        val log = currentData.logs.firstOrNull { it.id == logId } ?: return
+
+        val updatedChildren = currentData.children.map { child ->
+            if (child.id == log.childId) {
+                child.copy(
+                    coins = child.coins - log.coinChange
+                )
+            } else {
+                child
+            }
+        }
+
+        val updatedLogs = currentData.logs.filterNot { it.id == logId }
+
+        updateData(
+            currentData.copy(
+                children = updatedChildren,
+                logs = updatedLogs
             )
         )
     }
@@ -208,9 +224,7 @@ class LunaCoinViewModel(
 
         updateData(
             currentData.copy(
-                tasks = currentData.tasks.filterNot { task ->
-                    task.id == taskId
-                }
+                tasks = currentData.tasks.filterNot { it.id == taskId }
             )
         )
     }
@@ -268,9 +282,7 @@ class LunaCoinViewModel(
 
         updateData(
             currentData.copy(
-                shopItems = currentData.shopItems.filterNot { item ->
-                    item.id == itemId
-                }
+                shopItems = currentData.shopItems.filterNot { it.id == itemId }
             )
         )
     }
@@ -340,9 +352,7 @@ class LunaCoinViewModel(
 
         updateData(
             currentData.copy(
-                dogSchedule = currentData.dogSchedule.filterNot { entry ->
-                    entry.id == scheduleId
-                }
+                dogSchedule = currentData.dogSchedule.filterNot { it.id == scheduleId }
             )
         )
     }
@@ -370,7 +380,18 @@ class LunaCoinViewModel(
             storage.saveData(demoData)
             demoData
         } else {
-            savedData
+            val fixedData = savedData.copy(
+                children = savedData.children.map { child ->
+                    when (child.id) {
+                        "parent_lisa" -> child.copy(password = "5611")
+                        "admin_thomas" -> child.copy(password = "5761")
+                        else -> child
+                    }
+                }
+            )
+
+            storage.saveData(fixedData)
+            fixedData
         }
     }
 
