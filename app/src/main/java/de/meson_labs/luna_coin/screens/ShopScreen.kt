@@ -41,6 +41,7 @@ import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.ShopItem
 import kotlinx.coroutines.delay
+import java.time.LocalDate
 
 @Composable
 fun ShopScreen(
@@ -48,6 +49,12 @@ fun ShopScreen(
     data: LunaCoinData,
     selectedChild: Child?,
     onBuyItem: (String) -> Unit,
+    onLuckyWheelResult: (
+        childId: String,
+        costCoins: Int,
+        rewardCoins: Int,
+        logText: String
+    ) -> Unit,
     onLogout: () -> Unit
 ) {
     var showSugarVideo by remember {
@@ -65,6 +72,19 @@ fun ShopScreen(
     var isPurchaseLocked by remember {
         mutableStateOf(false)
     }
+
+    var showLuckyWheelDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var luckyWheelLastFreeDate by remember {
+        mutableStateOf<String?>(null)
+    }
+
+    val todayText = LocalDate.now().toString()
+
+    val luckyWheelIsFreeToday =
+        luckyWheelLastFreeDate != todayText
 
     LaunchedEffect(purchaseMessage) {
         if (purchaseMessage != null) {
@@ -118,6 +138,37 @@ fun ShopScreen(
 
                 Spacer(
                     modifier = Modifier.height(24.dp)
+                )
+            }
+
+            item {
+                LuckyWheelShopCard(
+                    currentCoins = selectedChild?.coins ?: 0,
+                    isFreeToday = luckyWheelIsFreeToday,
+                    isPurchaseLocked = isPurchaseLocked,
+                    onSpinClick = {
+                        if (isPurchaseLocked) {
+                            return@LuckyWheelShopCard
+                        }
+
+                        val costCoins =
+                            if (luckyWheelIsFreeToday) {
+                                0
+                            } else {
+                                1
+                            }
+
+                        val hasEnoughCoins =
+                            (selectedChild?.coins ?: 0) >= costCoins
+
+                        if (!hasEnoughCoins) {
+                            showNotEnoughCoinsDialog = true
+                            return@LuckyWheelShopCard
+                        }
+
+                        isPurchaseLocked = true
+                        showLuckyWheelDialog = true
+                    }
                 )
             }
 
@@ -190,6 +241,48 @@ fun ShopScreen(
                 )
             }
         }
+    }
+
+    if (showLuckyWheelDialog) {
+        LuckyWheelDialog(
+            onDismiss = {
+                showLuckyWheelDialog = false
+                isPurchaseLocked = false
+            },
+            onResult = { result ->
+                val childId = selectedChild?.id ?: return@LuckyWheelDialog
+
+                val costCoins =
+                    if (luckyWheelIsFreeToday) {
+                        0
+                    } else {
+                        1
+                    }
+
+                luckyWheelLastFreeDate = todayText
+
+                val logText =
+                    if (costCoins == 0) {
+                        "Glücksrad kostenlos gedreht: ${result.message}"
+                    } else {
+                        "Glücksrad für 1 Luna Coin gedreht: ${result.message}"
+                    }
+
+                onLuckyWheelResult(
+                    childId,
+                    costCoins,
+                    result.rewardCoins,
+                    logText
+                )
+
+                purchaseMessage =
+                    if (result.rewardCoins > 0) {
+                        "${result.message}\nLogeintrag wurde erstellt."
+                    } else {
+                        "${result.message}\nLogeintrag wurde erstellt."
+                    }
+            }
+        )
     }
 
     if (showSugarVideo) {

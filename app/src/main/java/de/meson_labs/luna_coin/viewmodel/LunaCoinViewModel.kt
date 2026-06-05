@@ -168,6 +168,47 @@ class LunaCoinViewModel(
         )
     }
 
+    fun applyLuckyWheelResult(
+        childId: String,
+        costCoins: Int,
+        rewardCoins: Int,
+        logText: String
+    ) {
+        val currentData = _data.value
+
+        val child = currentData.children.firstOrNull {
+            it.id == childId
+        } ?: return
+
+        val coinChange = rewardCoins - costCoins
+
+        val updatedChildren = currentData.children.map { currentChild ->
+            if (currentChild.id == childId) {
+                currentChild.copy(
+                    coins = currentChild.coins + coinChange
+                )
+            } else {
+                currentChild
+            }
+        }
+
+        val log = LogEntry(
+            id = uuid(),
+            timestamp = nowText(),
+            childId = childId,
+            type = LogType.SYSTEM,
+            text = logText,
+            coinChange = coinChange
+        )
+
+        updateData(
+            currentData.copy(
+                children = updatedChildren,
+                logs = listOf(log) + currentData.logs
+            )
+        )
+    }
+
     fun undoLogEntry(logId: String) {
         val currentData = _data.value
 

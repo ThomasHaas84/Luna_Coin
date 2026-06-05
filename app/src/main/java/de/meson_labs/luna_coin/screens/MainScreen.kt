@@ -115,6 +115,7 @@ fun MainScreen(
                         data = data,
                         selectedChild = selectedChild,
                         onBuyItem = viewModel::buyShopItem,
+                        onLuckyWheelResult = viewModel::applyLuckyWheelResult,
                         onLogout = viewModel::logout
                     )
 
