@@ -12,14 +12,22 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.components.CoinDisplay
@@ -31,6 +39,10 @@ fun UserSelectionScreen(
     children: List<Child>,
     onChildSelected: (String) -> Unit
 ) {
+    var passwordUser by remember {
+        mutableStateOf<Child?>(null)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -44,7 +56,7 @@ fun UserSelectionScreen(
         )
 
         Text(
-            text = "Benutzer auswählen:",
+            text = "Wer bist du?",
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(
@@ -65,11 +77,28 @@ fun UserSelectionScreen(
                 UserProfileCard(
                     child = child,
                     onClick = {
-                        onChildSelected(child.id)
+                        if (child.password.isBlank()) {
+                            onChildSelected(child.id)
+                        } else {
+                            passwordUser = child
+                        }
                     }
                 )
             }
         }
+    }
+
+    passwordUser?.let { child ->
+        PasswordDialog(
+            child = child,
+            onCancel = {
+                passwordUser = null
+            },
+            onSuccess = {
+                passwordUser = null
+                onChildSelected(child.id)
+            }
+        )
     }
 }
 
@@ -91,14 +120,9 @@ private fun UserProfileCard(
     }
 
     val textColor = when (child.role) {
-        UserRole.CHILD ->
-            MaterialTheme.colorScheme.onSurface
-
-        UserRole.PARENT ->
-            Color.White
-
-        UserRole.ADMIN ->
-            Color.White
+        UserRole.CHILD -> MaterialTheme.colorScheme.onSurface
+        UserRole.PARENT -> Color.White
+        UserRole.ADMIN -> Color.White
     }
 
     Column(
@@ -126,10 +150,7 @@ private fun UserProfileCard(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = child.name
-                        .firstOrNull()
-                        ?.uppercase()
-                        ?: "?",
+                    text = child.name.firstOrNull()?.uppercase() ?: "?",
                     style = MaterialTheme.typography.displayLarge,
                     color = textColor
                 )
@@ -149,7 +170,8 @@ private fun UserProfileCard(
         when (child.role) {
             UserRole.CHILD -> {
                 CoinDisplay(
-                    amount = child.coins
+                    amount = child.coins,
+                    coinSize = 48.dp
                 )
             }
 
@@ -172,4 +194,72 @@ private fun UserProfileCard(
             }
         }
     }
+}
+
+@Composable
+private fun PasswordDialog(
+    child: Child,
+    onCancel: () -> Unit,
+    onSuccess: () -> Unit
+) {
+    var passwordInput by remember {
+        mutableStateOf("")
+    }
+
+    var showError by remember {
+        mutableStateOf(false)
+    }
+
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = {
+            Text("${child.name} anmelden")
+        },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = passwordInput,
+                    onValueChange = {
+                        passwordInput = it
+                        showError = false
+                    },
+                    label = {
+                        Text("Passwort")
+                    },
+                    visualTransformation = PasswordVisualTransformation()
+                )
+
+                if (showError) {
+                    Text(
+                        text = "Passwort falsch",
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(
+                            top = 8.dp
+                        )
+                    )
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onCancel
+            ) {
+                Text("Abbrechen")
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (passwordInput == child.password) {
+                        onSuccess()
+                    } else {
+                        showError = true
+                        passwordInput = ""
+                    }
+                }
+            ) {
+                Text("Anmelden")
+            }
+        }
+    )
 }

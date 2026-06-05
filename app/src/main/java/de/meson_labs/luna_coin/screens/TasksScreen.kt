@@ -1,6 +1,10 @@
 package de.meson_labs.luna_coin.screens
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,8 +23,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.models.Child
@@ -30,6 +39,7 @@ import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.TaskItem
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun TasksScreen(
@@ -70,9 +80,7 @@ fun TasksScreen(
                 onLogout = onLogout
             )
 
-            Spacer(
-                modifier = Modifier.height(16.dp)
-            )
+            Spacer(modifier = Modifier.height(16.dp))
 
             DateSelector(
                 selectedDate = selectedDate,
@@ -81,18 +89,14 @@ fun TasksScreen(
                 onToday = onToday
             )
 
-            Spacer(
-                modifier = Modifier.height(24.dp)
-            )
+            Spacer(modifier = Modifier.height(24.dp))
 
             Text(
                 text = "Haushaltsaufgaben",
                 style = MaterialTheme.typography.headlineSmall
             )
 
-            Spacer(
-                modifier = Modifier.height(8.dp)
-            )
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
         if (tasksForDate.isEmpty()) {
@@ -112,30 +116,24 @@ fun TasksScreen(
         }
 
         item {
-            Spacer(
-                modifier = Modifier.height(24.dp)
-            )
+            Spacer(modifier = Modifier.height(24.dp))
 
             Divider()
 
-            Spacer(
-                modifier = Modifier.height(24.dp)
-            )
+            Spacer(modifier = Modifier.height(24.dp))
 
             Text(
                 text = "Hunde-Plan",
                 style = MaterialTheme.typography.headlineSmall
             )
 
-            Spacer(
-                modifier = Modifier.height(8.dp)
-            )
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
         if (dogTasksForDay.isEmpty()) {
             item {
                 EmptyCard(
-                    text = "Für diesen Tag ist kein Hund-Dienst eingetragen."
+                    text = "Für diesen Tag ist kein Hunde-Dienst eingetragen."
                 )
             }
         } else {
@@ -175,7 +173,7 @@ private fun HeaderRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${selectedChild?.name ?: ""} ",
+                    text = "${selectedChild?.name ?: ""} · ",
                     style = MaterialTheme.typography.titleMedium
                 )
 
@@ -200,7 +198,12 @@ private fun DateSelector(
     onNextDay: () -> Unit,
     onToday: () -> Unit
 ) {
-    val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+    val dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+
+    val dayFormatter = DateTimeFormatter.ofPattern(
+        "EEEE",
+        Locale.GERMAN
+    )
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -217,12 +220,21 @@ private fun DateSelector(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = selectedDate.format(formatter),
+                text = selectedDate.format(dayFormatter)
+                    .replaceFirstChar {
+                        it.uppercase()
+                    },
+                style = MaterialTheme.typography.headlineSmall
+            )
+
+            Text(
+                text = selectedDate.format(dateFormatter),
                 style = MaterialTheme.typography.titleLarge
             )
 
             AssistChip(
                 onClick = onToday,
+                enabled = selectedDate != LocalDate.now(),
                 label = {
                     Text("Heute")
                 }
@@ -252,9 +264,7 @@ private fun TaskCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(
-                vertical = 6.dp
-            ),
+            .padding(vertical = 6.dp),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp
         )
@@ -278,18 +288,18 @@ private fun TaskCard(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(
-                        start = 12.dp
-                    )
+                    .padding(start = 12.dp)
             ) {
-                Text(
+                AnimatedStrikeThroughText(
                     text = task.title,
+                    strikeThrough = task.done,
                     style = MaterialTheme.typography.titleMedium
                 )
 
                 if (task.description.isNotBlank()) {
-                    Text(
+                    AnimatedStrikeThroughText(
                         text = task.description,
+                        strikeThrough = task.done,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -322,6 +332,66 @@ private fun TaskCard(
 }
 
 @Composable
+private fun AnimatedStrikeThroughText(
+    text: String,
+    strikeThrough: Boolean,
+    style: TextStyle,
+    modifier: Modifier = Modifier
+) {
+    val progress by animateFloatAsState(
+        targetValue = if (strikeThrough) {
+            1f
+        } else {
+            0f
+        },
+        animationSpec = tween(
+            durationMillis = 700
+        ),
+        label = "strikeThroughAnimation"
+    )
+
+    val lineColor = MaterialTheme.colorScheme.onSurface.copy(
+        alpha = 0.85f
+    )
+
+    Box(
+        modifier = modifier
+    ) {
+        Text(
+            text = text,
+            style = style,
+            color = if (strikeThrough) {
+                MaterialTheme.colorScheme.onSurface.copy(
+                    alpha = 0.65f
+                )
+            } else {
+                Color.Unspecified
+            }
+        )
+
+        Canvas(
+            modifier = Modifier.matchParentSize()
+        ) {
+            val y = size.height * 0.58f
+
+            drawLine(
+                color = lineColor,
+                start = Offset(
+                    x = 0f,
+                    y = y
+                ),
+                end = Offset(
+                    x = size.width * progress,
+                    y = y
+                ),
+                strokeWidth = 3.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+        }
+    }
+}
+
+@Composable
 private fun DogScheduleCard(
     dogTask: DogScheduleItem,
     childName: String
@@ -329,9 +399,7 @@ private fun DogScheduleCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(
-                vertical = 6.dp
-            ),
+            .padding(vertical = 6.dp),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp
         )
@@ -369,9 +437,7 @@ private fun EmptyCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(
-                vertical = 6.dp
-            )
+            .padding(vertical = 6.dp)
     ) {
         Text(
             text = text,

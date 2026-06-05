@@ -16,7 +16,8 @@ data class Child(
     val id: String,
     val name: String,
     val coins: Int = 0,
-    val role: UserRole = UserRole.CHILD
+    val role: UserRole = UserRole.CHILD,
+    val password: String = ""
 )
 
 @Serializable

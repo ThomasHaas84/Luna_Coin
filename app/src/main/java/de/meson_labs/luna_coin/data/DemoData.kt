@@ -69,14 +69,16 @@ object DemoData {
             id = "parent_lisa",
             name = "Lisa",
             coins = 0,
-            role = UserRole.PARENT
+            role = UserRole.PARENT,
+            password = "6511"
         )
 
         val thomas = Child(
             id = "admin_thomas",
             name = "Thomas",
             coins = 0,
-            role = UserRole.ADMIN
+            role = UserRole.ADMIN,
+            password = "5761"
         )
 
         val children = listOf(
@@ -127,6 +129,12 @@ object DemoData {
         )
 
         val shopItems = listOf(
+            ShopItem(
+                id = uuid(),
+                title = "Gib mir Zucker!",
+                description = "Du darfst dir eins aus dem Glas nehmen.",
+                priceCoins = 2
+            ),
             ShopItem(
                 id = uuid(),
                 title = "30 Minuten Tablet-Zeit",

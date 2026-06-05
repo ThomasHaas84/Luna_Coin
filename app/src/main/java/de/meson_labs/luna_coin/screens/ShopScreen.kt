@@ -1,5 +1,9 @@
 package de.meson_labs.luna_coin.screens
 
+import android.net.Uri
+import android.widget.VideoView
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,15 +18,27 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.ShopItem
+import androidx.core.net.toUri
 
 @Composable
 fun ShopScreen(
@@ -32,6 +48,10 @@ fun ShopScreen(
     onBuyItem: (String) -> Unit,
     onLogout: () -> Unit
 ) {
+    var showSugarVideo by remember {
+        mutableStateOf(false)
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -54,7 +74,7 @@ fun ShopScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "${selectedChild?.name ?: ""} ",
+                            text = "${selectedChild?.name ?: ""} · ",
                             style = MaterialTheme.typography.titleMedium
                         )
 
@@ -92,10 +112,24 @@ fun ShopScreen(
                 ShopItemCard(
                     item = item,
                     currentCoins = selectedChild?.coins ?: 0,
-                    onBuyItem = onBuyItem
+                    onBuyItem = {
+                        onBuyItem(item.id)
+
+                        if (item.title == "Gib mir Zucker!") {
+                            showSugarVideo = true
+                        }
+                    }
                 )
             }
         }
+    }
+
+    if (showSugarVideo) {
+        SugarVideoDialog(
+            onDismiss = {
+                showSugarVideo = false
+            }
+        )
     }
 }
 
@@ -103,7 +137,7 @@ fun ShopScreen(
 private fun ShopItemCard(
     item: ShopItem,
     currentCoins: Int,
-    onBuyItem: (String) -> Unit
+    onBuyItem: () -> Unit
 ) {
     val canBuy = currentCoins >= item.priceCoins
 
@@ -144,12 +178,65 @@ private fun ShopItemCard(
             }
 
             Button(
-                onClick = {
-                    onBuyItem(item.id)
-                },
+                onClick = onBuyItem,
                 enabled = canBuy
             ) {
                 Text("Kaufen")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SugarVideoDialog(
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false
+        )
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black),
+            color = Color.Black
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = {
+                        VideoView(context).apply {
+                            val videoUri =
+                                "android.resource://${context.packageName}/${R.raw.gib_mir_zucker}".toUri()
+
+                            setVideoURI(videoUri)
+
+                            setOnPreparedListener { mediaPlayer ->
+                                mediaPlayer.isLooping = false
+                                start()
+                            }
+
+                            setOnCompletionListener {
+                                onDismiss()
+                            }
+                        }
+                    }
+                )
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(24.dp)
+                ) {
+                    Text("Schließen")
+                }
             }
         }
     }
