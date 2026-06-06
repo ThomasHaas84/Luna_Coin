@@ -1,5 +1,6 @@
 package de.meson_labs.luna_coin.screens.settings
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -22,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -34,6 +37,7 @@ import de.meson_labs.luna_coin.models.TaskCompletionMode
 import de.meson_labs.luna_coin.models.TaskItem
 import de.meson_labs.luna_coin.models.TaskRepeatType
 import de.meson_labs.luna_coin.models.UserRole
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 @Composable
@@ -87,8 +91,13 @@ fun TaskEditorDialog(
     var selectedWeeklyDay by remember { mutableStateOf(DayOfWeekName.SATURDAY) }
     var isWatchlist by remember { mutableStateOf(false) }
 
-    val childUsers = children.filter { child ->
-        child.role == UserRole.CHILD
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+
+    val assignableUsers = children.filter { child ->
+        child.role == UserRole.CHILD ||
+                child.name.equals("Lisa", ignoreCase = true) ||
+                child.name.equals("Thomas", ignoreCase = true)
     }
 
     fun resetFields() {
@@ -112,7 +121,9 @@ fun TaskEditorDialog(
             Text("Aufgaben bearbeiten")
         },
         text = {
-            LazyColumn {
+            LazyColumn(
+                state = listState
+            ) {
                 item {
                     Text(
                         text = if (selectedTask == null) {
@@ -189,7 +200,7 @@ fun TaskEditorDialog(
                                 assignmentType = TaskAssignmentType.ASSIGNED
 
                                 if (selectedChildId == null) {
-                                    selectedChildId = childUsers.firstOrNull()?.id
+                                    selectedChildId = assignableUsers.firstOrNull()?.id
                                 }
 
                                 completionMode = TaskCompletionMode.EACH_PERSON
@@ -211,7 +222,7 @@ fun TaskEditorDialog(
                             style = MaterialTheme.typography.titleMedium
                         )
 
-                        childUsers.forEach { child ->
+                        assignableUsers.forEach { child ->
                             TextButton(
                                 onClick = {
                                     selectedChildId = child.id
@@ -268,80 +279,165 @@ fun TaskEditorDialog(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Text(
-                        text = "Intervall",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-
-                    Column {
-                        TextButton(
-                            onClick = {
-                                repeatType = TaskRepeatType.DAILY
-                            }
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                if (repeatType == TaskRepeatType.DAILY) {
-                                    "✓ Täglich"
-                                } else {
-                                    "Täglich"
-                                }
+                                text = "Intervall",
+                                style = MaterialTheme.typography.titleMedium
                             )
+
+                            TextButton(
+                                onClick = {
+                                    repeatType = TaskRepeatType.DAILY
+                                }
+                            ) {
+                                Text(
+                                    if (repeatType == TaskRepeatType.DAILY) {
+                                        "✓ Täglich"
+                                    } else {
+                                        "Täglich"
+                                    }
+                                )
+                            }
+
+                            TextButton(
+                                onClick = {
+                                    repeatType = TaskRepeatType.WEEKDAYS
+                                }
+                            ) {
+                                Text(
+                                    if (repeatType == TaskRepeatType.WEEKDAYS) {
+                                        "✓ Mo-Fr"
+                                    } else {
+                                        "Mo-Fr"
+                                    }
+                                )
+                            }
+
+                            TextButton(
+                                onClick = {
+                                    repeatType = TaskRepeatType.WEEKEND
+                                }
+                            ) {
+                                Text(
+                                    if (repeatType == TaskRepeatType.WEEKEND) {
+                                        "✓ Sa-So"
+                                    } else {
+                                        "Sa-So"
+                                    }
+                                )
+                            }
+
+                            TextButton(
+                                onClick = {
+                                    repeatType = TaskRepeatType.WEEKLY
+                                }
+                            ) {
+                                Text(
+                                    if (repeatType == TaskRepeatType.WEEKLY) {
+                                        "✓ Wöchentlich"
+                                    } else {
+                                        "Wöchentlich"
+                                    }
+                                )
+                            }
+
+                            TextButton(
+                                onClick = {
+                                    repeatType = TaskRepeatType.BIWEEKLY
+                                }
+                            ) {
+                                Text(
+                                    if (repeatType == TaskRepeatType.BIWEEKLY) {
+                                        "✓ Zweiwöchentlich"
+                                    } else {
+                                        "Zweiwöchentlich"
+                                    }
+                                )
+                            }
+
+                            TextButton(
+                                onClick = {
+                                    repeatType = TaskRepeatType.MONTHLY
+                                }
+                            ) {
+                                Text(
+                                    if (repeatType == TaskRepeatType.MONTHLY) {
+                                        "✓ Monatlich"
+                                    } else {
+                                        "Monatlich"
+                                    }
+                                )
+                            }
+
+                            TextButton(
+                                onClick = {
+                                    repeatType = TaskRepeatType.YEARLY
+                                }
+                            ) {
+                                Text(
+                                    if (repeatType == TaskRepeatType.YEARLY) {
+                                        "✓ Jährlich"
+                                    } else {
+                                        "Jährlich"
+                                    }
+                                )
+                            }
+
+                            TextButton(
+                                onClick = {
+                                    repeatType = TaskRepeatType.EVERY_TWO_YEARS
+                                }
+                            ) {
+                                Text(
+                                    if (repeatType == TaskRepeatType.EVERY_TWO_YEARS) {
+                                        "✓ Alle 2 Jahre"
+                                    } else {
+                                        "Alle 2 Jahre"
+                                    }
+                                )
+                            }
                         }
 
-                        TextButton(
-                            onClick = {
-                                repeatType = TaskRepeatType.WEEKLY
-                            }
-                        ) {
-                            Text(
-                                if (repeatType == TaskRepeatType.WEEKLY) {
-                                    "✓ Wöchentlich"
-                                } else {
-                                    "Wöchentlich"
-                                }
-                            )
-                        }
+                        Spacer(modifier = Modifier.padding(6.dp))
 
-                        TextButton(
-                            onClick = {
-                                repeatType = TaskRepeatType.BIWEEKLY
-                            }
+                        Column(
+                            modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                if (repeatType == TaskRepeatType.BIWEEKLY) {
-                                    "✓ Zweiwöchentlich"
-                                } else {
-                                    "Zweiwöchentlich"
-                                }
+                                text = "Wochentage",
+                                style = MaterialTheme.typography.titleMedium
                             )
-                        }
 
-                        TextButton(
-                            onClick = {
-                                repeatType = TaskRepeatType.YEARLY
-                            }
-                        ) {
-                            Text(
-                                if (repeatType == TaskRepeatType.YEARLY) {
-                                    "✓ Jährlich"
-                                } else {
-                                    "Jährlich"
-                                }
-                            )
-                        }
+                            DayOfWeekName.entries.forEach { day ->
+                                TextButton(
+                                    onClick = {
+                                        selectedWeeklyDay = day
 
-                        TextButton(
-                            onClick = {
-                                repeatType = TaskRepeatType.EVERY_TWO_YEARS
-                            }
-                        ) {
-                            Text(
-                                if (repeatType == TaskRepeatType.EVERY_TWO_YEARS) {
-                                    "✓ Alle zwei Jahre"
-                                } else {
-                                    "Alle zwei Jahre"
+                                        if (repeatType != TaskRepeatType.BIWEEKLY) {
+                                            repeatType = TaskRepeatType.WEEKLY
+                                        }
+                                    }
+                                ) {
+                                    Text(
+                                        if (
+                                            selectedWeeklyDay == day &&
+                                            (
+                                                    repeatType == TaskRepeatType.WEEKLY ||
+                                                            repeatType == TaskRepeatType.BIWEEKLY
+                                                    )
+                                        ) {
+                                            "✓ ${dayToGermanShort(day)}"
+                                        } else {
+                                            dayToGermanShort(day)
+                                        }
+                                    )
                                 }
-                            )
+                            }
                         }
                     }
 
@@ -368,34 +464,6 @@ fun TaskEditorDialog(
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
-
-                    if (
-                        repeatType == TaskRepeatType.WEEKLY ||
-                        repeatType == TaskRepeatType.BIWEEKLY
-                    ) {
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = "Wochentag",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-
-                        DayOfWeekName.entries.forEach { day ->
-                            TextButton(
-                                onClick = {
-                                    selectedWeeklyDay = day
-                                }
-                            ) {
-                                Text(
-                                    if (selectedWeeklyDay == day) {
-                                        "✓ ${dayToGerman(day)}"
-                                    } else {
-                                        dayToGerman(day)
-                                    }
-                                )
-                            }
-                        }
-                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -616,6 +684,10 @@ fun TaskEditorDialog(
                                         selectedWeeklyDay =
                                             task.weeklyDay ?: DayOfWeekName.SATURDAY
                                         isWatchlist = task.isWatchlist
+
+                                        coroutineScope.launch {
+                                            listState.animateScrollToItem(0)
+                                        }
                                     }
                                 ) {
                                     Text("Bearbeiten")
@@ -685,8 +757,11 @@ private fun repeatTypeText(
 ): String {
     return when (repeatType) {
         TaskRepeatType.DAILY -> "Täglich"
+        TaskRepeatType.WEEKDAYS -> "Montag bis Freitag"
+        TaskRepeatType.WEEKEND -> "Samstag bis Sonntag"
         TaskRepeatType.WEEKLY -> "Wöchentlich"
         TaskRepeatType.BIWEEKLY -> "Zweiwöchentlich"
+        TaskRepeatType.MONTHLY -> "Monatlich"
         TaskRepeatType.YEARLY -> "Jährlich"
         TaskRepeatType.EVERY_TWO_YEARS -> "Alle zwei Jahre"
     }
@@ -703,6 +778,20 @@ private fun dayToGerman(
         DayOfWeekName.FRIDAY -> "Freitag"
         DayOfWeekName.SATURDAY -> "Samstag"
         DayOfWeekName.SUNDAY -> "Sonntag"
+    }
+}
+
+private fun dayToGermanShort(
+    day: DayOfWeekName
+): String {
+    return when (day) {
+        DayOfWeekName.MONDAY -> "Mo"
+        DayOfWeekName.TUESDAY -> "Di"
+        DayOfWeekName.WEDNESDAY -> "Mi"
+        DayOfWeekName.THURSDAY -> "Do"
+        DayOfWeekName.FRIDAY -> "Fr"
+        DayOfWeekName.SATURDAY -> "Sa"
+        DayOfWeekName.SUNDAY -> "So"
     }
 }
 
@@ -735,6 +824,7 @@ private fun germanDateToIsoOrNull(
     }
 }
 
+@SuppressLint("DefaultLocale")
 private fun isoDateToGerman(
     input: String
 ): String {

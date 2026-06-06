@@ -42,8 +42,11 @@ enum class TaskCompletionMode {
 @Serializable
 enum class TaskRepeatType {
     DAILY,
+    WEEKDAYS,
+    WEEKEND,
     WEEKLY,
     BIWEEKLY,
+    MONTHLY,
     YEARLY,
     EVERY_TWO_YEARS
 }

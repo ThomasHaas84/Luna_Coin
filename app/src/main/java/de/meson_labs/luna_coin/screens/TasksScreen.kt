@@ -45,7 +45,6 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 
-
 @Composable
 fun TasksScreen(
     modifier: Modifier = Modifier,
@@ -408,7 +407,8 @@ private fun TaskCard(
                     }
                 }
 
-                if (task.repeatType == TaskRepeatType.DAILY &&
+                if (
+                    task.repeatType == TaskRepeatType.DAILY &&
                     selectedDate != LocalDate.now()
                 ) {
                     Text(
@@ -551,7 +551,8 @@ private fun isTaskVisibleForChildAndDate(
     childId: String,
     date: LocalDate
 ): Boolean {
-    if (task.assignmentType == TaskAssignmentType.ASSIGNED &&
+    if (
+        task.assignmentType == TaskAssignmentType.ASSIGNED &&
         task.assignedChildId != childId
     ) {
         return false
@@ -579,13 +580,15 @@ private fun canTaskBeCompleted(
     childId: String,
     date: LocalDate
 ): Boolean {
-    if (task.repeatType == TaskRepeatType.DAILY &&
+    if (
+        task.repeatType == TaskRepeatType.DAILY &&
         date != LocalDate.now()
     ) {
         return false
     }
 
-    if (task.assignmentType == TaskAssignmentType.ASSIGNED &&
+    if (
+        task.assignmentType == TaskAssignmentType.ASSIGNED &&
         task.assignedChildId != childId
     ) {
         return false
@@ -622,6 +625,15 @@ private fun isTaskDueOnDate(
             true
         }
 
+        TaskRepeatType.WEEKDAYS -> {
+            date.dayOfWeek.value in 1..5
+        }
+
+        TaskRepeatType.WEEKEND -> {
+            date.dayOfWeek.value == 6 ||
+                    date.dayOfWeek.value == 7
+        }
+
         TaskRepeatType.WEEKLY -> {
             task.weeklyDay == date.toDayOfWeekName()
         }
@@ -629,6 +641,10 @@ private fun isTaskDueOnDate(
         TaskRepeatType.BIWEEKLY -> {
             task.weeklyDay == date.toDayOfWeekName() &&
                     ChronoUnit.WEEKS.between(startDate, date) % 2L == 0L
+        }
+
+        TaskRepeatType.MONTHLY -> {
+            date.dayOfMonth == startDate.dayOfMonth
         }
 
         TaskRepeatType.YEARLY -> {
@@ -649,8 +665,11 @@ private fun repeatTypeText(
 ): String {
     return when (repeatType) {
         TaskRepeatType.DAILY -> "Täglich"
+        TaskRepeatType.WEEKDAYS -> "Montag bis Freitag"
+        TaskRepeatType.WEEKEND -> "Samstag bis Sonntag"
         TaskRepeatType.WEEKLY -> "Wöchentlich"
         TaskRepeatType.BIWEEKLY -> "Zweiwöchentlich"
+        TaskRepeatType.MONTHLY -> "Monatlich"
         TaskRepeatType.YEARLY -> "Jährlich"
         TaskRepeatType.EVERY_TWO_YEARS -> "Alle zwei Jahre"
     }

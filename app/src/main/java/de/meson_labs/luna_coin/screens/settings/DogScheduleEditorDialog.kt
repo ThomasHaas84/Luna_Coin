@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -21,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -28,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.DogScheduleItem
+import kotlinx.coroutines.launch
 
 @Composable
 fun DogScheduleEditorDialog(
@@ -54,13 +57,28 @@ fun DogScheduleEditorDialog(
     var feedingTime by remember { mutableStateOf("07:30") }
     var walkTime by remember { mutableStateOf("18:00") }
 
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+
+    fun resetFields() {
+        selectedEntry = null
+        selectedChildId = children.firstOrNull()?.id ?: ""
+        selectedDay = DayOfWeekName.MONDAY
+        careStartTime = "08:00"
+        careEndTime = "16:00"
+        feedingTime = "07:30"
+        walkTime = "18:00"
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text("Hundeplan bearbeiten")
         },
         text = {
-            LazyColumn {
+            LazyColumn(
+                state = listState
+            ) {
                 item {
                     Text(
                         text = if (selectedEntry == null) {
@@ -73,47 +91,59 @@ fun DogScheduleEditorDialog(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Text(
-                        text = "Person",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-
-                    children.forEach { child ->
-                        TextButton(
-                            onClick = {
-                                selectedChildId = child.id
-                            }
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                text = if (selectedChildId == child.id) {
-                                    "✓ ${child.name}"
-                                } else {
-                                    child.name
-                                }
+                                text = "Person",
+                                style = MaterialTheme.typography.bodyMedium
                             )
+
+                            children.forEach { child ->
+                                TextButton(
+                                    onClick = {
+                                        selectedChildId = child.id
+                                    }
+                                ) {
+                                    Text(
+                                        text = if (selectedChildId == child.id) {
+                                            "✓ ${child.name}"
+                                        } else {
+                                            child.name
+                                        }
+                                    )
+                                }
+                            }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.padding(6.dp))
 
-                    Text(
-                        text = "Wochentag",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-
-                    DayOfWeekName.entries.forEach { day ->
-                        TextButton(
-                            onClick = {
-                                selectedDay = day
-                            }
+                        Column(
+                            modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                text = if (selectedDay == day) {
-                                    "✓ ${dayToGerman(day)}"
-                                } else {
-                                    dayToGerman(day)
-                                }
+                                text = "Wochentag",
+                                style = MaterialTheme.typography.bodyMedium
                             )
+
+                            DayOfWeekName.entries.forEach { day ->
+                                TextButton(
+                                    onClick = {
+                                        selectedDay = day
+                                    }
+                                ) {
+                                    Text(
+                                        text = if (selectedDay == day) {
+                                            "✓ ${dayToGermanShort(day)}"
+                                        } else {
+                                            dayToGermanShort(day)
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -192,13 +222,7 @@ fun DogScheduleEditorDialog(
                                         )
                                     }
 
-                                    selectedEntry = null
-                                    selectedChildId = children.firstOrNull()?.id ?: ""
-                                    selectedDay = DayOfWeekName.MONDAY
-                                    careStartTime = "08:00"
-                                    careEndTime = "16:00"
-                                    feedingTime = "07:30"
-                                    walkTime = "18:00"
+                                    resetFields()
                                 }
                             }
                         ) {
@@ -215,13 +239,7 @@ fun DogScheduleEditorDialog(
 
                         OutlinedButton(
                             onClick = {
-                                selectedEntry = null
-                                selectedChildId = children.firstOrNull()?.id ?: ""
-                                selectedDay = DayOfWeekName.MONDAY
-                                careStartTime = "08:00"
-                                careEndTime = "16:00"
-                                feedingTime = "07:30"
-                                walkTime = "18:00"
+                                resetFields()
                             }
                         ) {
                             Text(
@@ -276,6 +294,10 @@ fun DogScheduleEditorDialog(
                                         careEndTime = entry.careEndTime
                                         feedingTime = entry.feedingTime
                                         walkTime = entry.walkTime
+
+                                        coroutineScope.launch {
+                                            listState.animateScrollToItem(0)
+                                        }
                                     }
                                 ) {
                                     Text("Bearbeiten")
@@ -312,9 +334,7 @@ fun DogScheduleEditorDialog(
                 Text("Hundeplan-Eintrag löschen?")
             },
             text = {
-                Text(
-                    "Soll dieser Hundeplan-Eintrag wirklich gelöscht werden?"
-                )
+                Text("Soll dieser Hundeplan-Eintrag wirklich gelöscht werden?")
             },
             dismissButton = {
                 TextButton(
@@ -322,13 +342,7 @@ fun DogScheduleEditorDialog(
                         onDeleteDogSchedule(entry.id)
 
                         if (selectedEntry?.id == entry.id) {
-                            selectedEntry = null
-                            selectedChildId = children.firstOrNull()?.id ?: ""
-                            selectedDay = DayOfWeekName.MONDAY
-                            careStartTime = "08:00"
-                            careEndTime = "16:00"
-                            feedingTime = "07:30"
-                            walkTime = "18:00"
+                            resetFields()
                         }
 
                         entryToDelete = null
@@ -350,7 +364,9 @@ fun DogScheduleEditorDialog(
     }
 }
 
-private fun dayToGerman(day: DayOfWeekName): String {
+private fun dayToGerman(
+    day: DayOfWeekName
+): String {
     return when (day) {
         DayOfWeekName.MONDAY -> "Montag"
         DayOfWeekName.TUESDAY -> "Dienstag"
@@ -359,5 +375,19 @@ private fun dayToGerman(day: DayOfWeekName): String {
         DayOfWeekName.FRIDAY -> "Freitag"
         DayOfWeekName.SATURDAY -> "Samstag"
         DayOfWeekName.SUNDAY -> "Sonntag"
+    }
+}
+
+private fun dayToGermanShort(
+    day: DayOfWeekName
+): String {
+    return when (day) {
+        DayOfWeekName.MONDAY -> "Mo"
+        DayOfWeekName.TUESDAY -> "Di"
+        DayOfWeekName.WEDNESDAY -> "Mi"
+        DayOfWeekName.THURSDAY -> "Do"
+        DayOfWeekName.FRIDAY -> "Fr"
+        DayOfWeekName.SATURDAY -> "Sa"
+        DayOfWeekName.SUNDAY -> "So"
     }
 }

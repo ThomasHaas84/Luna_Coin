@@ -557,6 +557,15 @@ class LunaCoinViewModel(
                 true
             }
 
+            TaskRepeatType.WEEKDAYS -> {
+                date.dayOfWeek.value in 1..5
+            }
+
+            TaskRepeatType.WEEKEND -> {
+                date.dayOfWeek.value == 6 ||
+                        date.dayOfWeek.value == 7
+            }
+
             TaskRepeatType.WEEKLY -> {
                 task.weeklyDay == date.toDayOfWeekName()
             }
@@ -564,6 +573,10 @@ class LunaCoinViewModel(
             TaskRepeatType.BIWEEKLY -> {
                 task.weeklyDay == date.toDayOfWeekName() &&
                         ChronoUnit.WEEKS.between(startDate, date) % 2L == 0L
+            }
+
+            TaskRepeatType.MONTHLY -> {
+                date.dayOfMonth == startDate.dayOfMonth
             }
 
             TaskRepeatType.YEARLY -> {
