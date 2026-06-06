@@ -20,6 +20,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import de.meson_labs.luna_coin.screens.settings.SettingsScreen
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.SportsEsports
 
 @Composable
 fun MainScreen(
@@ -86,6 +88,38 @@ fun MainScreen(
                             },
                             icon = {
                                 Icon(
+                                    imageVector = Icons.Default.SportsEsports,
+                                    contentDescription = "Luna-Games"
+                                )
+                            },
+                            label = {
+                                Text("Luna-Games")
+                            }
+                        )
+
+                        NavigationBarItem(
+                            selected = selectedTab == 3,
+                            onClick = {
+                                selectedTab = 3
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Default.Pets,
+                                    contentDescription = "LunaME"
+                                )
+                            },
+                            label = {
+                                Text("LunaME")
+                            }
+                        )
+
+                        NavigationBarItem(
+                            selected = selectedTab == 4,
+                            onClick = {
+                                selectedTab = 4
+                            },
+                            icon = {
+                                Icon(
                                     imageVector = Icons.Default.Settings,
                                     contentDescription = "Einstellungen"
                                 )
@@ -119,7 +153,17 @@ fun MainScreen(
                         onLogout = viewModel::logout
                     )
 
-                    2 -> SettingsScreen(
+                    2 -> Text(
+                        text = "Luna-Games",
+                        modifier = Modifier.padding(innerPadding)
+                    )
+
+                    3 -> Text(
+                        text = "LunaME",
+                        modifier = Modifier.padding(innerPadding)
+                    )
+
+                    4 -> SettingsScreen(
                         modifier = Modifier.padding(innerPadding),
                         data = data,
                         selectedChild = selectedChild,
