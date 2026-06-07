@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.components.CoinDisplay
+import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.DogScheduleItem
@@ -82,7 +83,7 @@ fun TasksScreen(
             .padding(24.dp)
     ) {
         item {
-            HeaderRow(
+            LunaScreenHeader(
                 title = "Aufgaben",
                 selectedChild = selectedChild,
                 onLogout = onLogout
@@ -178,46 +179,6 @@ private fun dueDateColor(
         daysLeft <= 2 -> Color(0xFFF97316)
         daysLeft <= 7 -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-}
-
-@Composable
-private fun HeaderRow(
-    title: String,
-    selectedChild: Child?,
-    onLogout: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.displaySmall
-            )
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "${selectedChild?.name ?: ""}  ",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-
-                CoinDisplay(
-                    amount = selectedChild?.coins ?: 0
-                )
-            }
-        }
-
-        OutlinedButton(
-            onClick = onLogout
-        ) {
-            Text("Benutzer wechseln")
-        }
     }
 }
 

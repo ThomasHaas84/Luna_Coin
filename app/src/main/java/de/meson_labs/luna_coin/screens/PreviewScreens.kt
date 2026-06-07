@@ -91,6 +91,8 @@ fun SettingsScreenChildPreview() {
         onUpdateDogSchedule = { _, _, _, _, _, _, _ -> },
         onDeleteDogSchedule = {},
 
+        onUpdateChildCoins = { _, _ -> },
+
         onUndoLogEntry = {},
         onResetDemoData = {},
         onLogout = {}
@@ -127,6 +129,8 @@ fun SettingsScreenAdminPreview() {
         onAddDogSchedule = { _, _, _, _, _, _ -> },
         onUpdateDogSchedule = { _, _, _, _, _, _, _ -> },
         onDeleteDogSchedule = {},
+
+        onUpdateChildCoins = { _, _ -> },
 
         onUndoLogEntry = {},
         onResetDemoData = {},

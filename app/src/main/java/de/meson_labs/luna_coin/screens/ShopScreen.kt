@@ -42,6 +42,7 @@ import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.ShopItem
 import kotlinx.coroutines.delay
 import java.time.LocalDate
+import de.meson_labs.luna_coin.components.LunaScreenHeader
 
 @Composable
 fun ShopScreen(
@@ -103,38 +104,11 @@ fun ShopScreen(
                 .padding(24.dp)
         ) {
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = "Shop",
-                            style = MaterialTheme.typography.displaySmall
-                        )
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "${selectedChild?.name ?: ""}  ",
-                                style = MaterialTheme.typography.titleLarge
-                            )
-
-                            CoinDisplay(
-                                amount = selectedChild?.coins ?: 0
-                            )
-                        }
-                    }
-
-                    OutlinedButton(
-                        onClick = onLogout
-                    ) {
-                        Text("Benutzer wechseln")
-                    }
-                }
+                LunaScreenHeader(
+                    title = "Shop",
+                    selectedChild = selectedChild,
+                    onLogout = onLogout
+                )
 
                 Spacer(
                     modifier = Modifier.height(24.dp)

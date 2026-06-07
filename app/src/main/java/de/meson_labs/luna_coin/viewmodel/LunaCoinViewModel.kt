@@ -209,6 +209,45 @@ class LunaCoinViewModel(
         )
     }
 
+    fun updateChildCoins(
+        childId: String,
+        newCoins: Int
+    ) {
+        val currentData = _data.value
+
+        val child = currentData.children.firstOrNull {
+            it.id == childId
+        } ?: return
+
+        val coinDifference = newCoins - child.coins
+
+        val updatedChildren = currentData.children.map {
+            if (it.id == childId) {
+                it.copy(
+                    coins = newCoins
+                )
+            } else {
+                it
+            }
+        }
+
+        val log = LogEntry(
+            id = uuid(),
+            timestamp = nowText(),
+            childId = childId,
+            type = LogType.SYSTEM,
+            text = "Coins von ${child.name} wurden manuell von ${child.coins} auf $newCoins geändert",
+            coinChange = coinDifference
+        )
+
+        updateData(
+            currentData.copy(
+                children = updatedChildren,
+                logs = listOf(log) + currentData.logs
+            )
+        )
+    }
+
     fun undoLogEntry(logId: String) {
         val currentData = _data.value
 
