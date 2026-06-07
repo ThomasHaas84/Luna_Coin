@@ -674,13 +674,6 @@ private fun createLuckyWheelSegments(): List<LuckyWheelSegment> {
             message = "Leider nichts gewonnen."
         ),
         LuckyWheelSegment(
-            label = "+1",
-            color = Color(0xFF3B82F6),
-            rewardCoins = 1,
-            isFortuneCookie = false,
-            message = "Du hast 1 Luna Coin gewonnen!"
-        ),
-        LuckyWheelSegment(
             label = "Keks",
             color = Color(0xFFFACC15),
             rewardCoins = 0,
@@ -696,17 +689,10 @@ private fun createLuckyWheelSegments(): List<LuckyWheelSegment> {
         ),
         LuckyWheelSegment(
             label = "+2",
-            color = Color(0xFF22C55E),
+            color = Color(0xFF2563EB),
             rewardCoins = 2,
             isFortuneCookie = false,
             message = "Du hast 2 Luna Coins gewonnen!"
-        ),
-        LuckyWheelSegment(
-            label = "+1",
-            color = Color(0xFF60A5FA),
-            rewardCoins = 1,
-            isFortuneCookie = false,
-            message = "Du hast 1 Luna Coin gewonnen!"
         ),
         LuckyWheelSegment(
             label = "Keks",
@@ -723,15 +709,8 @@ private fun createLuckyWheelSegments(): List<LuckyWheelSegment> {
             message = "Leider nichts gewonnen."
         ),
         LuckyWheelSegment(
-            label = "+3",
-            color = Color(0xFFA855F7),
-            rewardCoins = 3,
-            isFortuneCookie = false,
-            message = "Du hast 3 Luna Coins gewonnen!"
-        ),
-        LuckyWheelSegment(
             label = "+1",
-            color = Color(0xFF2563EB),
+            color = Color(0xFF22C55E),
             rewardCoins = 1,
             isFortuneCookie = false,
             message = "Du hast 1 Luna Coin gewonnen!"
@@ -749,6 +728,27 @@ private fun createLuckyWheelSegments(): List<LuckyWheelSegment> {
             rewardCoins = 0,
             isFortuneCookie = false,
             message = "Leider nichts gewonnen."
+        ),
+        LuckyWheelSegment(
+            label = "+3",
+            color = Color(0xFFA855F7),
+            rewardCoins = 3,
+            isFortuneCookie = false,
+            message = "Du hast 3 Luna Coins gewonnen!"
+        ),
+        LuckyWheelSegment(
+            label = "Keks",
+            color = Color(0xFFFACC15),
+            rewardCoins = 0,
+            isFortuneCookie = true,
+            message = fortuneMessages.random()
+        ),
+        LuckyWheelSegment(
+            label = "+2",
+            color = Color(0xFF3B82F6),
+            rewardCoins = 2,
+            isFortuneCookie = false,
+            message = "Du hast 2 Luna Coins gewonnen!"
         )
     )
 }
