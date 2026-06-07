@@ -163,7 +163,8 @@ fun MainScreen(
                     3 -> LunaMeScreen(
                         modifier = Modifier.padding(innerPadding),
                         selectedChild = selectedChild,
-                        onLogout = viewModel::logout
+                        onLogout = viewModel::logout,
+                        onChildChanged = viewModel::updateChild
                     )
 
                     4 -> SettingsScreen(

@@ -3,6 +3,7 @@ package de.meson_labs.luna_coin.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import de.meson_labs.luna_coin.data.DemoData
+import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.DogScheduleItem
 import de.meson_labs.luna_coin.models.LogEntry
@@ -55,6 +56,24 @@ class LunaCoinViewModel(
 
     fun today() {
         _selectedDate.value = LocalDate.now()
+    }
+
+    fun updateChild(updatedChild: Child) {
+        val currentData = _data.value
+
+        val updatedChildren = currentData.children.map { child ->
+            if (child.id == updatedChild.id) {
+                updatedChild
+            } else {
+                child
+            }
+        }
+
+        updateData(
+            currentData.copy(
+                children = updatedChildren
+            )
+        )
     }
 
     fun completeTask(taskId: String) {
@@ -592,9 +611,7 @@ class LunaCoinViewModel(
         }
 
         return when (task.repeatType) {
-            TaskRepeatType.DAILY -> {
-                true
-            }
+            TaskRepeatType.DAILY -> true
 
             TaskRepeatType.WEEKDAYS -> {
                 date.dayOfWeek.value in 1..5

@@ -11,20 +11,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,36 +33,34 @@ import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.models.Child
-
-private enum class LunaItem {
-    Sunglasses
-}
+import de.meson_labs.luna_coin.models.LunaInventoryItem
 
 private data class InventorySlot(
-    val item: LunaItem? = null
+    val item: LunaInventoryItem? = null
 )
 
 @Composable
 fun LunaMeScreen(
     modifier: Modifier = Modifier,
     selectedChild: Child?,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onChildChanged: (Child) -> Unit
 ) {
-    var equippedItem by remember {
-        mutableStateOf<LunaItem?>(null)
-    }
+    val equippedItem = selectedChild?.equippedItem
+    val inventoryItems = selectedChild?.inventory ?: emptyList()
 
-    val inventorySlots = remember {
-        List(20) { index ->
-            when (index) {
-                0 -> InventorySlot(LunaItem.Sunglasses)
-                else -> InventorySlot()
-            }
+    val inventorySlots = buildList {
+        inventoryItems.forEach { item ->
+            add(InventorySlot(item))
+        }
+
+        while (size < 20) {
+            add(InventorySlot())
         }
     }
 
     val lunaImage = when (equippedItem) {
-        LunaItem.Sunglasses -> R.drawable.luna_sunglasses1
+        LunaInventoryItem.SUNGLASSES_1 -> R.drawable.luna_sunglasses1
         null -> R.drawable.luna_dog
     }
 
@@ -99,8 +95,8 @@ fun LunaMeScreen(
                     painter = painterResource(id = lunaImage),
                     contentDescription = "Luna",
                     modifier = Modifier
-                        .size(470.dp)
-                        .offset(x = (-40).dp),
+                        .size(560.dp)
+                        .offset(x = (-55).dp),
                     contentScale = ContentScale.Fit
                 )
             }
@@ -108,7 +104,9 @@ fun LunaMeScreen(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(
-                modifier = Modifier.width(260.dp),
+                modifier = Modifier
+                    .width(260.dp)
+                    .fillMaxHeight(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -123,10 +121,18 @@ fun LunaMeScreen(
                     slots = inventorySlots,
                     equippedItem = equippedItem,
                     onItemClick = { clickedItem ->
-                        equippedItem = if (equippedItem == clickedItem) {
-                            null
-                        } else {
-                            clickedItem
+                        selectedChild?.let { child ->
+                            val newEquippedItem = if (child.equippedItem == clickedItem) {
+                                null
+                            } else {
+                                clickedItem
+                            }
+
+                            onChildChanged(
+                                child.copy(
+                                    equippedItem = newEquippedItem
+                                )
+                            )
                         }
                     }
                 )
@@ -138,28 +144,25 @@ fun LunaMeScreen(
 @Composable
 private fun InventoryGrid(
     slots: List<InventorySlot>,
-    equippedItem: LunaItem?,
-    onItemClick: (LunaItem) -> Unit
+    equippedItem: LunaInventoryItem?,
+    onItemClick: (LunaInventoryItem) -> Unit
 ) {
-    Column(
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(4),
+        modifier = Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        slots.chunked(4).forEach { rowSlots ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                rowSlots.forEach { slot ->
-                    InventoryTile(
-                        slot = slot,
-                        equipped = slot.item != null && slot.item == equippedItem,
-                        onClick = {
-                            slot.item?.let { item ->
-                                onItemClick(item)
-                            }
-                        }
-                    )
+        items(slots) { slot ->
+            InventoryTile(
+                slot = slot,
+                equipped = slot.item != null && slot.item == equippedItem,
+                onClick = {
+                    slot.item?.let { item ->
+                        onItemClick(item)
+                    }
                 }
-            }
+            )
         }
     }
 }
@@ -195,7 +198,7 @@ private fun InventoryTile(
         contentAlignment = Alignment.Center
     ) {
         when (slot.item) {
-            LunaItem.Sunglasses -> {
+            LunaInventoryItem.SUNGLASSES_1 -> {
                 Image(
                     painter = painterResource(id = R.drawable.sunglasses1),
                     contentDescription = "Sonnenbrille",
