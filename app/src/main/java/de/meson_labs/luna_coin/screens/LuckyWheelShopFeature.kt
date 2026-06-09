@@ -7,6 +7,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -46,11 +49,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.CoinDisplay
+import de.meson_labs.luna_coin.data.FortuneCookieMessages
 import kotlinx.coroutines.delay
 import kotlin.math.cos
 import kotlin.math.sin
-import androidx.compose.ui.graphics.Brush
-import de.meson_labs.luna_coin.data.FortuneCookieMessages
 
 data class LuckyWheelResult(
     val rewardCoins: Int,
@@ -145,6 +147,8 @@ fun LuckyWheelDialog(
         wheelSegments.random()
     }
 
+    val scrollState = rememberScrollState()
+
     var result by remember {
         mutableStateOf<LuckyWheelResult?>(null)
     }
@@ -187,6 +191,15 @@ fun LuckyWheelDialog(
         onResult(newResult)
     }
 
+    LaunchedEffect(result) {
+        if (result?.isFortuneCookie == true) {
+            delay(350)
+            scrollState.animateScrollTo(
+                scrollState.maxValue
+            )
+        }
+    }
+
     AlertDialog(
         onDismissRequest = {
             if (result != null) {
@@ -198,13 +211,14 @@ fun LuckyWheelDialog(
         },
         text = {
             Column(
+                modifier = Modifier.verticalScroll(scrollState),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
                     contentAlignment = Alignment.Center
                 ) {
                     Canvas(
-                        modifier = Modifier.size(260.dp)
+                        modifier = Modifier.size(420.dp)
                     ) {
                         val wheelSize = size.minDimension
                         val radius = wheelSize / 2f
@@ -314,7 +328,6 @@ fun LuckyWheelDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (result?.isFortuneCookie == true) {
-
                     Card(
                         colors = CardDefaults.cardColors(
                             containerColor = Color(0xFFFFF8DC)
@@ -327,7 +340,6 @@ fun LuckyWheelDialog(
                             modifier = Modifier.padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-
                             Text(
                                 text = "🥠 Glückskeks",
                                 style = MaterialTheme.typography.headlineSmall,
@@ -343,9 +355,7 @@ fun LuckyWheelDialog(
                             )
                         }
                     }
-
                 } else {
-
                     Text(
                         text = result?.message ?: "Das Glücksrad dreht sich...",
                         style = MaterialTheme.typography.bodyLarge
@@ -363,7 +373,6 @@ fun LuckyWheelDialog(
         }
     )
 }
-
 
 @Composable
 private fun FortuneCookieBreakAnimation() {
@@ -618,7 +627,7 @@ private fun LuckyWheelLabels(
     rotation: Float
 ) {
     Canvas(
-        modifier = Modifier.size(260.dp)
+        modifier = Modifier.size(420.dp)
     ) {
         val sectionCount = segments.size
         val sweepAngle = 360f / sectionCount

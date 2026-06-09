@@ -73,6 +73,38 @@ object FortuneCookieMessages {
         "Dein Glückskeks sagt: Merz leck Eier!",
         "Dein Glückskeks sagt: Hilfe, ich bin in einer Glückskeksfabrik eingesperrt",
         "Dein Glückskeks sagt: Monster Trucks, Monster Trucks, Monster Trucks...",
+        "Luna hat beschlossen, dass heute Snacks und Erfolg zusammengehören.",
+        "Falls etwas schiefgeht, schau Luna an. Sie wirkt auch nie besorgt.",
+        "Luna würde jetzt wahrscheinlich ein Nickerchen machen. Du hast die Wahl.",
+        "Werft einen Ball. Irgendwo freut sich Luna darüber.",
+        "Luna findet, dass jede Aufgabe mit einer Belohnung enden sollte.",
+        "Heute könnte ein ausgezeichneter Tag für Leckerlis sein. Für Luna sowieso.",
+        "Luna ist überzeugt, dass du das schaffst.",
+        "Wenn Luna an Eichhörnchen glauben kann, kannst du an deine Ziele glauben.",
+        "Luna empfiehlt heute eine Mischung aus Fleiß und Spaß.",
+        "Manchmal muss man einfach wedeln und weitermachen.",
+        "Manchmal ist die beste Abkürzung einfach anzufangen.",
+        "Heute könnte ein kleiner Erfolg für große Freude sorgen.",
+        "Wer neugierig bleibt, findet oft die besten Überraschungen.",
+        "Deine nächste gute Idee wartet vielleicht schon um die Ecke.",
+        "Ein bisschen Mut macht aus Vielleicht ein Ja.",
+        "Heute ist ein guter Tag, um etwas fertigzubringen.",
+        "Auch kleine Erfolge verdienen eine kleine Feier.",
+        "Manchmal reicht ein Schritt, um alles in Bewegung zu setzen.",
+        "Die besten Geschichten beginnen oft mit einem Versuch.",
+        "Heute könnte etwas besser laufen als erwartet.",
+        "Wer dranbleibt, sammelt mehr als nur Luna Coins.",
+        "Ein freundliches Wort kann den ganzen Tag verändern.",
+        "Das Glück mag Menschen, die nicht aufgeben.",
+        "Heute wartet vielleicht eine positive Überraschung auf dich.",
+        "Jeder erledigte Punkt auf der Liste ist ein kleiner Sieg.",
+        "Manchmal führt der Umweg zum schönsten Ziel.",
+        "Deine Geduld könnte sich schon sehr bald auszahlen.",
+        "Heute lohnt es sich, an dich selbst zu glauben.",
+        "Ein guter Tag beginnt oft mit einer guten Entscheidung.",
+        "Selbst kleine Fortschritte bringen dich näher ans Ziel."
 
-    )
+    ).map {
+        it.removePrefix("Dein Glückskeks sagt: ")
+    }
 }
