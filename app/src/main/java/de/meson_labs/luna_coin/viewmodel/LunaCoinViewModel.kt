@@ -58,6 +58,19 @@ class LunaCoinViewModel(
         _selectedDate.value = LocalDate.now()
     }
 
+    companion object {
+        private const val MAX_ACTIVE_LOGS = 2000
+    }
+
+    private fun addLogToList(
+        log: LogEntry,
+        currentLogs: List<LogEntry>
+    ): List<LogEntry> {
+        return (listOf(log) + currentLogs).take(MAX_ACTIVE_LOGS)
+    }
+
+
+
     fun updateChild(updatedChild: Child) {
         val currentData = _data.value
 
@@ -139,7 +152,7 @@ class LunaCoinViewModel(
             currentData.copy(
                 children = updatedChildren,
                 tasks = updatedTasks,
-                logs = listOf(log) + currentData.logs
+                logs = addLogToList(log, currentData.logs)
             )
         )
     }
@@ -182,7 +195,7 @@ class LunaCoinViewModel(
         updateData(
             currentData.copy(
                 children = updatedChildren,
-                logs = listOf(log) + currentData.logs
+                logs = addLogToList(log, currentData.logs)
             )
         )
     }
@@ -223,14 +236,15 @@ class LunaCoinViewModel(
         updateData(
             currentData.copy(
                 children = updatedChildren,
-                logs = listOf(log) + currentData.logs
+                logs = addLogToList(log, currentData.logs)
             )
         )
     }
 
     fun updateChildCoins(
         childId: String,
-        newCoins: Int
+        newCoins: Int,
+        comment: String?
     ) {
         val currentData = _data.value
 
@@ -238,7 +252,9 @@ class LunaCoinViewModel(
             it.id == childId
         } ?: return
 
-        val coinDifference = newCoins - child.coins
+        val oldCoins = child.coins
+        val coinDifference = newCoins - oldCoins
+        val cleanComment = comment?.trim().orEmpty()
 
         val updatedChildren = currentData.children.map {
             if (it.id == childId) {
@@ -250,21 +266,44 @@ class LunaCoinViewModel(
             }
         }
 
+        val logText = buildString {
+            append("Coins von ${child.name} wurden manuell von $oldCoins auf $newCoins geändert")
+
+            if (cleanComment.isNotBlank()) {
+                append(" · Kommentar: ")
+                append(cleanComment)
+            }
+        }
+
         val log = LogEntry(
             id = uuid(),
             timestamp = nowText(),
             childId = childId,
             type = LogType.SYSTEM,
-            text = "Coins von ${child.name} wurden manuell von ${child.coins} auf $newCoins geändert",
+            text = logText,
             coinChange = coinDifference
         )
 
         updateData(
             currentData.copy(
                 children = updatedChildren,
-                logs = listOf(log) + currentData.logs
+                logs = addLogToList(log, currentData.logs)
             )
         )
+    }
+
+    fun saveBackup(): Boolean {
+        return storage.saveBackup(_data.value)
+    }
+
+    fun loadBackup(): Boolean {
+        val backupData = storage.loadBackup() ?: return false
+
+        updateData(backupData)
+        _selectedChildId.value = null
+        _selectedDate.value = LocalDate.now()
+
+        return true
     }
 
     fun undoLogEntry(logId: String) {

@@ -91,10 +91,14 @@ fun SettingsScreenChildPreview() {
         onUpdateDogSchedule = { _, _, _, _, _, _, _ -> },
         onDeleteDogSchedule = {},
 
-        onUpdateChildCoins = { _, _ -> },
+        onUpdateChildCoins = { _, _, _ -> },
 
         onUndoLogEntry = {},
+
         onResetDemoData = {},
+        onSaveBackup = {},
+        onLoadBackup = {},
+
         onLogout = {}
     )
 }
@@ -108,6 +112,7 @@ fun SettingsScreenChildPreview() {
 @Composable
 fun SettingsScreenAdminPreview() {
     val demoData = DemoData.create()
+
     val admin = demoData.children.firstOrNull { child ->
         child.name == "Thomas"
     }
@@ -130,10 +135,14 @@ fun SettingsScreenAdminPreview() {
         onUpdateDogSchedule = { _, _, _, _, _, _, _ -> },
         onDeleteDogSchedule = {},
 
-        onUpdateChildCoins = { _, _ -> },
+        onUpdateChildCoins = { _, _, _ -> },
 
         onUndoLogEntry = {},
+
         onResetDemoData = {},
+        onSaveBackup = {},
+        onLoadBackup = {},
+
         onLogout = {}
     )
 }

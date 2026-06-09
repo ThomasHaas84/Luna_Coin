@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.CoinDisplay
+import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.LunaCoinData
@@ -47,8 +49,6 @@ import de.meson_labs.luna_coin.models.UserRole
 import de.meson_labs.luna_coin.screens.LunaGifDialog
 import kotlinx.coroutines.delay
 import java.time.LocalDate
-import de.meson_labs.luna_coin.components.CoinDisplay
-import de.meson_labs.luna_coin.components.LunaScreenHeader
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -92,12 +92,17 @@ fun SettingsScreen(
     onAddDogSchedule: (String, DayOfWeekName, String, String, String, String) -> Unit,
     onUpdateDogSchedule: (String, String, DayOfWeekName, String, String, String, String) -> Unit,
     onDeleteDogSchedule: (String) -> Unit,
-    onUpdateChildCoins: (String, Int) -> Unit,
+    onUpdateChildCoins: (String, Int, String?) -> Unit,
     onUndoLogEntry: (String) -> Unit,
     onResetDemoData: () -> Unit,
-    onLogout: () -> Unit
+    onSaveBackup: () -> Unit,
+    onLoadBackup: () -> Unit,
+    onLogout: () -> Unit,
+
 ) {
     var showResetDialog by remember { mutableStateOf(false) }
+    var showSaveBackupDialog by remember { mutableStateOf(false) }
+    var showLoadBackupDialog by remember { mutableStateOf(false) }
     var showTaskEditor by remember { mutableStateOf(false) }
     var showShopEditor by remember { mutableStateOf(false) }
     var showDogScheduleEditor by remember { mutableStateOf(false) }
@@ -118,7 +123,9 @@ fun SettingsScreen(
 
     var childForCoinEdit by remember { mutableStateOf<Child?>(null) }
     var coinEditText by remember { mutableStateOf("") }
+    var coinEditCommentText by remember { mutableStateOf("") }
     var coinEditError by remember { mutableStateOf<String?>(null) }
+    var logSearchText by remember { mutableStateOf("") }
 
     LaunchedEffect(languageMessage) {
         if (languageMessage != null) {
@@ -140,12 +147,22 @@ fun SettingsScreen(
             }
         }
 
-    val visibleLogs =
+    val baseVisibleLogs =
         if (canEdit) {
             data.logs
         } else {
             data.logs.filter { log ->
                 log.childId == selectedChild?.id
+            }
+        }
+
+    val visibleLogs =
+        if (logSearchText.isBlank()) {
+            baseVisibleLogs.take(200)
+        } else {
+            baseVisibleLogs.filter { log ->
+                log.text.contains(logSearchText, ignoreCase = true) ||
+                        log.timestamp.contains(logSearchText, ignoreCase = true)
             }
         }
 
@@ -333,6 +350,7 @@ fun SettingsScreen(
                                     if (canEdit) {
                                         childForCoinEdit = child
                                         coinEditText = child.coins.toString()
+                                        coinEditCommentText = ""
                                         coinEditError = null
                                     }
                                 }
@@ -460,29 +478,73 @@ fun SettingsScreen(
                 }
 
                 if (selectedChild?.role == UserRole.ADMIN) {
-                    OutlinedButton(
-                        onClick = {
-                            showResetDialog = true
+
+                    Row {
+
+                        OutlinedButton(
+                            onClick = {
+                                showResetDialog = true
+                            }
+                        ) {
+                            Text("Demo-Daten zurücksetzen")
                         }
-                    ) {
-                        Text("Demo-Daten zurücksetzen")
+
+                        Spacer(modifier = Modifier.padding(4.dp))
+
+                        OutlinedButton(
+                            onClick = {
+                                showSaveBackupDialog = true
+                            }
+                        ) {
+                            Text("App-Daten sichern")
+                        }
+
+                        Spacer(modifier = Modifier.padding(4.dp))
+
+                        OutlinedButton(
+                            onClick = {
+                                showLoadBackupDialog = true
+                            }
+                        ) {
+                            Text("Letzte Sicherung laden")
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
                 }
 
                 if (canEdit) {
-                    Button(
-                        onClick = {
-                            showLogs = !showLogs
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            if (showLogs) {
-                                "Logs ausblenden"
-                            } else {
-                                "Logs anzeigen"
+                        Button(
+                            onClick = {
+                                showLogs = !showLogs
                             }
+                        ) {
+                            Text(
+                                if (showLogs) {
+                                    "Logs ausblenden"
+                                } else {
+                                    "Logs anzeigen"
+                                }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        OutlinedTextField(
+                            value = logSearchText,
+                            onValueChange = {
+                                logSearchText = it
+                            },
+                            label = {
+                                Text("Logs suchen")
+                            },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            enabled = showLogs
                         )
                     }
 
@@ -566,6 +628,7 @@ fun SettingsScreen(
             onDismissRequest = {
                 childForCoinEdit = null
                 coinEditText = ""
+                coinEditCommentText = ""
                 coinEditError = null
             },
             title = {
@@ -600,7 +663,24 @@ fun SettingsScreen(
                             coinEditError?.let { error ->
                                 Text(error)
                             }
-                        }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = coinEditCommentText,
+                        onValueChange = { value ->
+                            coinEditCommentText = value
+                        },
+                        label = {
+                            Text("Kommentar optional")
+                        },
+                        singleLine = false,
+                        minLines = 2,
+                        maxLines = 4,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             },
@@ -609,6 +689,7 @@ fun SettingsScreen(
                     onClick = {
                         childForCoinEdit = null
                         coinEditText = ""
+                        coinEditCommentText = ""
                         coinEditError = null
                     }
                 ) {
@@ -623,9 +704,17 @@ fun SettingsScreen(
                         if (newCoins == null) {
                             coinEditError = "Bitte eine gültige Zahl eingeben."
                         } else {
-                            onUpdateChildCoins(child.id, newCoins)
+                            onUpdateChildCoins(
+                                child.id,
+                                newCoins,
+                                coinEditCommentText.trim().ifBlank {
+                                    null
+                                }
+                            )
+
                             childForCoinEdit = null
                             coinEditText = ""
+                            coinEditCommentText = ""
                             coinEditError = null
                         }
                     }
@@ -711,6 +800,72 @@ fun SettingsScreen(
                 TextButton(
                     onClick = {
                         showResetDialog = false
+                    }
+                ) {
+                    Text("Abbrechen")
+                }
+            }
+        )
+    }
+
+    if (showSaveBackupDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showSaveBackupDialog = false
+            },
+            title = {
+                Text("App-Daten sichern?")
+            },
+            text = {
+                Text("Die vorhandene Sicherung wird überschrieben und durch die aktuellen App-Daten ersetzt.")
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showSaveBackupDialog = false
+                        onSaveBackup()
+                    }
+                ) {
+                    Text("Sichern")
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showSaveBackupDialog = false
+                    }
+                ) {
+                    Text("Abbrechen")
+                }
+            }
+        )
+    }
+
+    if (showLoadBackupDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showLoadBackupDialog = false
+            },
+            title = {
+                Text("Letzte Sicherung laden?")
+            },
+            text = {
+                Text("Alle aktuellen App-Daten werden verworfen und durch die letzte Sicherung ersetzt.")
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showLoadBackupDialog = false
+                        onLoadBackup()
+                    }
+                ) {
+                    Text("Laden")
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLoadBackupDialog = false
                     }
                 ) {
                     Text("Abbrechen")

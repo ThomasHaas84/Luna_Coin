@@ -1,5 +1,6 @@
 package de.meson_labs.luna_coin.screens
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Pets
@@ -19,8 +20,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.padding
 import de.meson_labs.luna_coin.screens.settings.SettingsScreen
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 
@@ -186,11 +185,26 @@ fun MainScreen(
                         onUpdateDogSchedule = viewModel::updateDogSchedule,
                         onDeleteDogSchedule = viewModel::deleteDogSchedule,
 
-                        onUpdateChildCoins = viewModel::updateChildCoins,
+                        onUpdateChildCoins = { childId, newCoins, comment ->
+                            viewModel.updateChildCoins(
+                                childId = childId,
+                                newCoins = newCoins,
+                                comment = comment
+                            )
+                        },
 
                         onUndoLogEntry = viewModel::undoLogEntry,
 
                         onResetDemoData = viewModel::resetDemoData,
+
+                        onSaveBackup = {
+                            viewModel.saveBackup()
+                        },
+
+                        onLoadBackup = {
+                            viewModel.loadBackup()
+                        },
+
                         onLogout = viewModel::logout
                     )
                 }
