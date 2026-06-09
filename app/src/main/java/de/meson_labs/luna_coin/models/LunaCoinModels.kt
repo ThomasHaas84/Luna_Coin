@@ -19,12 +19,13 @@ data class Child(
     val role: UserRole = UserRole.CHILD,
     val password: String = "",
 
-    // Freigeschaltete LunaME-Items
-    val inventory: List<LunaInventoryItem> =
-        listOf(LunaInventoryItem.SUNGLASSES_1),
+    val inventory: List<LunaInventoryItem> = emptyList(),
 
-    // Aktuell angelegtes Item
-    val equippedItem: LunaInventoryItem? = null
+    val equippedItem: LunaInventoryItem? = null,
+
+    val profileImageItem: LunaInventoryItem? = null,
+
+    val hasProfileImage: Boolean = false
 )
 
 @Serializable
@@ -36,7 +37,10 @@ enum class UserRole {
 
 @Serializable
 enum class LunaInventoryItem {
-    SUNGLASSES_1
+    SUNGLASSES_1,
+    SUNGLASSES_2,
+    HAT_1,
+    CROWN_1
 }
 
 @Serializable

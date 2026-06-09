@@ -1,5 +1,6 @@
 package de.meson_labs.luna_coin.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,11 +28,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.models.Child
+import de.meson_labs.luna_coin.models.LunaItemCatalog
 import de.meson_labs.luna_coin.models.UserRole
 
 @Composable
@@ -125,6 +130,14 @@ private fun UserProfileCard(
         UserRole.ADMIN -> Color.White
     }
 
+    val profileImageRes = if (child.hasProfileImage) {
+        child.profileImageItem?.let { item ->
+            LunaItemCatalog.getDefinition(item).lunaImageRes
+        } ?: R.drawable.luna_dog
+    } else {
+        null
+    }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.clickable {
@@ -149,11 +162,22 @@ private fun UserProfileCard(
                     .background(cardColor),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = child.name.firstOrNull()?.uppercase() ?: "?",
-                    style = MaterialTheme.typography.displayLarge,
-                    color = textColor
-                )
+                if (profileImageRes != null) {
+                    Image(
+                        painter = painterResource(id = profileImageRes),
+                        contentDescription = child.name,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(12.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                } else {
+                    Text(
+                        text = child.name.firstOrNull()?.uppercase() ?: "?",
+                        style = MaterialTheme.typography.displayLarge,
+                        color = textColor
+                    )
+                }
             }
         }
 
