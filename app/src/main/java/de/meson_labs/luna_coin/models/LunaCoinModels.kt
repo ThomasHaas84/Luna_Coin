@@ -39,8 +39,35 @@ enum class UserRole {
 enum class LunaInventoryItem {
     SUNGLASSES_1,
     SUNGLASSES_2,
-    HAT_1,
-    CROWN_1
+    jacke_1,
+    halstuch_1,
+    kappe_1,
+    huffel_1,
+    chase_1,
+    flash_1,
+    iron_1,
+    ballett_1,
+    lunacraft_1,
+    gandalf_1,
+    slytherin,
+    ravenclaw,
+    griffindor,
+    warhammer_1,
+    pirat_1,
+    cowboy_1,
+    diabetis_1,
+    knight_1,
+    marshall_1,
+    tau_1,
+    ork_1,
+    dark_knight_1,
+    batman_1,
+    gow_1,
+    gow_2,
+
+
+
+
 }
 
 @Serializable

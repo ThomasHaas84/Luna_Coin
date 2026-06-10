@@ -417,7 +417,7 @@ private fun InventoryTile(
         Text(
             text = when {
                 selected -> "Angelegt"
-                visibleAsUnlocked -> "Frei"
+                visibleAsUnlocked -> ""
                 else -> "${definition.priceCoins} 🪙"
             },
             style = MaterialTheme.typography.labelSmall,
