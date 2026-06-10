@@ -38,6 +38,7 @@ import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.LunaItemCatalog
 import de.meson_labs.luna_coin.models.UserRole
+import androidx.compose.ui.draw.scale
 
 @Composable
 fun UserSelectionScreen(
@@ -168,7 +169,7 @@ private fun UserProfileCard(
                         contentDescription = child.name,
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(12.dp),
+                            .scale(1.4f),
                         contentScale = ContentScale.Fit
                     )
                 } else {
