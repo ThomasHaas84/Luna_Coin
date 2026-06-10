@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -39,8 +41,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.models.Child
@@ -48,6 +48,7 @@ import de.meson_labs.luna_coin.models.LunaInventoryItem
 import de.meson_labs.luna_coin.models.LunaItemCatalog
 import de.meson_labs.luna_coin.models.LunaItemDefinition
 import de.meson_labs.luna_coin.models.UserRole
+import kotlinx.coroutines.delay
 
 @Composable
 fun LunaMeScreen(
@@ -72,6 +73,17 @@ fun LunaMeScreen(
         mutableStateOf<LunaItemDefinition?>(null)
     }
 
+    var profileFeedback by remember {
+        mutableStateOf<String?>(null)
+    }
+
+    LaunchedEffect(profileFeedback) {
+        if (profileFeedback != null) {
+            delay(2200)
+            profileFeedback = null
+        }
+    }
+
     LaunchedEffect(selectedChild?.id, selectedChild?.equippedItem) {
         if (itemToBuy == null) {
             previewItem = selectedChild?.equippedItem
@@ -87,30 +99,180 @@ fun LunaMeScreen(
 
     val profileButtonEnabled =
         selectedChild != null &&
+                itemToBuy == null &&
                 (
                         previewItem == null ||
                                 previewItem in unlockedItems ||
                                 isAdmin
                         )
 
-    itemToBuy?.let { definition ->
-        Dialog(
-            onDismissRequest = {
-                itemToBuy = null
-                previewItem = selectedChild?.equippedItem
-            },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false
-            )
+    Box(
+        modifier = modifier.fillMaxSize()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
         ) {
+            LunaScreenHeader(
+                title = "LunaME",
+                selectedChild = selectedChild,
+                onLogout = onLogout
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .padding(top = 0.dp, bottom = 0.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = lunaImage),
+                            contentDescription = "Luna",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .size(800.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Button(
+                        enabled = profileButtonEnabled,
+                        onClick = {
+                            selectedChild?.let { child ->
+                                onChildChanged(
+                                    child.copy(
+                                        profileImageItem = previewItem,
+                                        hasProfileImage = true
+                                    )
+                                )
+
+                                profileFeedback = "Profilbild wurde aktualisiert"
+                            }
+                        }
+                    ) {
+                        Text("Als Profilbild speichern")
+                    }
+
+                    Box(
+                        modifier = Modifier.height(18.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        profileFeedback?.let { message ->
+                            Text(
+                                text = message,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(
+                    modifier = Modifier
+                        .width(390.dp)
+                        .fillMaxHeight(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Inventar",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Coins: ${selectedChild?.coins ?: 0}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    InventoryGrid(
+                        items = LunaItemCatalog.allItems,
+                        unlockedItems = unlockedItems,
+                        equippedItem = equippedItem,
+                        previewItem = previewItem,
+                        isAdmin = isAdmin,
+                        selectedChild = selectedChild,
+                        onUnlockedItemClick = { clickedItem ->
+                            selectedChild?.let { child ->
+                                if (child.equippedItem == clickedItem) {
+                                    previewItem = null
+
+                                    onChildChanged(
+                                        child.copy(
+                                            equippedItem = null
+                                        )
+                                    )
+                                } else {
+                                    previewItem = clickedItem
+
+                                    onChildChanged(
+                                        child.copy(
+                                            equippedItem = clickedItem
+                                        )
+                                    )
+                                }
+                            }
+                        },
+                        onBuyRequest = { definition ->
+                            previewItem = definition.item
+                            itemToBuy = definition
+                        }
+                    )
+                }
+            }
+        }
+
+        itemToBuy?.let { definition ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) {
+                        itemToBuy = null
+                        previewItem = selectedChild?.equippedItem
+                    }
                     .padding(end = 40.dp),
                 contentAlignment = Alignment.CenterEnd
             ) {
                 Card(
-                    modifier = Modifier.width(330.dp),
+                    modifier = Modifier
+                        .width(330.dp)
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) {
+                            // Klicks im Kauf-Fenster nicht nach außen weitergeben
+                        },
                     shape = RoundedCornerShape(24.dp)
                 ) {
                     Column(
@@ -186,122 +348,6 @@ fun LunaMeScreen(
             }
         }
     }
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp)
-    ) {
-        LunaScreenHeader(
-            title = "LunaME",
-            selectedChild = selectedChild,
-            onLogout = onLogout
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(28.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .padding(top = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Top
-            ) {
-                Image(
-                    painter = painterResource(id = lunaImage),
-                    contentDescription = "Luna",
-                    modifier = Modifier.size(360.dp),
-                    contentScale = ContentScale.Fit
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Button(
-                    enabled = profileButtonEnabled,
-                    onClick = {
-                        selectedChild?.let { child ->
-                            onChildChanged(
-                                child.copy(
-                                    profileImageItem = previewItem,
-                                    hasProfileImage = true
-                                )
-                            )
-                        }
-                    }
-                ) {
-                    Text("Als Profilbild speichern")
-                }
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(
-                modifier = Modifier
-                    .width(300.dp)
-                    .fillMaxHeight(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Inventar",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = "Coins: ${selectedChild?.coins ?: 0}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                InventoryGrid(
-                    items = LunaItemCatalog.allItems,
-                    unlockedItems = unlockedItems,
-                    equippedItem = equippedItem,
-                    previewItem = previewItem,
-                    isAdmin = isAdmin,
-                    selectedChild = selectedChild,
-                    onUnlockedItemClick = { clickedItem ->
-                        selectedChild?.let { child ->
-                            if (child.equippedItem == clickedItem) {
-                                previewItem = null
-
-                                onChildChanged(
-                                    child.copy(
-                                        equippedItem = null
-                                    )
-                                )
-                            } else {
-                                previewItem = clickedItem
-
-                                onChildChanged(
-                                    child.copy(
-                                        equippedItem = clickedItem
-                                    )
-                                )
-                            }
-                        }
-                    },
-                    onBuyRequest = { definition ->
-                        previewItem = definition.item
-                        itemToBuy = definition
-                    }
-                )
-            }
-        }
-    }
 }
 
 @Composable
@@ -318,14 +364,14 @@ private fun InventoryGrid(
     LazyVerticalGrid(
         columns = GridCells.Fixed(4),
         modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(items) { definition ->
             val unlocked = definition.item in unlockedItems
+
             val selected =
-                definition.item == equippedItem ||
-                        definition.item == previewItem
+                definition.item == equippedItem
 
             InventoryTile(
                 definition = definition,
@@ -371,23 +417,23 @@ private fun InventoryTile(
 
     Column(
         modifier = Modifier
-            .size(width = 66.dp, height = 92.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .size(width = 104.dp, height = 138.dp)
+            .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
             .border(
                 width = borderWidth,
                 color = borderColor,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(16.dp)
             )
             .clickable {
                 onClick()
             }
-            .padding(5.dp),
+            .padding(9.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(84.dp)
                 .alpha(
                     if (visibleAsUnlocked || canAfford) {
                         1f
@@ -403,16 +449,9 @@ private fun InventoryTile(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit
             )
-
-            if (!visibleAsUnlocked) {
-                Text(
-                    text = "🔒",
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
             text = when {
