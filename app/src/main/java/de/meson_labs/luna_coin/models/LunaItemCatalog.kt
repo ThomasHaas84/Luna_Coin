@@ -47,11 +47,99 @@ object LunaItemCatalog {
         ),
 
         LunaItemDefinition(
+            item = LunaInventoryItem.plume_1,
+            title = "Plume-Halsband",
+            priceCoins = 5,
+            iconRes = R.drawable.plume_1,
+            lunaImageRes = R.drawable.plume_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.wurst_1,
+            title = "Wurst",
+            priceCoins = 5,
+            iconRes = R.drawable.wurst_1,
+            lunaImageRes = R.drawable.wurst_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.schmucker_1,
+            title = "Schmucker",
+            priceCoins = 5,
+            iconRes = R.drawable.schmucker_1,
+            lunaImageRes = R.drawable.schmucker_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.shit_1,
+            title = "Kack-Wurst",
+            priceCoins = 5,
+            iconRes = R.drawable.shit_1,
+            lunaImageRes = R.drawable.shit_1
+        ),
+
+        LunaItemDefinition(
             item = LunaInventoryItem.jacke_1,
             title = "Lederjacke",
             priceCoins = 10,
             iconRes = R.drawable.lederjacke_1,
             lunaImageRes = R.drawable.luna_lederjacke_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.judo_1,
+            title = "Judo",
+            priceCoins = 10,
+            iconRes = R.drawable.judo_1,
+            lunaImageRes = R.drawable.judo_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.kleid_1,
+            title = "Sommerkleid",
+            priceCoins = 10,
+            iconRes = R.drawable.kleid_1,
+            lunaImageRes = R.drawable.kleid_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.talahoon_1,
+            title = "Talahoon",
+            priceCoins = 10,
+            iconRes = R.drawable.talahoon_1,
+            lunaImageRes = R.drawable.talahoon_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.engel_1,
+            title = "Engel",
+            priceCoins = 10,
+            iconRes = R.drawable.engel_1,
+            lunaImageRes = R.drawable.engel_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.hotdog_1,
+            title = "Hotdog",
+            priceCoins = 10,
+            iconRes = R.drawable.hotdog_1,
+            lunaImageRes = R.drawable.hotdog_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.hase_1,
+            title = "Hase",
+            priceCoins = 20,
+            iconRes = R.drawable.hase_1,
+            lunaImageRes = R.drawable.hase_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.esel_1,
+            title = "Esel",
+            priceCoins = 20,
+            iconRes = R.drawable.esel_1,
+            lunaImageRes = R.drawable.esel_1
         ),
 
         LunaItemDefinition(
@@ -71,6 +159,14 @@ object LunaItemCatalog {
         ),
 
         LunaItemDefinition(
+            item = LunaInventoryItem.zuma_1,
+            title = "Zuma",
+            priceCoins = 20,
+            iconRes = R.drawable.zuma_1,
+            lunaImageRes = R.drawable.zuma_1
+        ),
+
+        LunaItemDefinition(
             item = LunaInventoryItem.marshall_1,
             title = "Marshall",
             priceCoins = 20,
@@ -84,6 +180,14 @@ object LunaItemCatalog {
             priceCoins = 20,
             iconRes = R.drawable.ballett_1,
             lunaImageRes = R.drawable.luna_ballett_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.unicorn_1,
+            title = "Unicorn",
+            priceCoins = 20,
+            iconRes = R.drawable.unicorn_1,
+            lunaImageRes = R.drawable.unicorn_1
         ),
 
         LunaItemDefinition(
@@ -111,6 +215,14 @@ object LunaItemCatalog {
         ),
 
         LunaItemDefinition(
+            item = LunaInventoryItem.cowboy_2,
+            title = "Cowboy 2",
+            priceCoins = 20,
+            iconRes = R.drawable.cowboy_2,
+            lunaImageRes = R.drawable.cowboy_2
+        ),
+
+        LunaItemDefinition(
             item = LunaInventoryItem.knight_1,
             title = "Ritter",
             priceCoins = 20,
@@ -127,6 +239,46 @@ object LunaItemCatalog {
         ),
 
         LunaItemDefinition(
+            item = LunaInventoryItem.captainunderpants_1,
+            title = "Captain Underpants",
+            priceCoins = 20,
+            iconRes = R.drawable.captainunderpants_1,
+            lunaImageRes = R.drawable.captainunderpants_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.cyber_1,
+            title = "Cyber 1",
+            priceCoins = 20,
+            iconRes = R.drawable.cyber_1,
+            lunaImageRes = R.drawable.cyber_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.cyber_2,
+            title = "Cyber 2",
+            priceCoins = 20,
+            iconRes = R.drawable.cyber_2,
+            lunaImageRes = R.drawable.cyber_2
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.perry_1,
+            title = "Perry 1",
+            priceCoins = 20,
+            iconRes = R.drawable.perry_1,
+            lunaImageRes = R.drawable.perry_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.perry_2,
+            title = "Perry 2",
+            priceCoins = 20,
+            iconRes = R.drawable.perry_2,
+            lunaImageRes = R.drawable.perry_2
+        ),
+
+        LunaItemDefinition(
             item = LunaInventoryItem.flash_1,
             title = "Flash",
             priceCoins = 100,
@@ -135,11 +287,59 @@ object LunaItemCatalog {
         ),
 
         LunaItemDefinition(
+            item = LunaInventoryItem.deadpool_1,
+            title = "Deadpool",
+            priceCoins = 100,
+            iconRes = R.drawable.deadpool_1,
+            lunaImageRes = R.drawable.deadpool_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.spiderman_1,
+            title = "Spider-Man",
+            priceCoins = 100,
+            iconRes = R.drawable.spiderman_1,
+            lunaImageRes = R.drawable.spiderman_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.krypto_1,
+            title = "Krypto",
+            priceCoins = 100,
+            iconRes = R.drawable.krypto_1,
+            lunaImageRes = R.drawable.krypto_1
+        ),
+
+        LunaItemDefinition(
             item = LunaInventoryItem.iron_1,
             title = "Iron Man",
             priceCoins = 100,
             iconRes = R.drawable.iron_1,
             lunaImageRes = R.drawable.luna_iron_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.greenlantern_1,
+            title = "Green Lantern",
+            priceCoins = 100,
+            iconRes = R.drawable.greenlantern_1,
+            lunaImageRes = R.drawable.greenlantern_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.greenarrow_1,
+            title = "Green Arrow",
+            priceCoins = 100,
+            iconRes = R.drawable.greenarrow_1,
+            lunaImageRes = R.drawable.greenarrow_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.jedi_1,
+            title = "Jedi",
+            priceCoins = 100,
+            iconRes = R.drawable.jedi_1,
+            lunaImageRes = R.drawable.jedi_1
         ),
 
         LunaItemDefinition(
@@ -228,6 +428,22 @@ object LunaItemCatalog {
             priceCoins = 100,
             iconRes = R.drawable.kratos_2,
             lunaImageRes = R.drawable.kratos_2
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.ca_1,
+            title = "Captain America",
+            priceCoins = 100,
+            iconRes = R.drawable.ca_1,
+            lunaImageRes = R.drawable.ca_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.ca_2,
+            title = "Captain America 2",
+            priceCoins = 100,
+            iconRes = R.drawable.ca_2,
+            lunaImageRes = R.drawable.ca_2
         ),
 
 
