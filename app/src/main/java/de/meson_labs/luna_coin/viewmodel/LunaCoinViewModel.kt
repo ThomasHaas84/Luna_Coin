@@ -8,13 +8,16 @@ import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.DogScheduleItem
 import de.meson_labs.luna_coin.models.LogEntry
 import de.meson_labs.luna_coin.models.LogType
+import de.meson_labs.luna_coin.models.LuckyWheelUsage
 import de.meson_labs.luna_coin.models.LunaCoinData
+import de.meson_labs.luna_coin.models.LunaItemCatalog
 import de.meson_labs.luna_coin.models.ShopItem
 import de.meson_labs.luna_coin.models.TaskAssignmentType
 import de.meson_labs.luna_coin.models.TaskCompletion
 import de.meson_labs.luna_coin.models.TaskCompletionMode
 import de.meson_labs.luna_coin.models.TaskItem
 import de.meson_labs.luna_coin.models.TaskRepeatType
+import de.meson_labs.luna_coin.screens.LuckyWheelResult
 import de.meson_labs.luna_coin.storage.LunaCoinStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -68,8 +71,6 @@ class LunaCoinViewModel(
     ): List<LogEntry> {
         return (listOf(log) + currentLogs).take(MAX_ACTIVE_LOGS)
     }
-
-
 
     fun updateChild(updatedChild: Child) {
         val currentData = _data.value
@@ -203,21 +204,75 @@ class LunaCoinViewModel(
     fun applyLuckyWheelResult(
         childId: String,
         costCoins: Int,
-        rewardCoins: Int,
-        logText: String
-    ) {
+        result: LuckyWheelResult
+    ): LuckyWheelResult {
         val currentData = _data.value
+        val todayText = LocalDate.now().toString()
 
         val child = currentData.children.firstOrNull {
             it.id == childId
-        } ?: return
+        } ?: return result
 
-        val coinChange = rewardCoins - costCoins
+        val currentUsage = currentData.luckyWheelUsage.firstOrNull { usage ->
+            usage.childId == childId &&
+                    usage.date == todayText
+        }
+
+        val baseUsage = currentUsage ?: LuckyWheelUsage(
+            childId = childId,
+            date = todayText
+        )
+
+        val coinChange = result.rewardCoins - costCoins
+
+        var finalMessage = result.message
+        var updatedInventory = child.inventory
+        var skinWonToday = baseUsage.skinWon
+
+        if (result.isSkinReward) {
+            if (baseUsage.skinWon) {
+                finalMessage = "Heute hast du bereits einen Skin gewonnen."
+            } else {
+                val nextSkin = LunaItemCatalog.allItems.firstOrNull { definition ->
+                    definition.item !in child.inventory
+                }
+
+                if (nextSkin == null) {
+                    finalMessage = "Du hast bereits alle Skins gesammelt."
+                } else {
+                    updatedInventory = child.inventory + nextSkin.item
+                    skinWonToday = true
+                    finalMessage = "Du hast den Skin „${nextSkin.title}“ gewonnen!"
+                }
+            }
+        }
+
+        val updatedUsage = baseUsage.copy(
+            freeSpinUsed = true,
+            skinWon = skinWonToday
+        )
+
+        val updatedUsageList =
+            if (currentUsage == null) {
+                currentData.luckyWheelUsage + updatedUsage
+            } else {
+                currentData.luckyWheelUsage.map { usage ->
+                    if (
+                        usage.childId == childId &&
+                        usage.date == todayText
+                    ) {
+                        updatedUsage
+                    } else {
+                        usage
+                    }
+                }
+            }
 
         val updatedChildren = currentData.children.map { currentChild ->
             if (currentChild.id == childId) {
                 currentChild.copy(
-                    coins = currentChild.coins + coinChange
+                    coins = currentChild.coins + coinChange,
+                    inventory = updatedInventory
                 )
             } else {
                 currentChild
@@ -229,15 +284,24 @@ class LunaCoinViewModel(
             timestamp = nowText(),
             childId = childId,
             type = LogType.SYSTEM,
-            text = logText,
+            text = if (costCoins == 0) {
+                "Glücksrad kostenlos gedreht: $finalMessage"
+            } else {
+                "Glücksrad für 1 Luna Coin gedreht: $finalMessage"
+            },
             coinChange = coinChange
         )
 
         updateData(
             currentData.copy(
                 children = updatedChildren,
+                luckyWheelUsage = updatedUsageList,
                 logs = addLogToList(log, currentData.logs)
             )
+        )
+
+        return result.copy(
+            message = finalMessage
         )
     }
 

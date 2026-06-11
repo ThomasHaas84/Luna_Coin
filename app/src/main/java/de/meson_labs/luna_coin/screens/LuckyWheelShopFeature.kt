@@ -57,7 +57,8 @@ import kotlin.math.sin
 data class LuckyWheelResult(
     val rewardCoins: Int,
     val message: String,
-    val isFortuneCookie: Boolean
+    val isFortuneCookie: Boolean,
+    val isSkinReward: Boolean = false
 )
 
 private data class LuckyWheelSegment(
@@ -65,6 +66,7 @@ private data class LuckyWheelSegment(
     val color: Color,
     val rewardCoins: Int,
     val isFortuneCookie: Boolean,
+    val isSkinReward: Boolean = false,
     val message: String
 )
 
@@ -137,7 +139,7 @@ fun LuckyWheelShopCard(
 @Composable
 fun LuckyWheelDialog(
     onDismiss: () -> Unit,
-    onResult: (LuckyWheelResult) -> Unit
+    onResult: (LuckyWheelResult) -> LuckyWheelResult
 ) {
     val wheelSegments = remember {
         createLuckyWheelSegments()
@@ -181,14 +183,16 @@ fun LuckyWheelDialog(
 
         delay(6600)
 
-        val newResult = LuckyWheelResult(
+        val rawResult = LuckyWheelResult(
             rewardCoins = selectedSegment.rewardCoins,
             message = selectedSegment.message,
-            isFortuneCookie = selectedSegment.isFortuneCookie
+            isFortuneCookie = selectedSegment.isFortuneCookie,
+            isSkinReward = selectedSegment.isSkinReward
         )
 
-        result = newResult
-        onResult(newResult)
+        val finalResult = onResult(rawResult)
+
+        result = finalResult
     }
 
     LaunchedEffect(result) {
@@ -683,11 +687,12 @@ private fun createLuckyWheelSegments(): List<LuckyWheelSegment> {
             message = "Leider nichts gewonnen."
         ),
         LuckyWheelSegment(
-            label = "Keks",
-            color = Color(0xFFFACC15),
+            label = "Skin",
+            color = Color(0xFF8B5CF6),
             rewardCoins = 0,
-            isFortuneCookie = true,
-            message = fortuneMessages.random()
+            isFortuneCookie = false,
+            isSkinReward = true,
+            message = "Skin-Feld getroffen!"
         ),
         LuckyWheelSegment(
             label = "Nix",

@@ -58,7 +58,9 @@ fun ShopScreenPreview() {
         data = demoData,
         selectedChild = demoData.children.firstOrNull(),
         onBuyItem = {},
-        onLuckyWheelResult = { _, _, _, _ -> },
+        onLuckyWheelResult = { _, _, result ->
+            result
+        },
         onLogout = {}
     )
 }

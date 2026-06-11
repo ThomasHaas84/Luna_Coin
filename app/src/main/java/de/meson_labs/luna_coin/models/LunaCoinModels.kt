@@ -8,7 +8,16 @@ data class LunaCoinData(
     val tasks: List<TaskItem> = emptyList(),
     val shopItems: List<ShopItem> = emptyList(),
     val dogSchedule: List<DogScheduleItem> = emptyList(),
-    val logs: List<LogEntry> = emptyList()
+    val logs: List<LogEntry> = emptyList(),
+    val luckyWheelUsage: List<LuckyWheelUsage> = emptyList()
+)
+
+@Serializable
+data class LuckyWheelUsage(
+    val childId: String,
+    val date: String,
+    val freeSpinUsed: Boolean = false,
+    val skinWon: Boolean = false
 )
 
 @Serializable
@@ -91,8 +100,6 @@ enum class LunaInventoryItem {
     perry_2,
     ca_1,
     ca_2,
-
-
 }
 
 @Serializable

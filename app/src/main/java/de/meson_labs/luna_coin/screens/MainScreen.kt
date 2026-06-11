@@ -149,7 +149,13 @@ fun MainScreen(
                         data = data,
                         selectedChild = selectedChild,
                         onBuyItem = viewModel::buyShopItem,
-                        onLuckyWheelResult = viewModel::applyLuckyWheelResult,
+                        onLuckyWheelResult = { childId, costCoins, result ->
+                            viewModel.applyLuckyWheelResult(
+                                childId = childId,
+                                costCoins = costCoins,
+                                result = result
+                            )
+                        },
                         onLogout = viewModel::logout
                     )
 

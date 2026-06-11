@@ -37,12 +37,12 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.CoinDisplay
+import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.ShopItem
 import kotlinx.coroutines.delay
 import java.time.LocalDate
-import de.meson_labs.luna_coin.components.LunaScreenHeader
 
 @Composable
 fun ShopScreen(
@@ -53,9 +53,8 @@ fun ShopScreen(
     onLuckyWheelResult: (
         childId: String,
         costCoins: Int,
-        rewardCoins: Int,
-        logText: String
-    ) -> Unit,
+        result: LuckyWheelResult
+    ) -> LuckyWheelResult,
     onLogout: () -> Unit
 ) {
     var showSugarVideo by remember {
@@ -78,14 +77,17 @@ fun ShopScreen(
         mutableStateOf(false)
     }
 
-    var luckyWheelLastFreeDate by remember {
-        mutableStateOf<String?>(null)
+    val todayText = LocalDate.now().toString()
+    val selectedChildId = selectedChild?.id
+
+    val luckyWheelUsageToday = data.luckyWheelUsage.firstOrNull { usage ->
+        usage.childId == selectedChildId &&
+                usage.date == todayText
     }
 
-    val todayText = LocalDate.now().toString()
-
     val luckyWheelIsFreeToday =
-        luckyWheelLastFreeDate != todayText
+        selectedChildId != null &&
+                luckyWheelUsageToday?.freeSpinUsed != true
 
     LaunchedEffect(purchaseMessage) {
         if (purchaseMessage != null) {
@@ -224,7 +226,7 @@ fun ShopScreen(
                 isPurchaseLocked = false
             },
             onResult = { result ->
-                val childId = selectedChild?.id ?: return@LuckyWheelDialog
+                val childId = selectedChild?.id ?: return@LuckyWheelDialog result
 
                 val costCoins =
                     if (luckyWheelIsFreeToday) {
@@ -233,28 +235,16 @@ fun ShopScreen(
                         1
                     }
 
-                luckyWheelLastFreeDate = todayText
-
-                val logText =
-                    if (costCoins == 0) {
-                        "Glücksrad kostenlos gedreht: ${result.message}"
-                    } else {
-                        "Glücksrad für 1 Luna Coin gedreht: ${result.message}"
-                    }
-
-                onLuckyWheelResult(
+                val finalResult = onLuckyWheelResult(
                     childId,
                     costCoins,
-                    result.rewardCoins,
-                    logText
+                    result
                 )
 
                 purchaseMessage =
-                    if (result.rewardCoins > 0) {
-                        "${result.message}\nLogeintrag wurde erstellt."
-                    } else {
-                        "${result.message}\nLogeintrag wurde erstellt."
-                    }
+                    "${finalResult.message}\nLogeintrag wurde erstellt."
+
+                finalResult
             }
         )
     }
