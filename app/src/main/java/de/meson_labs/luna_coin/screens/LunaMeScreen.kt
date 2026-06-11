@@ -77,6 +77,10 @@ fun LunaMeScreen(
         mutableStateOf<String?>(null)
     }
 
+    var showNotEnoughCoinsDialog by remember {
+        mutableStateOf(false)
+    }
+
     LaunchedEffect(profileFeedback) {
         if (profileFeedback != null) {
             delay(2200)
@@ -318,10 +322,13 @@ fun LunaMeScreen(
                             Button(
                                 onClick = {
                                     selectedChild?.let { child ->
-                                        if (
-                                            child.coins >= definition.priceCoins &&
-                                            definition.item !in child.inventory
-                                        ) {
+                                        if (definition.item in child.inventory) {
+                                            itemToBuy = null
+                                            previewItem = selectedChild.equippedItem
+                                            return@Button
+                                        }
+
+                                        if (child.coins >= definition.priceCoins) {
                                             val newInventory =
                                                 child.inventory + definition.item
 
@@ -334,10 +341,12 @@ fun LunaMeScreen(
                                                     equippedItem = definition.item
                                                 )
                                             )
+
+                                            itemToBuy = null
+                                        } else {
+                                            showNotEnoughCoinsDialog = true
                                         }
                                     }
-
-                                    itemToBuy = null
                                 }
                             ) {
                                 Text("Kaufen")
@@ -347,6 +356,18 @@ fun LunaMeScreen(
                 }
             }
         }
+    }
+
+    if (showNotEnoughCoinsDialog) {
+        LunaGifDialog(
+            title = "Computer sagt Nein",
+            message = "Dafür hast du leider nicht genug Coins.",
+            gifResId = R.drawable.nein,
+            contentDescription = "Computer sagt Nein",
+            onDismiss = {
+                showNotEnoughCoinsDialog = false
+            }
+        )
     }
 }
 

@@ -100,6 +100,19 @@ enum class LunaInventoryItem {
     perry_2,
     ca_1,
     ca_2,
+    fledermaus_1,
+    rochen_1,
+    toolshed_1,
+    deutschland_1,
+    niederlande_1,
+    portugal_1,
+    virgil_1,
+    dante_1,
+    blade_1,
+
+
+
+
 }
 
 @Serializable

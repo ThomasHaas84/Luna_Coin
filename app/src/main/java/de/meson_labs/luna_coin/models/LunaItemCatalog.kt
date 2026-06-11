@@ -127,11 +127,43 @@ object LunaItemCatalog {
         ),
 
         LunaItemDefinition(
+            item = LunaInventoryItem.deutschland_1,
+            title = "Deutschland",
+            priceCoins = 10,
+            iconRes = R.drawable.deutschland_1,
+            lunaImageRes = R.drawable.deutschland_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.niederlande_1,
+            title = "Niederlande",
+            priceCoins = 10,
+            iconRes = R.drawable.niederlande_1,
+            lunaImageRes = R.drawable.niederlande_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.portugal_1,
+            title = "Portugal",
+            priceCoins = 10,
+            iconRes = R.drawable.portugal_1,
+            lunaImageRes = R.drawable.portugal_1
+        ),
+
+        LunaItemDefinition(
             item = LunaInventoryItem.hase_1,
             title = "Hase",
             priceCoins = 20,
             iconRes = R.drawable.hase_1,
             lunaImageRes = R.drawable.hase_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.rochen_1,
+            title = "Rochen",
+            priceCoins = 20,
+            iconRes = R.drawable.rochen_1,
+            lunaImageRes = R.drawable.rochen_1
         ),
 
         LunaItemDefinition(
@@ -143,11 +175,27 @@ object LunaItemCatalog {
         ),
 
         LunaItemDefinition(
+            item = LunaInventoryItem.fledermaus_1,
+            title = "Fledermaus",
+            priceCoins = 20,
+            iconRes = R.drawable.fledermaus_1,
+            lunaImageRes = R.drawable.fledermaus_1
+        ),
+
+        LunaItemDefinition(
             item = LunaInventoryItem.huffel_1,
             title = "Hufflepuff",
             priceCoins = 20,
             iconRes = R.drawable.huffel_1,
             lunaImageRes = R.drawable.luna_huffel_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.toolshed_1,
+            title = "Toolshed",
+            priceCoins = 20,
+            iconRes = R.drawable.toolshed_1,
+            lunaImageRes = R.drawable.toolshed_1
         ),
 
         LunaItemDefinition(
@@ -444,6 +492,30 @@ object LunaItemCatalog {
             priceCoins = 100,
             iconRes = R.drawable.ca_2,
             lunaImageRes = R.drawable.ca_2
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.virgil_1,
+            title = "Virgil",
+            priceCoins = 100,
+            iconRes = R.drawable.virgil_1,
+            lunaImageRes = R.drawable.virgil_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.dante_1,
+            title = "Dante",
+            priceCoins = 100,
+            iconRes = R.drawable.dante_1,
+            lunaImageRes = R.drawable.dante_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.blade_1,
+            title = "Blade",
+            priceCoins = 100,
+            iconRes = R.drawable.blade_1,
+            lunaImageRes = R.drawable.blade_1
         ),
 
 
