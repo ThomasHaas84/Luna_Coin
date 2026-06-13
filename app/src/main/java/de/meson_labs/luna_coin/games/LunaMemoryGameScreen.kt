@@ -30,11 +30,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.models.Child
+import de.meson_labs.luna_coin.models.GameHighscore
+import de.meson_labs.luna_coin.models.LunaGameLevel
+import de.meson_labs.luna_coin.models.LunaGameScoreType
+import de.meson_labs.luna_coin.models.LunaGameType
+import de.meson_labs.luna_coin.storage.LunaCoinStorage
 import kotlinx.coroutines.delay
 import kotlin.math.min
 
@@ -63,6 +69,18 @@ fun LunaMemoryGameScreen(
     onLogout: () -> Unit,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val storage = remember { LunaCoinStorage(context) }
+    val loadedData = remember { storage.loadData() }
+
+    var highscores by remember {
+        mutableStateOf(loadedData?.gameHighscores ?: emptyList())
+    }
+
+    var children by remember {
+        mutableStateOf(loadedData?.children ?: emptyList())
+    }
+
     val cards = remember { mutableStateListOf<MemoryCard>() }
 
     var selectedDifficulty by remember { mutableStateOf<MemoryDifficulty?>(null) }
@@ -71,6 +89,7 @@ fun LunaMemoryGameScreen(
     var moves by remember { mutableIntStateOf(0) }
     var elapsedSeconds by remember { mutableLongStateOf(0L) }
     var timerStarted by remember { mutableStateOf(false) }
+    var highscoreSaved by remember { mutableStateOf(false) }
 
     var pendingMismatch by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
@@ -113,6 +132,7 @@ fun LunaMemoryGameScreen(
         moves = 0
         elapsedSeconds = 0L
         timerStarted = false
+        highscoreSaved = false
         pendingMismatch = null
 
         currentPlayer = 1
@@ -129,6 +149,7 @@ fun LunaMemoryGameScreen(
         moves = 0
         elapsedSeconds = 0L
         timerStarted = false
+        highscoreSaved = false
         pendingMismatch = null
 
         currentPlayer = 1
@@ -146,6 +167,61 @@ fun LunaMemoryGameScreen(
         )
     }
 
+    fun closeMismatchAndSwitchPlayerIfNeeded() {
+        val mismatch = pendingMismatch ?: return
+
+        cards[mismatch.first] = cards[mismatch.first].copy(isOpen = false)
+        cards[mismatch.second] = cards[mismatch.second].copy(isOpen = false)
+
+        if (selectedPlayerMode == PlayerMode.TWO_PLAYERS) {
+            currentPlayer = if (currentPlayer == 1) 2 else 1
+        }
+
+        pendingMismatch = null
+    }
+
+    fun saveMemoryHighscores() {
+        val child = selectedChild ?: return
+        val difficulty = selectedDifficulty ?: return
+
+        val data = storage.loadData() ?: return
+        val level = difficulty.toLunaGameLevel()
+        val timestamp = System.currentTimeMillis().toString()
+
+        var updatedHighscores = data.gameHighscores
+
+        updatedHighscores = updatedHighscores.upsertHighscore(
+            GameHighscore(
+                game = LunaGameType.MEMORY,
+                childId = child.id,
+                scoreType = LunaGameScoreType.ATTEMPTS,
+                level = level,
+                value = moves,
+                timestamp = timestamp
+            )
+        )
+
+        updatedHighscores = updatedHighscores.upsertHighscore(
+            GameHighscore(
+                game = LunaGameType.MEMORY,
+                childId = child.id,
+                scoreType = LunaGameScoreType.TIME_SECONDS,
+                level = level,
+                value = elapsedSeconds.toInt(),
+                timestamp = timestamp
+            )
+        )
+
+        storage.saveData(
+            data.copy(
+                gameHighscores = updatedHighscores
+            )
+        )
+
+        highscores = updatedHighscores
+        children = data.children
+    }
+
     val finished = cards.isNotEmpty() && cards.all { it.isMatched }
     val gameIsRunning = selectedDifficulty != null &&
             selectedPlayerMode != null &&
@@ -159,19 +235,18 @@ fun LunaMemoryGameScreen(
         }
     }
 
-    LaunchedEffect(pendingMismatch) {
-        val mismatch = pendingMismatch ?: return@LaunchedEffect
-
-        delay(800)
-
-        cards[mismatch.first] = cards[mismatch.first].copy(isOpen = false)
-        cards[mismatch.second] = cards[mismatch.second].copy(isOpen = false)
-
-        if (selectedPlayerMode == PlayerMode.TWO_PLAYERS) {
-            currentPlayer = if (currentPlayer == 1) 2 else 1
+    LaunchedEffect(finished) {
+        if (finished && !highscoreSaved && moves > 0) {
+            saveMemoryHighscores()
+            highscoreSaved = true
         }
+    }
 
-        pendingMismatch = null
+    LaunchedEffect(pendingMismatch, selectedPlayerMode) {
+        if (pendingMismatch != null && selectedPlayerMode == PlayerMode.TWO_PLAYERS) {
+            delay(2000)
+            closeMismatchAndSwitchPlayerIfNeeded()
+        }
     }
 
     BoxWithConstraints(
@@ -195,7 +270,7 @@ fun LunaMemoryGameScreen(
         }
 
         val spacing = 8.dp
-        val sidePanelWidth = 180.dp
+        val sidePanelWidth = 220.dp
 
         val gameAreaWidth = if (difficulty != null) {
             maxWidth - sidePanelWidth - 24.dp
@@ -245,6 +320,9 @@ fun LunaMemoryGameScreen(
 
             if (difficulty == null || playerMode == null) {
                 MemoryStartSelection(
+                    highscores = highscores,
+                    children = children,
+                    selectedChild = selectedChild,
                     onStart = { selectedDifficultyValue, selectedPlayerModeValue ->
                         startGame(
                             difficulty = selectedDifficultyValue,
@@ -269,12 +347,25 @@ fun LunaMemoryGameScreen(
                                         card = card,
                                         modifier = Modifier.size(cardSize),
                                         onClick = {
-                                            if (
-                                                finished ||
-                                                pendingMismatch != null ||
-                                                card.isOpen ||
-                                                card.isMatched
-                                            ) {
+                                            if (finished || index == -1 || cards[index].isMatched) {
+                                                return@MemoryCardView
+                                            }
+
+                                            val mismatch = pendingMismatch
+
+                                            if (mismatch != null) {
+                                                if (selectedPlayerMode == PlayerMode.TWO_PLAYERS) {
+                                                    return@MemoryCardView
+                                                }
+
+                                                closeMismatchAndSwitchPlayerIfNeeded()
+
+                                                if (index == mismatch.first || index == mismatch.second) {
+                                                    return@MemoryCardView
+                                                }
+                                            }
+
+                                            if (cards[index].isOpen || cards[index].isMatched) {
                                                 return@MemoryCardView
                                             }
 
@@ -282,7 +373,7 @@ fun LunaMemoryGameScreen(
                                                 timerStarted = true
                                             }
 
-                                            cards[index] = card.copy(isOpen = true)
+                                            cards[index] = cards[index].copy(isOpen = true)
 
                                             val openCards = cards
                                                 .withIndex()
@@ -318,6 +409,10 @@ fun LunaMemoryGameScreen(
 
                     MemoryScorePanel(
                         playerMode = playerMode,
+                        difficulty = difficulty,
+                        highscores = highscores,
+                        children = children,
+                        selectedChild = selectedChild,
                         currentPlayer = currentPlayer,
                         playerOneScore = playerOneScore,
                         playerTwoScore = playerTwoScore,
@@ -335,102 +430,219 @@ fun LunaMemoryGameScreen(
 
 @Composable
 private fun MemoryStartSelection(
+    highscores: List<GameHighscore>,
+    children: List<Child>,
+    selectedChild: Child?,
     onStart: (MemoryDifficulty, PlayerMode) -> Unit
 ) {
     var selectedDifficulty by remember { mutableStateOf(MemoryDifficulty.EASY) }
     var selectedPlayerMode by remember { mutableStateOf(PlayerMode.ONE_PLAYER) }
 
-    Column {
-        Text(
-            text = "Schwierigkeit auswählen",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+    Row(
+        modifier = Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        Column(
+            modifier = Modifier.weight(1f)
         ) {
-            Button(
-                onClick = {
-                    selectedDifficulty = MemoryDifficulty.EASY
-                },
-                colors = memorySelectionButtonColors(
-                    selected = selectedDifficulty == MemoryDifficulty.EASY
-                )
+            Text(
+                text = "Schwierigkeit auswählen",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(text = "Stufe 1")
+                Button(
+                    onClick = {
+                        selectedDifficulty = MemoryDifficulty.EASY
+                    },
+                    colors = memorySelectionButtonColors(
+                        selected = selectedDifficulty == MemoryDifficulty.EASY
+                    )
+                ) {
+                    Text(text = "Stufe 1")
+                }
+
+                Button(
+                    onClick = {
+                        selectedDifficulty = MemoryDifficulty.HARD
+                    },
+                    colors = memorySelectionButtonColors(
+                        selected = selectedDifficulty == MemoryDifficulty.HARD
+                    )
+                ) {
+                    Text(text = "Stufe 2")
+                }
             }
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Spieler auswählen",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Button(
+                    onClick = {
+                        selectedPlayerMode = PlayerMode.ONE_PLAYER
+                    },
+                    colors = memorySelectionButtonColors(
+                        selected = selectedPlayerMode == PlayerMode.ONE_PLAYER
+                    )
+                ) {
+                    Text(text = "1 Spieler")
+                }
+
+                Button(
+                    onClick = {
+                        selectedPlayerMode = PlayerMode.TWO_PLAYERS
+                    },
+                    colors = memorySelectionButtonColors(
+                        selected = selectedPlayerMode == PlayerMode.TWO_PLAYERS
+                    )
+                ) {
+                    Text(text = "2 Spieler")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            Text(
+                text = "Auswahl: ${difficultyText(selectedDifficulty)}, ${playerModeText(selectedPlayerMode)}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
             Button(
                 onClick = {
-                    selectedDifficulty = MemoryDifficulty.HARD
-                },
-                colors = memorySelectionButtonColors(
-                    selected = selectedDifficulty == MemoryDifficulty.HARD
-                )
+                    onStart(
+                        selectedDifficulty,
+                        selectedPlayerMode
+                    )
+                }
             ) {
-                Text(text = "Stufe 2")
+                Text(text = "Spiel starten")
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Spieler auswählen",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
+        MemoryHighscoreOverview(
+            difficulty = selectedDifficulty,
+            highscores = highscores,
+            children = children,
+            selectedChild = selectedChild,
+            modifier = Modifier.width(260.dp)
         )
+    }
+}
 
-        Spacer(modifier = Modifier.height(16.dp))
+@Composable
+private fun MemoryHighscoreOverview(
+    difficulty: MemoryDifficulty,
+    highscores: List<GameHighscore>,
+    children: List<Child>,
+    selectedChild: Child?,
+    modifier: Modifier = Modifier
+) {
+    val level = difficulty.toLunaGameLevel()
 
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Button(
-                onClick = {
-                    selectedPlayerMode = PlayerMode.ONE_PLAYER
-                },
-                colors = memorySelectionButtonColors(
-                    selected = selectedPlayerMode == PlayerMode.ONE_PLAYER
-                )
-            ) {
-                Text(text = "1 Spieler")
-            }
+    val personalMoves = highscores.bestEntry(
+        childId = selectedChild?.id,
+        game = LunaGameType.MEMORY,
+        scoreType = LunaGameScoreType.ATTEMPTS,
+        level = level
+    )
 
-            Button(
-                onClick = {
-                    selectedPlayerMode = PlayerMode.TWO_PLAYERS
-                },
-                colors = memorySelectionButtonColors(
-                    selected = selectedPlayerMode == PlayerMode.TWO_PLAYERS
-                )
-            ) {
-                Text(text = "2 Spieler")
-            }
-        }
+    val globalMoves = highscores.bestEntry(
+        childId = null,
+        game = LunaGameType.MEMORY,
+        scoreType = LunaGameScoreType.ATTEMPTS,
+        level = level
+    )
 
-        Spacer(modifier = Modifier.height(28.dp))
+    val personalTime = highscores.bestEntry(
+        childId = selectedChild?.id,
+        game = LunaGameType.MEMORY,
+        scoreType = LunaGameScoreType.TIME_SECONDS,
+        level = level
+    )
 
-        Text(
-            text = "Auswahl: ${difficultyText(selectedDifficulty)}, ${playerModeText(selectedPlayerMode)}",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+    val globalTime = highscores.bestEntry(
+        childId = null,
+        game = LunaGameType.MEMORY,
+        scoreType = LunaGameScoreType.TIME_SECONDS,
+        level = level
+    )
+
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = {
-                onStart(
-                    selectedDifficulty,
-                    selectedPlayerMode
-                )
-            }
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = "Spiel starten")
+            Text(
+                text = "Highscores",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = difficultyText(difficulty),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(text = "Deine Züge", fontWeight = FontWeight.Bold)
+            Text(text = personalMoves?.value?.toString() ?: "-")
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(text = "App-Züge", fontWeight = FontWeight.Bold)
+            Text(
+                text = globalMoves?.let {
+                    "${it.value} (${childName(it.childId, children)})"
+                } ?: "-",
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(text = "Deine Zeit", fontWeight = FontWeight.Bold)
+            Text(text = personalTime?.let { formatMemoryTime(it.value.toLong()) } ?: "-")
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(text = "App-Zeit", fontWeight = FontWeight.Bold)
+            Text(
+                text = globalTime?.let {
+                    "${formatMemoryTime(it.value.toLong())} (${childName(it.childId, children)})"
+                } ?: "-",
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -454,6 +666,10 @@ private fun memorySelectionButtonColors(
 @Composable
 private fun MemoryScorePanel(
     playerMode: PlayerMode,
+    difficulty: MemoryDifficulty,
+    highscores: List<GameHighscore>,
+    children: List<Child>,
+    selectedChild: Child?,
     currentPlayer: Int,
     playerOneScore: Int,
     playerTwoScore: Int,
@@ -463,10 +679,40 @@ private fun MemoryScorePanel(
     onRestart: () -> Unit,
     onExit: () -> Unit
 ) {
+    val level = difficulty.toLunaGameLevel()
+
+    val personalMoves = highscores.bestEntry(
+        childId = selectedChild?.id,
+        game = LunaGameType.MEMORY,
+        scoreType = LunaGameScoreType.ATTEMPTS,
+        level = level
+    )
+
+    val globalMoves = highscores.bestEntry(
+        childId = null,
+        game = LunaGameType.MEMORY,
+        scoreType = LunaGameScoreType.ATTEMPTS,
+        level = level
+    )
+
+    val personalTime = highscores.bestEntry(
+        childId = selectedChild?.id,
+        game = LunaGameType.MEMORY,
+        scoreType = LunaGameScoreType.TIME_SECONDS,
+        level = level
+    )
+
+    val globalTime = highscores.bestEntry(
+        childId = null,
+        game = LunaGameType.MEMORY,
+        scoreType = LunaGameScoreType.TIME_SECONDS,
+        level = level
+    )
+
     Card(
         modifier = Modifier
-            .width(180.dp)
-            .height(390.dp),
+            .width(220.dp)
+            .height(520.dp),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -478,112 +724,84 @@ private fun MemoryScorePanel(
                 .padding(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (!finished) {
-                Text(
-                    text = if (playerMode == PlayerMode.ONE_PLAYER) {
-                        "Spiel läuft"
-                    } else {
-                        "Dran:"
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
+            Text(
+                text = if (!finished) "Spiel läuft" else "Gewonnen",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
 
-                Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                    text = if (playerMode == PlayerMode.ONE_PLAYER) {
-                        "Solo"
-                    } else {
-                        "Spieler $currentPlayer"
-                    },
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-            } else {
-                Text(
-                    text = "Gewonnen",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = winnerText(
+            Text(
+                text = if (!finished) {
+                    if (playerMode == PlayerMode.ONE_PLAYER) "Solo" else "Spieler $currentPlayer"
+                } else {
+                    winnerText(
                         playerMode = playerMode,
                         playerOneScore = playerOneScore,
                         playerTwoScore = playerTwoScore
-                    ),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-            }
-
-            Text(
-                text = "Züge",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = moves.toString(),
+                    )
+                },
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.primary
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(text = "Züge", fontWeight = FontWeight.Bold)
+            Text(text = moves.toString(), style = MaterialTheme.typography.headlineSmall)
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(text = "Zeit", fontWeight = FontWeight.Bold)
+            Text(text = formatMemoryTime(elapsedSeconds), style = MaterialTheme.typography.headlineSmall)
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(text = "Highscore", fontWeight = FontWeight.Bold)
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(text = "Meine Züge: ${personalMoves?.value?.toString() ?: "-"}")
+            Text(
+                text = "Alle Züge: ${
+                    globalMoves?.let { "${it.value} (${childName(it.childId, children)})" } ?: "-"
+                }",
+                textAlign = TextAlign.Center
+            )
 
             Text(
-                text = "Zeit",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
+                text = "Meine Zeit: ${
+                    personalTime?.let { formatMemoryTime(it.value.toLong()) } ?: "-"
+                }"
             )
-
             Text(
-                text = formatMemoryTime(elapsedSeconds),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+                text = "Alle Zeit: ${
+                    globalTime?.let { "${formatMemoryTime(it.value.toLong())} (${childName(it.childId, children)})" } ?: "-"
+                }",
+                textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             if (playerMode == PlayerMode.TWO_PLAYERS) {
                 Text(
                     text = "Spieler 1: $playerOneScore",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = if (currentPlayer == 1 && !finished) {
-                        FontWeight.Bold
-                    } else {
-                        FontWeight.Normal
-                    }
+                    fontWeight = if (currentPlayer == 1 && !finished) FontWeight.Bold else FontWeight.Normal
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = "Spieler 2: $playerTwoScore",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = if (currentPlayer == 2 && !finished) {
-                        FontWeight.Bold
-                    } else {
-                        FontWeight.Normal
-                    }
+                    fontWeight = if (currentPlayer == 2 && !finished) FontWeight.Bold else FontWeight.Normal
                 )
             } else {
                 Text(
                     text = "Paare: $playerOneScore",
-                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -591,21 +809,67 @@ private fun MemoryScorePanel(
             Spacer(modifier = Modifier.weight(1f))
 
             if (finished) {
-                Button(
-                    onClick = onRestart
-                ) {
+                Button(onClick = onRestart) {
                     Text(text = "Neu starten")
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Button(
-                    onClick = onExit
-                ) {
+                Button(onClick = onExit) {
                     Text(text = "Verlassen")
                 }
             }
         }
+    }
+}
+
+private fun List<GameHighscore>.upsertHighscore(
+    newHighscore: GameHighscore
+): List<GameHighscore> {
+    val existing = firstOrNull {
+        it.game == newHighscore.game &&
+                it.childId == newHighscore.childId &&
+                it.scoreType == newHighscore.scoreType &&
+                it.level == newHighscore.level
+    }
+
+    if (existing != null && existing.value <= newHighscore.value) {
+        return this
+    }
+
+    return filterNot {
+        it.game == newHighscore.game &&
+                it.childId == newHighscore.childId &&
+                it.scoreType == newHighscore.scoreType &&
+                it.level == newHighscore.level
+    } + newHighscore
+}
+
+private fun List<GameHighscore>.bestEntry(
+    childId: String?,
+    game: LunaGameType,
+    scoreType: LunaGameScoreType,
+    level: LunaGameLevel
+): GameHighscore? {
+    return filter {
+        it.game == game &&
+                it.scoreType == scoreType &&
+                it.level == level &&
+                (childId == null || it.childId == childId)
+    }.minByOrNull { it.value }
+}
+
+private fun childName(
+    childId: String,
+    children: List<Child>
+): String {
+    return children.firstOrNull { it.id == childId }?.name ?: "Unbekannt"
+}
+
+private fun MemoryDifficulty.toLunaGameLevel(): LunaGameLevel {
+    return when (this) {
+        MemoryDifficulty.EASY -> LunaGameLevel.EASY
+        MemoryDifficulty.HARD -> LunaGameLevel.HARD
     }
 }
 

@@ -22,11 +22,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.games.LunaMemoryGameScreen
@@ -93,7 +95,7 @@ fun LunaGamesScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "Minispiele",
+                    text = "Minispiele:",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -105,16 +107,19 @@ fun LunaGamesScreen(
                         MiniGameItem(
                             title = "Memory",
                             description = "Paare finden",
+                            symbol = "🧠",
                             onClick = { activeGame = ActiveGame.MEMORY }
                         ),
                         MiniGameItem(
                             title = "Zahlenraten",
                             description = "Zahl erraten",
+                            symbol = "🔢",
                             onClick = { activeGame = ActiveGame.NUMBER_GUESS }
                         ),
                         MiniGameItem(
                             title = "1 x 1",
                             description = "10 Felder lösen",
+                            symbol = "✖️",
                             onClick = { activeGame = ActiveGame.MULTIPLICATION }
                         )
                     )
@@ -123,7 +128,7 @@ fun LunaGamesScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 Text(
-                    text = "Coming soon",
+                    text = "Coming soon:",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -139,6 +144,7 @@ fun LunaGamesScreen(
 private data class MiniGameItem(
     val title: String,
     val description: String,
+    val symbol: String,
     val onClick: () -> Unit
 )
 
@@ -158,6 +164,7 @@ private fun MiniGameGrid(
                     MiniGameCard(
                         title = game.title,
                         description = game.description,
+                        symbol = game.symbol,
                         onClick = game.onClick,
                         modifier = Modifier.weight(1f)
                     )
@@ -175,11 +182,12 @@ private fun MiniGameGrid(
 private fun MiniGameCard(
     title: String,
     description: String,
+    symbol: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(140.dp),
+        modifier = modifier.height(160.dp),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -192,13 +200,25 @@ private fun MiniGameCard(
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    Text(
+                        text = symbol,
+                        fontSize = 42.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
                     text = description,

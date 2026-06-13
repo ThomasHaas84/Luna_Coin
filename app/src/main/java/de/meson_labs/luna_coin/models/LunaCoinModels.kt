@@ -9,8 +9,39 @@ data class LunaCoinData(
     val shopItems: List<ShopItem> = emptyList(),
     val dogSchedule: List<DogScheduleItem> = emptyList(),
     val logs: List<LogEntry> = emptyList(),
-    val luckyWheelUsage: List<LuckyWheelUsage> = emptyList()
+    val luckyWheelUsage: List<LuckyWheelUsage> = emptyList(),
+    val gameHighscores: List<GameHighscore> = emptyList()
 )
+
+@Serializable
+data class GameHighscore(
+    val game: LunaGameType,
+    val childId: String,
+    val scoreType: LunaGameScoreType,
+    val level: LunaGameLevel = LunaGameLevel.DEFAULT,
+    val value: Int,
+    val timestamp: String
+)
+
+@Serializable
+enum class LunaGameType {
+    MEMORY,
+    NUMBER_GUESS,
+    MULTIPLICATION
+}
+
+@Serializable
+enum class LunaGameScoreType {
+    ATTEMPTS,
+    TIME_SECONDS
+}
+
+@Serializable
+enum class LunaGameLevel {
+    DEFAULT,
+    EASY,
+    HARD
+}
 
 @Serializable
 data class LuckyWheelUsage(
@@ -108,11 +139,7 @@ enum class LunaInventoryItem {
     portugal_1,
     virgil_1,
     dante_1,
-    blade_1,
-
-
-
-
+    blade_1
 }
 
 @Serializable

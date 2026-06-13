@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -39,6 +41,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.models.Child
+import de.meson_labs.luna_coin.models.GameHighscore
+import de.meson_labs.luna_coin.models.LunaGameLevel
+import de.meson_labs.luna_coin.models.LunaGameScoreType
+import de.meson_labs.luna_coin.models.LunaGameType
+import de.meson_labs.luna_coin.storage.LunaCoinStorage
+import kotlinx.coroutines.delay
 import kotlin.math.min
 
 @Composable
@@ -48,8 +56,24 @@ fun LunaMultiplicationGameScreen(
     onLogout: () -> Unit,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val storage = remember { LunaCoinStorage(context) }
+    val loadedData = remember { storage.loadData() }
+
+    var highscores by remember {
+        mutableStateOf(loadedData?.gameHighscores ?: emptyList())
+    }
+
+    var children by remember {
+        mutableStateOf(loadedData?.children ?: emptyList())
+    }
+
     var missingFields by remember { mutableStateOf(setOf<Pair<Int, Int>>()) }
     val answers = remember { mutableStateMapOf<Pair<Int, Int>, String>() }
+
+    var elapsedSeconds by remember { mutableLongStateOf(0L) }
+    var timerStarted by remember { mutableStateOf(false) }
+    var highscoreSaved by remember { mutableStateOf(false) }
 
     fun createNewGame() {
         missingFields = (1..10)
@@ -67,6 +91,35 @@ fun LunaMultiplicationGameScreen(
         missingFields.forEach { field ->
             answers[field] = ""
         }
+
+        elapsedSeconds = 0L
+        timerStarted = false
+        highscoreSaved = false
+    }
+
+    fun saveHighscore() {
+        val child = selectedChild ?: return
+        val data = storage.loadData() ?: return
+
+        val newHighscore = GameHighscore(
+            game = LunaGameType.MULTIPLICATION,
+            childId = child.id,
+            scoreType = LunaGameScoreType.TIME_SECONDS,
+            level = LunaGameLevel.DEFAULT,
+            value = elapsedSeconds.toInt(),
+            timestamp = System.currentTimeMillis().toString()
+        )
+
+        val updatedHighscores = data.gameHighscores.upsertHighscore(newHighscore)
+
+        storage.saveData(
+            data.copy(
+                gameHighscores = updatedHighscores
+            )
+        )
+
+        highscores = updatedHighscores
+        children = data.children
     }
 
     LaunchedEffect(Unit) {
@@ -76,6 +129,36 @@ fun LunaMultiplicationGameScreen(
     val allCorrect = missingFields.isNotEmpty() && missingFields.all { field ->
         answers[field]?.toIntOrNull() == field.first * field.second
     }
+
+    val gameIsRunning = timerStarted && !allCorrect
+
+    LaunchedEffect(gameIsRunning) {
+        while (gameIsRunning) {
+            delay(1000)
+            elapsedSeconds++
+        }
+    }
+
+    LaunchedEffect(allCorrect) {
+        if (allCorrect && !highscoreSaved && elapsedSeconds > 0L) {
+            saveHighscore()
+            highscoreSaved = true
+        }
+    }
+
+    val personalHighscore = highscores.bestEntry(
+        childId = selectedChild?.id,
+        game = LunaGameType.MULTIPLICATION,
+        scoreType = LunaGameScoreType.TIME_SECONDS,
+        level = LunaGameLevel.DEFAULT
+    )
+
+    val globalHighscore = highscores.bestEntry(
+        childId = null,
+        game = LunaGameType.MULTIPLICATION,
+        scoreType = LunaGameScoreType.TIME_SECONDS,
+        level = LunaGameLevel.DEFAULT
+    )
 
     Column(
         modifier = modifier
@@ -94,7 +177,7 @@ fun LunaMultiplicationGameScreen(
             modifier = Modifier.fillMaxSize()
         ) {
             val spacing = 4.dp
-            val leftPanelWidth = 170.dp
+            val leftPanelWidth = 210.dp
             val safetySpace = 16.dp
 
             val cellSizeByWidth = (maxWidth - spacing * 9) / 10
@@ -114,6 +197,41 @@ fun LunaMultiplicationGameScreen(
                     Text(
                         text = "Fülle die 10 leeren Felder aus",
                         style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Zeit: ${formatMultiplicationTime(elapsedSeconds)}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Dein Highscore:\n${
+                            personalHighscore?.let {
+                                formatMultiplicationTime(it.value.toLong())
+                            } ?: "-"
+                        }",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "App-Highscore:\n${
+                            globalHighscore?.let {
+                                "${formatMultiplicationTime(it.value.toLong())} (${childName(it.childId, children)})"
+                            } ?: "-"
+                        }",
+                        style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
@@ -152,6 +270,10 @@ fun LunaMultiplicationGameScreen(
                     missingFields = missingFields,
                     answers = answers,
                     onAnswerChanged = { field, value ->
+                        if (!timerStarted) {
+                            timerStarted = true
+                        }
+
                         answers[field] = value.filter { it.isDigit() }.take(3)
                     }
                 )
@@ -282,4 +404,56 @@ private fun MultiplicationCell(
             )
         }
     }
+}
+
+private fun List<GameHighscore>.upsertHighscore(
+    newHighscore: GameHighscore
+): List<GameHighscore> {
+    val existing = firstOrNull {
+        it.game == newHighscore.game &&
+                it.childId == newHighscore.childId &&
+                it.scoreType == newHighscore.scoreType &&
+                it.level == newHighscore.level
+    }
+
+    if (existing != null && existing.value <= newHighscore.value) {
+        return this
+    }
+
+    return filterNot {
+        it.game == newHighscore.game &&
+                it.childId == newHighscore.childId &&
+                it.scoreType == newHighscore.scoreType &&
+                it.level == newHighscore.level
+    } + newHighscore
+}
+
+private fun List<GameHighscore>.bestEntry(
+    childId: String?,
+    game: LunaGameType,
+    scoreType: LunaGameScoreType,
+    level: LunaGameLevel
+): GameHighscore? {
+    return filter {
+        it.game == game &&
+                it.scoreType == scoreType &&
+                it.level == level &&
+                (childId == null || it.childId == childId)
+    }.minByOrNull { it.value }
+}
+
+private fun childName(
+    childId: String,
+    children: List<Child>
+): String {
+    return children.firstOrNull { it.id == childId }?.name ?: "Unbekannt"
+}
+
+private fun formatMultiplicationTime(
+    seconds: Long
+): String {
+    val minutes = seconds / 60
+    val restSeconds = seconds % 60
+
+    return "%02d:%02d".format(minutes, restSeconds)
 }
