@@ -4,7 +4,6 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.SoundPool
 import de.meson_labs.luna_coin.R
-import kotlinx.coroutines.delay
 
 object LunaSoundManager {
 
@@ -12,19 +11,19 @@ object LunaSoundManager {
 
     private lateinit var soundPool: SoundPool
 
-    private var tabClickSound = 0
     private var gameSuccessSound = 0
     private var wheelTickSound = 0
+
+    private var gameSuccessLoaded = false
+    private var wheelTickLoaded = false
 
     fun init(
         context: Context
     ) {
-        if (initialized) {
-            return
-        }
+        if (initialized) return
 
         soundPool = SoundPool.Builder()
-            .setMaxStreams(6)
+            .setMaxStreams(8)
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_GAME)
@@ -33,20 +32,25 @@ object LunaSoundManager {
             )
             .build()
 
-        tabClickSound = soundPool.load(
-            context,
-            R.raw.tab_click,
-            1
-        )
+        soundPool.setOnLoadCompleteListener { _, sampleId, status ->
+            if (status == 0) {
+                when (sampleId) {
+                    gameSuccessSound -> gameSuccessLoaded = true
+                    wheelTickSound -> wheelTickLoaded = true
+                }
+            }
+        }
+
+        val appContext = context.applicationContext
 
         gameSuccessSound = soundPool.load(
-            context,
+            appContext,
             R.raw.game_success,
             1
         )
 
         wheelTickSound = soundPool.load(
-            context,
+            appContext,
             R.raw.wheel_tick,
             1
         )
@@ -54,28 +58,19 @@ object LunaSoundManager {
         initialized = true
     }
 
-    fun playTabClick() {
-        if (!initialized) return
-
-        play(
-            soundId = tabClickSound,
-            volume = 0.35f
-        )
-    }
-
     fun playGameSuccess() {
-        if (!initialized) return
+        if (!initialized || !gameSuccessLoaded) return
 
         play(
             soundId = gameSuccessSound,
-            volume = 0.8f
+            volume = 0.85f
         )
     }
 
     fun playWheelTick(
         volume: Float = 0.65f
     ) {
-        if (!initialized) return
+        if (!initialized || !wheelTickLoaded) return
 
         play(
             soundId = wheelTickSound,
@@ -83,43 +78,10 @@ object LunaSoundManager {
         )
     }
 
-    suspend fun playSlowingWheelTicks(
-        ticks: Int = 24,
-        startDelayMs: Long = 35L,
-        endDelayMs: Long = 260L
-    ) {
-        if (!initialized) return
-        if (ticks <= 0) return
-
-        repeat(ticks) { index ->
-
-            val progress =
-                index.toFloat() /
-                        (ticks - 1).coerceAtLeast(1)
-
-            val delayMs =
-                (
-                        startDelayMs +
-                                (
-                                        endDelayMs -
-                                                startDelayMs
-                                        ) * progress
-                        ).toLong()
-
-            playWheelTick(
-                volume = 0.75f - progress * 0.35f
-            )
-
-            delay(delayMs)
-        }
-    }
-
     private fun play(
         soundId: Int,
         volume: Float = 1f
     ) {
-        if (!initialized) return
-
         soundPool.play(
             soundId,
             volume,
@@ -134,6 +96,13 @@ object LunaSoundManager {
         if (!initialized) return
 
         soundPool.release()
+
         initialized = false
+
+        gameSuccessSound = 0
+        wheelTickSound = 0
+
+        gameSuccessLoaded = false
+        wheelTickLoaded = false
     }
 }

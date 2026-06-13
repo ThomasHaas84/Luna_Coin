@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -50,8 +51,11 @@ import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.data.FortuneCookieMessages
+import de.meson_labs.luna_coin.sound.LunaSoundManager
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.cos
+import kotlin.math.floor
 import kotlin.math.sin
 
 data class LuckyWheelResult(
@@ -173,6 +177,49 @@ fun LuckyWheelDialog(
         label = "luckyWheelRotation"
     )
 
+    val sweepAngle = 360f / wheelSegments.size
+
+    LaunchedEffect(targetRotation) {
+        if (targetRotation <= 0f) return@LaunchedEffect
+
+        LunaSoundManager.playWheelTick(
+            volume = 0.75f
+        )
+
+        var lastSoundTime = 0L
+
+        snapshotFlow {
+            floor(
+                (rotation / sweepAngle).toDouble()
+            ).toInt()
+        }
+            .distinctUntilChanged()
+            .collect {
+                if (result != null) return@collect
+
+                val now = System.currentTimeMillis()
+
+                val progress = (rotation / targetRotation)
+                    .coerceIn(0f, 1f)
+
+                val minGapMs = (
+                        18f +
+                                progress * 95f
+                        ).toLong()
+
+                if (now - lastSoundTime >= minGapMs) {
+                    lastSoundTime = now
+
+                    val volume = (0.8f - progress * 0.4f)
+                        .coerceIn(0.35f, 0.8f)
+
+                    LunaSoundManager.playWheelTick(
+                        volume = volume
+                    )
+                }
+            }
+    }
+
     LaunchedEffect(Unit) {
         val selectedIndex = wheelSegments.indexOf(selectedSegment)
 
@@ -233,14 +280,14 @@ fun LuckyWheelDialog(
                         )
 
                         val sectionCount = wheelSegments.size
-                        val sweepAngle = 360f / sectionCount
+                        val drawSweepAngle = 360f / sectionCount
 
                         rotate(rotation) {
                             wheelSegments.forEachIndexed { index, segment ->
                                 drawArc(
                                     color = segment.color,
-                                    startAngle = index * sweepAngle,
-                                    sweepAngle = sweepAngle,
+                                    startAngle = index * drawSweepAngle,
+                                    sweepAngle = drawSweepAngle,
                                     useCenter = true,
                                     topLeft = topLeft,
                                     size = Size(
@@ -252,7 +299,7 @@ fun LuckyWheelDialog(
 
                             repeat(sectionCount) { index ->
                                 val angle =
-                                    Math.toRadians((index * sweepAngle).toDouble())
+                                    Math.toRadians((index * drawSweepAngle).toDouble())
 
                                 val endX =
                                     center.x + cos(angle).toFloat() * radius

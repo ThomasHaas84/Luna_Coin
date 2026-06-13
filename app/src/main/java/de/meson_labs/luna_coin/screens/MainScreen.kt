@@ -1,5 +1,6 @@
 package de.meson_labs.luna_coin.screens
 
+import android.view.SoundEffectConstants
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -20,8 +21,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import de.meson_labs.luna_coin.screens.settings.SettingsScreen
-import de.meson_labs.luna_coin.sound.LunaSoundManager
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 
 @Composable
@@ -31,6 +32,8 @@ fun MainScreen(
     val data by viewModel.data.collectAsState()
     val selectedChildId by viewModel.selectedChildId.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
+
+    val view = LocalView.current
 
     Surface {
         if (selectedChildId == null) {
@@ -51,7 +54,10 @@ fun MainScreen(
                 newTab: Int
             ) {
                 if (selectedTab != newTab) {
-                    LunaSoundManager.playTabClick()
+                    view.playSoundEffect(
+                        SoundEffectConstants.CLICK
+                    )
+
                     selectedTab = newTab
                 }
             }
