@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,14 +29,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.LunaScreenHeader
-import de.meson_labs.luna_coin.models.Child
-import de.meson_labs.luna_coin.games.LunaNumberGuessGameScreen
 import de.meson_labs.luna_coin.games.LunaMemoryGameScreen
+import de.meson_labs.luna_coin.games.LunaMultiplicationGameScreen
+import de.meson_labs.luna_coin.games.LunaNumberGuessGameScreen
+import de.meson_labs.luna_coin.models.Child
 
 private enum class ActiveGame {
     NONE,
     MEMORY,
-    NUMBER_GUESS
+    NUMBER_GUESS,
+    MULTIPLICATION
 }
 
 @Composable
@@ -60,6 +61,15 @@ fun LunaGamesScreen(
 
         ActiveGame.NUMBER_GUESS -> {
             LunaNumberGuessGameScreen(
+                modifier = modifier,
+                selectedChild = selectedChild,
+                onLogout = onLogout,
+                onBack = { activeGame = ActiveGame.NONE }
+            )
+        }
+
+        ActiveGame.MULTIPLICATION -> {
+            LunaMultiplicationGameScreen(
                 modifier = modifier,
                 selectedChild = selectedChild,
                 onLogout = onLogout,
@@ -101,6 +111,11 @@ fun LunaGamesScreen(
                             title = "Zahlenraten",
                             description = "Zahl erraten",
                             onClick = { activeGame = ActiveGame.NUMBER_GUESS }
+                        ),
+                        MiniGameItem(
+                            title = "1 x 1",
+                            description = "10 Felder lösen",
+                            onClick = { activeGame = ActiveGame.MULTIPLICATION }
                         )
                     )
                 )
@@ -227,13 +242,15 @@ private fun ComingSoonGrid() {
                             .height(350.dp),
                         shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceBright
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                         )
                     ) {
                         Image(
                             painter = painterResource(id = imageRes),
                             contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(6.dp),
                             contentScale = ContentScale.Fit
                         )
                     }
