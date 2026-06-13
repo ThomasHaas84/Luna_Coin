@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import de.meson_labs.luna_coin.screens.settings.SettingsScreen
+import de.meson_labs.luna_coin.sound.LunaSoundManager
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 
 @Composable
@@ -46,13 +47,22 @@ fun MainScreen(
                 mutableIntStateOf(0)
             }
 
+            fun selectTab(
+                newTab: Int
+            ) {
+                if (selectedTab != newTab) {
+                    LunaSoundManager.playTabClick()
+                    selectedTab = newTab
+                }
+            }
+
             Scaffold(
                 bottomBar = {
                     NavigationBar {
                         NavigationBarItem(
                             selected = selectedTab == 0,
                             onClick = {
-                                selectedTab = 0
+                                selectTab(0)
                             },
                             icon = {
                                 Icon(
@@ -68,7 +78,7 @@ fun MainScreen(
                         NavigationBarItem(
                             selected = selectedTab == 1,
                             onClick = {
-                                selectedTab = 1
+                                selectTab(1)
                             },
                             icon = {
                                 Icon(
@@ -84,7 +94,7 @@ fun MainScreen(
                         NavigationBarItem(
                             selected = selectedTab == 2,
                             onClick = {
-                                selectedTab = 2
+                                selectTab(2)
                             },
                             icon = {
                                 Icon(
@@ -100,7 +110,7 @@ fun MainScreen(
                         NavigationBarItem(
                             selected = selectedTab == 3,
                             onClick = {
-                                selectedTab = 3
+                                selectTab(3)
                             },
                             icon = {
                                 Icon(
@@ -116,7 +126,7 @@ fun MainScreen(
                         NavigationBarItem(
                             selected = selectedTab == 4,
                             onClick = {
-                                selectedTab = 4
+                                selectTab(4)
                             },
                             icon = {
                                 Icon(

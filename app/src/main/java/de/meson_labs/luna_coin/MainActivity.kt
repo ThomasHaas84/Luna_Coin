@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.meson_labs.luna_coin.screens.MainScreen
+import de.meson_labs.luna_coin.sound.LunaSoundManager
 import de.meson_labs.luna_coin.storage.LunaCoinStorage
 import de.meson_labs.luna_coin.ui.theme.LunaCoinTheme
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
@@ -16,6 +17,10 @@ class MainActivity : ComponentActivity() {
         savedInstanceState: Bundle?
     ) {
         super.onCreate(savedInstanceState)
+
+        LunaSoundManager.init(
+            context = applicationContext
+        )
 
         val storage = LunaCoinStorage(
             context = applicationContext
@@ -34,5 +39,11 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onDestroy() {
+        LunaSoundManager.release()
+
+        super.onDestroy()
     }
 }

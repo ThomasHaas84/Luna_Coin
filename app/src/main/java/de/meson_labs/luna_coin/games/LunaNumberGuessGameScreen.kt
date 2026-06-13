@@ -50,14 +50,18 @@ fun LunaNumberGuessGameScreen(
 ) {
     val context = LocalContext.current
     val storage = remember { LunaCoinStorage(context) }
-    val loadedData = remember { storage.loadData() }
-
     var highscores by remember {
-        mutableStateOf(loadedData?.gameHighscores ?: emptyList())
+        mutableStateOf(storage.loadData()?.gameHighscores ?: emptyList())
     }
 
     var children by remember {
-        mutableStateOf(loadedData?.children ?: emptyList())
+        mutableStateOf(storage.loadData()?.children ?: emptyList())
+    }
+
+    LaunchedEffect(selectedChild?.id) {
+        val data = storage.loadData()
+        highscores = data?.gameHighscores ?: emptyList()
+        children = data?.children ?: emptyList()
     }
 
     var targetNumber by remember { mutableIntStateOf(Random.nextInt(1, 101)) }
