@@ -64,6 +64,7 @@ import de.meson_labs.luna_coin.screens.image_mode.LunaImageModeConfig
 import de.meson_labs.luna_coin.screens.image_mode.LunaImageModeStorage
 import de.meson_labs.luna_coin.screens.image_mode.LunaImagePlayMode
 import kotlinx.coroutines.delay
+import android.view.WindowManager
 
 @Composable
 fun UserSelectionScreen(
@@ -292,6 +293,11 @@ private fun LunaImageModeScreen(
         val window = activity?.window
 
         if (window != null) {
+
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            )
+
             WindowCompat.setDecorFitsSystemWindows(
                 window,
                 false
@@ -312,6 +318,11 @@ private fun LunaImageModeScreen(
 
         onDispose {
             if (window != null) {
+
+                window.clearFlags(
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                )
+
                 val controller = WindowInsetsControllerCompat(
                     window,
                     view

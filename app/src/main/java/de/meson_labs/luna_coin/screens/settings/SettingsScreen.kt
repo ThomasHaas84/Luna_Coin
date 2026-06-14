@@ -556,21 +556,26 @@ fun SettingsScreen(
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
-                }
 
-                if (canEdit && showLogs) {
-                    Text(
-                        text = "Einträge lange drücken, um sie rückgängig zu machen.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                    Button(
+                        onClick = {
+                            showLogs = !showLogs
+                        }
+                    ) {
+                        Text(
+                            if (showLogs) {
+                                "Mein Log ausblenden"
+                            } else {
+                                "Mein Log anzeigen"
+                            }
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
                 }
             }
 
-            if (!canEdit || showLogs) {
+            if (showLogs) {
                 if (visibleLogs.isEmpty()) {
                     item {
                         Card(
