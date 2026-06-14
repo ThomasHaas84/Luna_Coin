@@ -6,22 +6,28 @@ import android.content.ContextWrapper
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,9 +43,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -54,6 +62,7 @@ import de.meson_labs.luna_coin.models.LunaItemCatalog
 import de.meson_labs.luna_coin.models.UserRole
 import de.meson_labs.luna_coin.screens.image_mode.LunaImageModeConfig
 import de.meson_labs.luna_coin.screens.image_mode.LunaImageModeStorage
+import de.meson_labs.luna_coin.screens.image_mode.LunaImagePlayMode
 import kotlinx.coroutines.delay
 
 @Composable
@@ -61,12 +70,34 @@ fun UserSelectionScreen(
     children: List<Child>,
     onChildSelected: (String) -> Unit
 ) {
+    val context = LocalContext.current
+
     var passwordUser by remember {
         mutableStateOf<Child?>(null)
     }
 
     var imageModeActive by remember {
         mutableStateOf(false)
+    }
+
+    var showImageSettingsDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var imageChangeDelayMs by remember {
+        mutableLongStateOf(
+            LunaImageModeStorage.getImageChangeDelayMs(
+                context = context
+            )
+        )
+    }
+
+    var imagePlayMode by remember {
+        mutableStateOf(
+            LunaImageModeStorage.getPlayMode(
+                context = context
+            )
+        )
     }
 
     var idleResetKey by remember {
@@ -83,9 +114,10 @@ fun UserSelectionScreen(
     LaunchedEffect(
         idleResetKey,
         imageModeActive,
-        passwordUser
+        passwordUser,
+        showImageSettingsDialog
     ) {
-        if (!imageModeActive && passwordUser == null) {
+        if (!imageModeActive && passwordUser == null && !showImageSettingsDialog) {
             delay(LunaImageModeConfig.AUTO_START_DELAY_MS)
             imageModeActive = true
         }
@@ -93,6 +125,8 @@ fun UserSelectionScreen(
 
     if (imageModeActive) {
         LunaImageModeScreen(
+            imageChangeDelayMs = imageChangeDelayMs,
+            imagePlayMode = imagePlayMode,
             onExit = {
                 imageModeActive = false
                 idleResetKey = System.currentTimeMillis()
@@ -153,17 +187,62 @@ fun UserSelectionScreen(
         }
 
         if (hasThomas) {
-            Button(
-                onClick = {
-                    imageModeActive = true
-                },
+            Row(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(24.dp)
+                    .padding(24.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Bild-Modus starten")
+                Button(
+                    onClick = {
+                        imageModeActive = true
+                    }
+                ) {
+                    Text("Bild-Modus starten")
+                }
+
+                Spacer(
+                    modifier = Modifier.width(12.dp)
+                )
+
+                Button(
+                    onClick = {
+                        showImageSettingsDialog = true
+                        idleResetKey = System.currentTimeMillis()
+                    }
+                ) {
+                    Text("⚙")
+                }
             }
         }
+    }
+
+    if (showImageSettingsDialog) {
+        ImageModeSettingsDialog(
+            currentDelayMs = imageChangeDelayMs,
+            currentPlayMode = imagePlayMode,
+            onCancel = {
+                showImageSettingsDialog = false
+                idleResetKey = System.currentTimeMillis()
+            },
+            onSave = { newDelayMs, newPlayMode ->
+                imageChangeDelayMs = newDelayMs
+                imagePlayMode = newPlayMode
+
+                LunaImageModeStorage.setImageChangeDelayMs(
+                    context = context,
+                    delayMs = newDelayMs
+                )
+
+                LunaImageModeStorage.setPlayMode(
+                    context = context,
+                    playMode = newPlayMode
+                )
+
+                showImageSettingsDialog = false
+                idleResetKey = System.currentTimeMillis()
+            }
+        )
     }
 
     passwordUser?.let { child ->
@@ -183,6 +262,8 @@ fun UserSelectionScreen(
 
 @Composable
 private fun LunaImageModeScreen(
+    imageChangeDelayMs: Long,
+    imagePlayMode: LunaImagePlayMode,
     onExit: () -> Unit
 ) {
     val context = LocalContext.current
@@ -197,6 +278,14 @@ private fun LunaImageModeScreen(
 
     var currentImageIndex by remember {
         mutableIntStateOf(0)
+    }
+
+    var autoPlayActive by remember {
+        mutableStateOf(true)
+    }
+
+    var showExitButton by remember {
+        mutableStateOf(false)
     }
 
     DisposableEffect(Unit) {
@@ -240,12 +329,23 @@ private fun LunaImageModeScreen(
         }
     }
 
-    LaunchedEffect(images) {
-        while (true) {
-            delay(LunaImageModeConfig.IMAGE_CHANGE_DELAY_MS)
+    LaunchedEffect(
+        images,
+        imageChangeDelayMs,
+        imagePlayMode,
+        autoPlayActive
+    ) {
+        if (autoPlayActive) {
+            while (true) {
+                delay(imageChangeDelayMs)
 
-            if (images.isNotEmpty()) {
-                currentImageIndex = (currentImageIndex + 1) % images.size
+                if (images.isNotEmpty()) {
+                    currentImageIndex = getNextImageIndex(
+                        currentImageIndex = currentImageIndex,
+                        imageCount = images.size,
+                        imagePlayMode = imagePlayMode
+                    )
+                }
             }
         }
     }
@@ -254,8 +354,28 @@ private fun LunaImageModeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .clickable {
-                onExit()
+            .pointerInput(
+                autoPlayActive,
+                images
+            ) {
+                detectTapGestures { offset ->
+                    if (autoPlayActive) {
+                        autoPlayActive = false
+                        showExitButton = true
+                    } else {
+                        if (images.isNotEmpty()) {
+                            currentImageIndex = if (offset.x < size.width / 2f) {
+                                if (currentImageIndex == 0) {
+                                    images.lastIndex
+                                } else {
+                                    currentImageIndex - 1
+                                }
+                            } else {
+                                (currentImageIndex + 1) % images.size
+                            }
+                        }
+                    }
+                }
             },
         contentAlignment = Alignment.Center
     ) {
@@ -275,7 +395,192 @@ private fun LunaImageModeScreen(
                 modifier = Modifier.padding(24.dp)
             )
         }
+
+        if (showExitButton) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Button(
+                    onClick = {
+                        autoPlayActive = true
+                        showExitButton = false
+                    }
+                ) {
+                    Text("Autoplay fortsetzen")
+                }
+
+                Button(
+                    onClick = onExit,
+                    modifier = Modifier.padding(top = 12.dp)
+                ) {
+                    Text("Bild-Modus verlassen")
+                }
+            }
+        }
     }
+}
+
+private fun getNextImageIndex(
+    currentImageIndex: Int,
+    imageCount: Int,
+    imagePlayMode: LunaImagePlayMode
+): Int {
+    if (imageCount <= 0) {
+        return 0
+    }
+
+    return when (imagePlayMode) {
+        LunaImagePlayMode.SEQUENTIAL -> {
+            (currentImageIndex + 1) % imageCount
+        }
+
+        LunaImagePlayMode.RANDOM -> {
+            if (imageCount == 1) {
+                0
+            } else {
+                var nextIndex: Int
+
+                do {
+                    nextIndex = (0 until imageCount).random()
+                } while (nextIndex == currentImageIndex)
+
+                nextIndex
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImageModeSettingsDialog(
+    currentDelayMs: Long,
+    currentPlayMode: LunaImagePlayMode,
+    onCancel: () -> Unit,
+    onSave: (Long, LunaImagePlayMode) -> Unit
+) {
+    var secondsInput by remember {
+        mutableStateOf(
+            (currentDelayMs / 1000L).toString()
+        )
+    }
+
+    var selectedPlayMode by remember {
+        mutableStateOf(currentPlayMode)
+    }
+
+    var showError by remember {
+        mutableStateOf(false)
+    }
+
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = {
+            Text("Bild-Modus Einstellungen")
+        },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = secondsInput,
+                    onValueChange = {
+                        secondsInput = it.filter { char ->
+                            char.isDigit()
+                        }
+
+                        showError = false
+                    },
+                    label = {
+                        Text("Dauer pro Bild in Sekunden")
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    )
+                )
+
+                Text(
+                    text = "Bildreihenfolge",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(
+                        top = 20.dp,
+                        bottom = 8.dp
+                    )
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable {
+                        selectedPlayMode = LunaImagePlayMode.SEQUENTIAL
+                    }
+                ) {
+                    RadioButton(
+                        selected = selectedPlayMode == LunaImagePlayMode.SEQUENTIAL,
+                        onClick = {
+                            selectedPlayMode = LunaImagePlayMode.SEQUENTIAL
+                        }
+                    )
+
+                    Text("Der Reihe nach")
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable {
+                        selectedPlayMode = LunaImagePlayMode.RANDOM
+                    }
+                ) {
+                    RadioButton(
+                        selected = selectedPlayMode == LunaImagePlayMode.RANDOM,
+                        onClick = {
+                            selectedPlayMode = LunaImagePlayMode.RANDOM
+                        }
+                    )
+
+                    Text("Zufällig")
+                }
+
+                if (showError) {
+                    Text(
+                        text = "Bitte einen Wert von ${LunaImageModeConfig.MIN_IMAGE_CHANGE_DELAY_SECONDS} bis ${LunaImageModeConfig.MAX_IMAGE_CHANGE_DELAY_SECONDS} Sekunden eingeben.",
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(
+                            top = 8.dp
+                        )
+                    )
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onCancel
+            ) {
+                Text("Abbrechen")
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val seconds = secondsInput.toLongOrNull()
+
+                    if (
+                        seconds == null ||
+                        seconds < LunaImageModeConfig.MIN_IMAGE_CHANGE_DELAY_SECONDS ||
+                        seconds > LunaImageModeConfig.MAX_IMAGE_CHANGE_DELAY_SECONDS
+                    ) {
+                        showError = true
+                    } else {
+                        onSave(
+                            seconds * 1000L,
+                            selectedPlayMode
+                        )
+                    }
+                }
+            ) {
+                Text("Speichern")
+            }
+        }
+    )
 }
 
 @Composable
