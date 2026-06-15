@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
+import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.screens.settings.SettingsScreen
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 
@@ -38,26 +39,19 @@ fun MainScreen(
     Surface {
         if (selectedChildId == null) {
             UserSelectionScreen(
-                children = data.children,
+                viewModel = viewModel,
                 onChildSelected = viewModel::selectChild
             )
         } else {
-            val selectedChild = data.children.firstOrNull { child ->
+            val selectedChild: Child? = data.children.firstOrNull { child ->
                 child.id == selectedChildId
             }
 
-            var selectedTab by remember {
-                mutableIntStateOf(0)
-            }
+            var selectedTab by remember { mutableIntStateOf(0) }
 
-            fun selectTab(
-                newTab: Int
-            ) {
+            fun selectTab(newTab: Int) {
                 if (selectedTab != newTab) {
-                    view.playSoundEffect(
-                        SoundEffectConstants.CLICK
-                    )
-
+                    view.playSoundEffect(SoundEffectConstants.CLICK)
                     selectedTab = newTab
                 }
             }
@@ -67,82 +61,33 @@ fun MainScreen(
                     NavigationBar {
                         NavigationBarItem(
                             selected = selectedTab == 0,
-                            onClick = {
-                                selectTab(0)
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Aufgaben"
-                                )
-                            },
-                            label = {
-                                Text("Aufgaben")
-                            }
+                            onClick = { selectTab(0) },
+                            icon = { Icon(Icons.Default.CheckCircle, contentDescription = "Aufgaben") },
+                            label = { Text("Aufgaben") }
                         )
-
                         NavigationBarItem(
                             selected = selectedTab == 1,
-                            onClick = {
-                                selectTab(1)
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Default.ShoppingCart,
-                                    contentDescription = "Shop"
-                                )
-                            },
-                            label = {
-                                Text("Shop")
-                            }
+                            onClick = { selectTab(1) },
+                            icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Shop") },
+                            label = { Text("Shop") }
                         )
-
                         NavigationBarItem(
                             selected = selectedTab == 2,
-                            onClick = {
-                                selectTab(2)
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Default.SportsEsports,
-                                    contentDescription = "Luna-Games"
-                                )
-                            },
-                            label = {
-                                Text("Luna-Games")
-                            }
+                            onClick = { selectTab(2) },
+                            icon = { Icon(Icons.Default.SportsEsports, contentDescription = "Luna-Games") },
+                            label = { Text("Luna-Games") }
                         )
-
                         NavigationBarItem(
                             selected = selectedTab == 3,
-                            onClick = {
-                                selectTab(3)
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Default.Pets,
-                                    contentDescription = "LunaME"
-                                )
-                            },
-                            label = {
-                                Text("LunaME")
-                            }
+                            onClick = { selectTab(3) },
+                            icon = { Icon(Icons.Default.Pets, contentDescription = "LunaME") },
+                            label = { Text("LunaME") }
                         )
-
                         NavigationBarItem(
                             selected = selectedTab == 4,
-                            onClick = {
-                                selectTab(4)
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Default.Settings,
-                                    contentDescription = "Einstellungen"
-                                )
-                            },
-                            label = {
-                                Text("Einstellungen")
-                            }
+                            onClick = { selectTab(4) },
+                            icon = { Icon(Icons.Default.Settings, contentDescription = "Einstellungen") },
+                            label = { Text("Einstellungen") }
                         )
                     }
                 }
@@ -166,11 +111,7 @@ fun MainScreen(
                         selectedChild = selectedChild,
                         onBuyItem = viewModel::buyShopItem,
                         onLuckyWheelResult = { childId, costCoins, result ->
-                            viewModel.applyLuckyWheelResult(
-                                childId = childId,
-                                costCoins = costCoins,
-                                result = result
-                            )
+                            viewModel.applyLuckyWheelResult(childId, costCoins, result)
                         },
                         onLogout = viewModel::logout
                     )
@@ -208,24 +149,15 @@ fun MainScreen(
                         onDeleteDogSchedule = viewModel::deleteDogSchedule,
 
                         onUpdateChildCoins = { childId, newCoins, comment ->
-                            viewModel.updateChildCoins(
-                                childId = childId,
-                                newCoins = newCoins,
-                                comment = comment
-                            )
+                            viewModel.updateChildCoins(childId, newCoins, comment)
                         },
 
                         onUndoLogEntry = viewModel::undoLogEntry,
 
                         onResetDemoData = viewModel::resetDemoData,
-
-                        onSaveBackup = {
-                            viewModel.saveBackup()
-                        },
-
-                        onLoadBackup = {
-                            viewModel.loadBackup()
-                        },
+                        onCreateCloudBackup = viewModel::createCloudBackup,
+                        onRestoreFromBackup = viewModel::restoreFromBackup,
+                        onImportFromJson = viewModel::importFromJson,
 
                         onLogout = viewModel::logout
                     )

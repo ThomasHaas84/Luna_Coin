@@ -3,7 +3,10 @@ package de.meson_labs.luna_coin.screens
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import de.meson_labs.luna_coin.data.DemoData
+import de.meson_labs.luna_coin.data.repository.DataRepository
+import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.screens.settings.SettingsScreen
+import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 import java.time.LocalDate
 
 @Preview(
@@ -15,9 +18,15 @@ import java.time.LocalDate
 @Composable
 fun UserSelectionScreenPreview() {
     val demoData = DemoData.create()
+    val fakeRepository = FakeDataRepository(demoData)
+
+    val viewModel = LunaCoinViewModel(
+        repository = fakeRepository,
+        legacyStorage = null
+    )
 
     UserSelectionScreen(
-        children = demoData.children,
+        viewModel = viewModel,
         onChildSelected = {}
     )
 }
@@ -58,9 +67,7 @@ fun ShopScreenPreview() {
         data = demoData,
         selectedChild = demoData.children.firstOrNull(),
         onBuyItem = {},
-        onLuckyWheelResult = { _, _, result ->
-            result
-        },
+        onLuckyWheelResult = { _, _, result -> result },
         onLogout = {}
     )
 }
@@ -98,8 +105,9 @@ fun SettingsScreenChildPreview() {
         onUndoLogEntry = {},
 
         onResetDemoData = {},
-        onSaveBackup = {},
-        onLoadBackup = {},
+        onCreateCloudBackup = {},
+        onRestoreFromBackup = {},
+        onImportFromJson = {},
 
         onLogout = {}
     )
@@ -116,7 +124,7 @@ fun SettingsScreenAdminPreview() {
     val demoData = DemoData.create()
 
     val admin = demoData.children.firstOrNull { child ->
-        child.name == "Thomas"
+        child.name.equals("Thomas", ignoreCase = true)
     }
 
     SettingsScreen(
@@ -142,9 +150,18 @@ fun SettingsScreenAdminPreview() {
         onUndoLogEntry = {},
 
         onResetDemoData = {},
-        onSaveBackup = {},
-        onLoadBackup = {},
+        onCreateCloudBackup = {},
+        onRestoreFromBackup = {},
+        onImportFromJson = {},
 
         onLogout = {}
     )
+}
+
+// ====================== FAKE REPOSITORY FÜR PREVIEWS ======================
+class FakeDataRepository(private val demoData: LunaCoinData) : DataRepository {
+    override suspend fun loadData(): LunaCoinData? = demoData
+    override suspend fun saveData(data: LunaCoinData) {
+        // Nichts tun in Preview
+    }
 }

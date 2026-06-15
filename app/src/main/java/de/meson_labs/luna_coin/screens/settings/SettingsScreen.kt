@@ -58,51 +58,34 @@ fun SettingsScreen(
     selectedChild: Child?,
     selectedDate: LocalDate,
     jsonText: String,
-    onAddTask: (
-        String,
-        String,
-        Int,
-        TaskAssignmentType,
-        TaskCompletionMode,
-        TaskRepeatType,
-        String?,
-        String,
-        String?,
-        DayOfWeekName?,
-        Boolean
-    ) -> Unit,
-    onUpdateTask: (
-        String,
-        String,
-        String,
-        Int,
-        TaskAssignmentType,
-        TaskCompletionMode,
-        TaskRepeatType,
-        String?,
-        String,
-        String?,
-        DayOfWeekName?,
-        Boolean
-    ) -> Unit,
+
+    onAddTask: (String, String, Int, TaskAssignmentType, TaskCompletionMode, TaskRepeatType, String?, String, String?, DayOfWeekName?, Boolean) -> Unit,
+    onUpdateTask: (String, String, String, Int, TaskAssignmentType, TaskCompletionMode, TaskRepeatType, String?, String, String?, DayOfWeekName?, Boolean) -> Unit,
     onDeleteTask: (String) -> Unit,
+
     onAddShopItem: (String, String, Int) -> Unit,
     onUpdateShopItem: (String, String, String, Int) -> Unit,
     onDeleteShopItem: (String) -> Unit,
+
     onAddDogSchedule: (String, DayOfWeekName, String, String, String, String) -> Unit,
     onUpdateDogSchedule: (String, String, DayOfWeekName, String, String, String, String) -> Unit,
     onDeleteDogSchedule: (String) -> Unit,
+
     onUpdateChildCoins: (String, Int, String?) -> Unit,
     onUndoLogEntry: (String) -> Unit,
-    onResetDemoData: () -> Unit,
-    onSaveBackup: () -> Unit,
-    onLoadBackup: () -> Unit,
-    onLogout: () -> Unit,
 
+    onResetDemoData: () -> Unit,
+    onCreateCloudBackup: () -> Unit,
+    onRestoreFromBackup: () -> Unit,
+    onImportFromJson: () -> Unit,
+
+    onLogout: () -> Unit,
 ) {
     var showResetDialog by remember { mutableStateOf(false) }
-    var showSaveBackupDialog by remember { mutableStateOf(false) }
-    var showLoadBackupDialog by remember { mutableStateOf(false) }
+    var showCreateBackupDialog by remember { mutableStateOf(false) }
+    var showRestoreDialog by remember { mutableStateOf(false) }
+    var showImportJsonDialog by remember { mutableStateOf(false) }
+
     var showTaskEditor by remember { mutableStateOf(false) }
     var showShopEditor by remember { mutableStateOf(false) }
     var showDogScheduleEditor by remember { mutableStateOf(false) }
@@ -134,46 +117,25 @@ fun SettingsScreen(
         }
     }
 
-    val canEdit =
-        selectedChild?.role == UserRole.PARENT ||
-                selectedChild?.role == UserRole.ADMIN
+    val canEdit = selectedChild?.role == UserRole.PARENT || selectedChild?.role == UserRole.ADMIN
+    val isAdmin = selectedChild?.role == UserRole.ADMIN
 
-    val visibleUsers =
-        if (canEdit) {
-            data.children
-        } else {
-            data.children.filter { child ->
-                child.id == selectedChild?.id
-            }
+    val visibleUsers = if (canEdit) data.children else data.children.filter { it.id == selectedChild?.id }
+
+    val baseVisibleLogs = if (canEdit) data.logs else data.logs.filter { it.childId == selectedChild?.id }
+
+    val visibleLogs = if (logSearchText.isBlank()) {
+        baseVisibleLogs.take(200)
+    } else {
+        baseVisibleLogs.filter { log ->
+            log.text.contains(logSearchText, ignoreCase = true) ||
+                    log.timestamp.contains(logSearchText, ignoreCase = true)
         }
+    }
 
-    val baseVisibleLogs =
-        if (canEdit) {
-            data.logs
-        } else {
-            data.logs.filter { log ->
-                log.childId == selectedChild?.id
-            }
-        }
+    val watchlistTasks = data.tasks.filter { it.isWatchlist }
 
-    val visibleLogs =
-        if (logSearchText.isBlank()) {
-            baseVisibleLogs.take(200)
-        } else {
-            baseVisibleLogs.filter { log ->
-                log.text.contains(logSearchText, ignoreCase = true) ||
-                        log.timestamp.contains(logSearchText, ignoreCase = true)
-            }
-        }
-
-    val watchlistTasks =
-        data.tasks.filter { task ->
-            task.isWatchlist
-        }
-
-    Box(
-        modifier = modifier.fillMaxSize()
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -185,156 +147,59 @@ fun SettingsScreen(
                     selectedChild = selectedChild,
                     onLogout = onLogout
                 )
-
                 Spacer(modifier = Modifier.height(24.dp))
+            }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Button(
-                    onClick = {
-                        showAppSettings = !showAppSettings
-                    }
-                ) {
-                    Text(
-                        if (showAppSettings) {
-                            "App-Einstellungen ausblenden"
-                        } else {
-                            "App-Einstellungen anzeigen"
-                        }
-                    )
+            // App-Einstellungen
+            item {
+                Button(onClick = { showAppSettings = !showAppSettings }) {
+                    Text(if (showAppSettings) "App-Einstellungen ausblenden" else "App-Einstellungen anzeigen")
                 }
-
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
             if (showAppSettings) {
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        elevation = CardDefaults.cardElevation(
-                            defaultElevation = 2.dp
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Text(
-                                text = "App-Einstellungen",
-                                style = MaterialTheme.typography.headlineSmall
-                            )
+                    Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("App-Einstellungen", style = MaterialTheme.typography.headlineSmall)
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            Text(
-                                text = "Sprache:",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Sprache:", style = MaterialTheme.typography.titleMedium)
 
                             Column {
-                                TextButton(
-                                    onClick = {
-                                        languageMessage = "Deutsch wurde ausgewählt."
-                                    }
-                                ) {
-                                    Text("Deutsch")
-                                }
-
-                                TextButton(
-                                    onClick = {
-                                        languageMessage = "Englisch wurde noch nicht implementiert."
-                                    }
-                                ) {
-                                    Text("Englisch")
-                                }
-
-                                TextButton(
-                                    onClick = {
-                                        languageGifTitle = "Französisch"
-                                        languageGifMessage = "Haha, gay..."
-                                        languageGifResId = R.drawable.gay
-                                        showLanguageGif = true
-                                    }
-                                ) {
-                                    Text("Französisch")
-                                }
-
-                                TextButton(
-                                    onClick = {
-                                        languageMessage = "Qapla'!"
-                                    }
-                                ) {
-                                    Text("Klingonisch")
-                                }
+                                TextButton(onClick = { languageMessage = "Deutsch wurde ausgewählt." }) { Text("Deutsch") }
+                                TextButton(onClick = { languageMessage = "Englisch wurde noch nicht implementiert." }) { Text("Englisch") }
+                                TextButton(onClick = {
+                                    languageGifTitle = "Französisch"
+                                    languageGifMessage = "Haha, gay..."
+                                    languageGifResId = R.drawable.gay
+                                    showLanguageGif = true
+                                }) { Text("Französisch") }
+                                TextButton(onClick = { languageMessage = "Qapla'!" }) { Text("Klingonisch") }
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Switch(
-                                    checked = mimiModeEnabled,
-                                    onCheckedChange = {
-                                        mimiModeEnabled = it
-                                    }
-                                )
-
-                                Text(
-                                    text = "Mimi-Modus aktivieren",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.padding(start = 12.dp)
-                                )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Switch(checked = mimiModeEnabled, onCheckedChange = { mimiModeEnabled = it })
+                                Text("Mimi-Modus aktivieren", modifier = Modifier.padding(start = 12.dp))
                             }
-
-                            Text(
-                                text = "Dieser experimentelle Modus stellt die Helligkeit des Bildschirms herunter, die Lautstärke auf ein Minimum und lässt bei den meisten Sätzen Fragezeichen am Ende anzeigen?",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
                         }
                     }
-
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }
 
+            // Benutzer & Coins
             item {
                 if (canEdit) {
-                    Button(
-                        onClick = {
-                            showUsersAndCoins = !showUsersAndCoins
-                        }
-                    ) {
-                        Text(
-                            if (showUsersAndCoins) {
-                                "Benutzer & Coins ausblenden"
-                            } else {
-                                "Benutzer & Coins anzeigen"
-                            }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    if (showUsersAndCoins) {
-                        Text(
-                            text = "Benutzerkarte lange gedrückt halten, um Coins zu bearbeiten.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = { showUsersAndCoins = !showUsersAndCoins }) {
+                        Text(if (showUsersAndCoins) "Benutzer & Coins ausblenden" else "Benutzer & Coins anzeigen")
                     }
                 } else {
-                    Text(
-                        text = "Meine Coins",
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Meine Coins", style = MaterialTheme.typography.headlineSmall)
                 }
             }
 
@@ -355,222 +220,76 @@ fun SettingsScreen(
                                     }
                                 }
                             ),
-                        elevation = CardDefaults.cardElevation(
-                            defaultElevation = 1.dp
-                        )
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "${child.name}: ",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-
-                            CoinDisplay(
-                                amount = child.coins
-                            )
-
-                            Text(
-                                text = " · ${roleText(child.role)}",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("${child.name}: ", style = MaterialTheme.typography.bodyLarge)
+                            CoinDisplay(amount = child.coins)
+                            Text(" · ${roleText(child.role)}", style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }
             }
 
+            // Watchlist
+            if (canEdit) {
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text("Watchlist", style = MaterialTheme.typography.headlineSmall)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(onClick = { showWatchlist = !showWatchlist }) {
+                        Text(if (showWatchlist) "Watchlist ausblenden" else "Watchlist anzeigen")
+                    }
+                }
+
+                if (showWatchlist) {
+                    if (watchlistTasks.isEmpty()) {
+                        item {
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Text("Keine Aufgaben auf der Watchlist.", modifier = Modifier.padding(16.dp))
+                            }
+                        }
+                    } else {
+                        items(watchlistTasks) { task ->
+                            WatchlistTaskCard(task = task, selectedDate = selectedDate, children = data.children)
+                        }
+                    }
+                }
+            }
+
+            // Logs
             item {
                 Spacer(modifier = Modifier.height(24.dp))
-
-                if (canEdit) {
-                    Text(
-                        text = "Watchlist",
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
-                        onClick = {
-                            showWatchlist = !showWatchlist
-                        }
-                    ) {
-                        Text(
-                            if (showWatchlist) {
-                                "Watchlist ausblenden"
-                            } else {
-                                "Watchlist anzeigen"
-                            }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-            }
-
-            if (canEdit && showWatchlist) {
-                if (watchlistTasks.isEmpty()) {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Keine Aufgaben auf der Watchlist.",
-                                modifier = Modifier.padding(16.dp)
-                            )
-                        }
-                    }
-                } else {
-                    items(watchlistTasks) { task ->
-                        WatchlistTaskCard(
-                            task = task,
-                            selectedDate = selectedDate,
-                            children = data.children
-                        )
-                    }
-                }
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-
-                if (canEdit) {
-                    Text(
-                        text = "Bearbeiten",
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row {
-                        Button(
-                            onClick = {
-                                showTaskEditor = true
-                            }
-                        ) {
-                            Text("Aufgaben bearbeiten")
-                        }
-
-                        Spacer(modifier = Modifier.padding(8.dp))
-
-                        Button(
-                            onClick = {
-                                showShopEditor = true
-                            }
-                        ) {
-                            Text("Shop bearbeiten")
-                        }
-
-                        Spacer(modifier = Modifier.padding(8.dp))
-
-                        Button(
-                            onClick = {
-                                showDogScheduleEditor = true
-                            }
-                        ) {
-                            Text("Hundeplan bearbeiten")
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-                }
-
-                if (selectedChild?.role == UserRole.ADMIN) {
-
-                    Row {
-
-                        OutlinedButton(
-                            onClick = {
-                                showResetDialog = true
-                            }
-                        ) {
-                            Text("Demo-Daten zurücksetzen")
-                        }
-
-                        Spacer(modifier = Modifier.padding(4.dp))
-
-                        OutlinedButton(
-                            onClick = {
-                                showSaveBackupDialog = true
-                            }
-                        ) {
-                            Text("App-Daten sichern")
-                        }
-
-                        Spacer(modifier = Modifier.padding(4.dp))
-
-                        OutlinedButton(
-                            onClick = {
-                                showLoadBackupDialog = true
-                            }
-                        ) {
-                            Text("Letzte Sicherung laden")
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-                }
 
                 if (canEdit) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Button(
-                            onClick = {
-                                showLogs = !showLogs
-                            }
-                        ) {
-                            Text(
-                                if (showLogs) {
-                                    "Logs ausblenden"
-                                } else {
-                                    "Logs anzeigen"
-                                }
-                            )
+                        Button(onClick = { showLogs = !showLogs }) {
+                            Text(if (showLogs) "Logs ausblenden" else "Logs anzeigen")
                         }
 
                         Spacer(modifier = Modifier.width(8.dp))
 
                         OutlinedTextField(
                             value = logSearchText,
-                            onValueChange = {
-                                logSearchText = it
-                            },
-                            label = {
-                                Text("Logs suchen")
-                            },
+                            onValueChange = { logSearchText = it },
+                            label = { Text("Logs suchen") },
                             singleLine = true,
                             modifier = Modifier.weight(1f),
                             enabled = showLogs
                         )
                     }
-
                     Spacer(modifier = Modifier.height(8.dp))
                 } else {
-                    Text(
-                        text = "Mein Log",
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-
+                    Text("Mein Log", style = MaterialTheme.typography.headlineSmall)
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Button(
-                        onClick = {
-                            showLogs = !showLogs
-                        }
-                    ) {
-                        Text(
-                            if (showLogs) {
-                                "Mein Log ausblenden"
-                            } else {
-                                "Mein Log anzeigen"
-                            }
-                        )
+                    Button(onClick = { showLogs = !showLogs }) {
+                        Text(if (showLogs) "Mein Log ausblenden" else "Mein Log anzeigen")
                     }
-
                     Spacer(modifier = Modifier.height(8.dp))
                 }
             }
@@ -578,13 +297,8 @@ fun SettingsScreen(
             if (showLogs) {
                 if (visibleLogs.isEmpty()) {
                     item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Noch keine Einträge vorhanden.",
-                                modifier = Modifier.padding(16.dp)
-                            )
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Text("Noch keine Einträge vorhanden.", modifier = Modifier.padding(16.dp))
                         }
                     }
                 } else {
@@ -592,42 +306,108 @@ fun SettingsScreen(
                         LogCard(
                             log = log,
                             canUndo = canEdit,
-                            onUndo = {
-                                onUndoLogEntry(log.id)
-                            }
+                            onUndo = { onUndoLogEntry(log.id) }
                         )
                     }
                 }
             }
-        }
 
-        languageMessage?.let { message ->
-            Card(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(
-                        start = 24.dp,
-                        end = 24.dp,
-                        bottom = 24.dp
-                    ),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                ),
-                elevation = CardDefaults.cardElevation(
-                    defaultElevation = 12.dp
-                )
-            ) {
-                Text(
-                    text = message,
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            // Admin Backup Bereich
+            if (isAdmin) {
+                item {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Text("Admin - Datensicherung", style = MaterialTheme.typography.headlineSmall)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row {
+                        OutlinedButton(onClick = { showResetDialog = true }) {
+                            Text("Demo-Daten zurücksetzen")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedButton(onClick = { showCreateBackupDialog = true }) {
+                            Text("Cloud-Backup erstellen")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row {
+                        OutlinedButton(onClick = { showRestoreDialog = true }) {
+                            Text("Backup wiederherstellen")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedButton(onClick = { showImportJsonDialog = true }) {
+                            Text("JSON importieren")
+                        }
+                    }
+                }
             }
         }
     }
 
+    // ==================== DIALOGE ====================
+
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            title = { Text("Demo-Daten zurücksetzen?") },
+            text = { Text("Alle aktuellen Daten werden durch Demo-Daten ersetzt.") },
+            dismissButton = { TextButton(onClick = { showResetDialog = false }) { Text("Abbrechen") } },
+            confirmButton = {
+                TextButton(onClick = {
+                    showResetDialog = false
+                    onResetDemoData()
+                }) { Text("Zurücksetzen") }
+            }
+        )
+    }
+
+    if (showCreateBackupDialog) {
+        AlertDialog(
+            onDismissRequest = { showCreateBackupDialog = false },
+            title = { Text("Cloud-Backup erstellen?") },
+            text = { Text("Der aktuelle Stand wird in der Cloud gesichert.") },
+            dismissButton = { TextButton(onClick = { showCreateBackupDialog = false }) { Text("Abbrechen") } },
+            confirmButton = {
+                TextButton(onClick = {
+                    showCreateBackupDialog = false
+                    onCreateCloudBackup()
+                }) { Text("Backup erstellen") }
+            }
+        )
+    }
+
+    if (showRestoreDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestoreDialog = false },
+            title = { Text("Backup wiederherstellen?") },
+            text = { Text("Aktuelle Daten werden durch ein Backup ersetzt.") },
+            dismissButton = { TextButton(onClick = { showRestoreDialog = false }) { Text("Abbrechen") } },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRestoreDialog = false
+                    onRestoreFromBackup()
+                }) { Text("Wiederherstellen") }
+            }
+        )
+    }
+
+    if (showImportJsonDialog) {
+        AlertDialog(
+            onDismissRequest = { showImportJsonDialog = false },
+            title = { Text("Daten aus JSON importieren?") },
+            text = { Text("Aktuelle Daten werden durch die ausgewählte Datei ersetzt.") },
+            dismissButton = { TextButton(onClick = { showImportJsonDialog = false }) { Text("Abbrechen") } },
+            confirmButton = {
+                TextButton(onClick = {
+                    showImportJsonDialog = false
+                    onImportFromJson()
+                }) { Text("Importieren") }
+            }
+        )
+    }
+
+    // Coin Edit Dialog
     childForCoinEdit?.let { child ->
         AlertDialog(
             onDismissRequest = {
@@ -636,245 +416,43 @@ fun SettingsScreen(
                 coinEditCommentText = ""
                 coinEditError = null
             },
-            title = {
-                Text("Coins bearbeiten")
-            },
+            title = { Text("Coins bearbeiten") },
             text = {
                 Column {
-                    Text(
-                        text = "Benutzer: ${child.name}",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-
+                    Text("Benutzer: ${child.name}", style = MaterialTheme.typography.bodyLarge)
                     Spacer(modifier = Modifier.height(12.dp))
-
                     OutlinedTextField(
                         value = coinEditText,
-                        onValueChange = { value ->
-                            coinEditText = value.filterIndexed { index, char ->
-                                char.isDigit() || (char == '-' && index == 0)
-                            }
+                        onValueChange = {
+                            coinEditText = it.filterIndexed { index, char -> char.isDigit() || (char == '-' && index == 0) }
                             coinEditError = null
                         },
-                        label = {
-                            Text("Coins")
-                        },
+                        label = { Text("Coins") },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number
-                        ),
-                        isError = coinEditError != null,
-                        supportingText = {
-                            coinEditError?.let { error ->
-                                Text(error)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
-
                     Spacer(modifier = Modifier.height(12.dp))
-
                     OutlinedTextField(
                         value = coinEditCommentText,
-                        onValueChange = { value ->
-                            coinEditCommentText = value
-                        },
-                        label = {
-                            Text("Kommentar optional")
-                        },
+                        onValueChange = { coinEditCommentText = it },
+                        label = { Text("Kommentar optional") },
                         singleLine = false,
                         minLines = 2,
-                        maxLines = 4,
-                        modifier = Modifier.fillMaxWidth()
+                        maxLines = 4
                     )
                 }
             },
-            dismissButton = {
-                TextButton(
-                    onClick = {
+            dismissButton = { TextButton(onClick = { childForCoinEdit = null }) { Text("Abbrechen") } },
+            confirmButton = {
+                TextButton(onClick = {
+                    val newCoins = coinEditText.toIntOrNull()
+                    if (newCoins == null) {
+                        coinEditError = "Bitte eine gültige Zahl eingeben."
+                    } else {
+                        onUpdateChildCoins(child.id, newCoins, coinEditCommentText.trim().ifBlank { null })
                         childForCoinEdit = null
-                        coinEditText = ""
-                        coinEditCommentText = ""
-                        coinEditError = null
                     }
-                ) {
-                    Text("Abbrechen")
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val newCoins = coinEditText.toIntOrNull()
-
-                        if (newCoins == null) {
-                            coinEditError = "Bitte eine gültige Zahl eingeben."
-                        } else {
-                            onUpdateChildCoins(
-                                child.id,
-                                newCoins,
-                                coinEditCommentText.trim().ifBlank {
-                                    null
-                                }
-                            )
-
-                            childForCoinEdit = null
-                            coinEditText = ""
-                            coinEditCommentText = ""
-                            coinEditError = null
-                        }
-                    }
-                ) {
-                    Text("Speichern")
-                }
-            }
-        )
-    }
-
-    if (showTaskEditor) {
-        TaskEditorDialog(
-            tasks = data.tasks,
-            children = data.children,
-            onDismiss = {
-                showTaskEditor = false
-            },
-            onAddTask = onAddTask,
-            onUpdateTask = onUpdateTask,
-            onDeleteTask = onDeleteTask
-        )
-    }
-
-    if (showShopEditor) {
-        ShopEditorDialog(
-            items = data.shopItems,
-            onDismiss = {
-                showShopEditor = false
-            },
-            onAddShopItem = onAddShopItem,
-            onUpdateShopItem = onUpdateShopItem,
-            onDeleteShopItem = onDeleteShopItem
-        )
-    }
-
-    if (showDogScheduleEditor) {
-        DogScheduleEditorDialog(
-            dogSchedule = data.dogSchedule,
-            children = data.children,
-            onDismiss = {
-                showDogScheduleEditor = false
-            },
-            onAddDogSchedule = onAddDogSchedule,
-            onUpdateDogSchedule = onUpdateDogSchedule,
-            onDeleteDogSchedule = onDeleteDogSchedule
-        )
-    }
-
-    if (showLanguageGif) {
-        LunaGifDialog(
-            title = languageGifTitle,
-            message = languageGifMessage,
-            gifResId = languageGifResId,
-            contentDescription = languageGifTitle,
-            onDismiss = {
-                showLanguageGif = false
-            }
-        )
-    }
-
-    if (showResetDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showResetDialog = false
-            },
-            title = {
-                Text("Demo-Daten zurücksetzen?")
-            },
-            text = {
-                Text("Alle aktuellen Daten werden durch Demo-Daten ersetzt.")
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showResetDialog = false
-                        onResetDemoData()
-                    }
-                ) {
-                    Text("Zurücksetzen")
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showResetDialog = false
-                    }
-                ) {
-                    Text("Abbrechen")
-                }
-            }
-        )
-    }
-
-    if (showSaveBackupDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showSaveBackupDialog = false
-            },
-            title = {
-                Text("App-Daten sichern?")
-            },
-            text = {
-                Text("Die vorhandene Sicherung wird überschrieben und durch die aktuellen App-Daten ersetzt.")
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showSaveBackupDialog = false
-                        onSaveBackup()
-                    }
-                ) {
-                    Text("Sichern")
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showSaveBackupDialog = false
-                    }
-                ) {
-                    Text("Abbrechen")
-                }
-            }
-        )
-    }
-
-    if (showLoadBackupDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showLoadBackupDialog = false
-            },
-            title = {
-                Text("Letzte Sicherung laden?")
-            },
-            text = {
-                Text("Alle aktuellen App-Daten werden verworfen und durch die letzte Sicherung ersetzt.")
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showLoadBackupDialog = false
-                        onLoadBackup()
-                    }
-                ) {
-                    Text("Laden")
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showLoadBackupDialog = false
-                    }
-                ) {
-                    Text("Abbrechen")
-                }
+                }) { Text("Speichern") }
             }
         )
     }
@@ -887,89 +465,42 @@ private fun WatchlistTaskCard(
     children: List<Child>
 ) {
     val selectedDateText = selectedDate.toString()
-    val isDoneToday =
-        when (task.completionMode) {
-            TaskCompletionMode.ONCE_TOTAL -> {
-                task.completions.any { completion ->
-                    completion.date == selectedDateText
-                }
+    val isDoneToday = when (task.completionMode) {
+        TaskCompletionMode.ONCE_TOTAL -> task.completions.any { it.date == selectedDateText }
+        TaskCompletionMode.EACH_PERSON -> {
+            val relevantChildren = if (task.assignmentType == TaskAssignmentType.ASSIGNED && task.assignedChildId != null) {
+                children.filter { it.id == task.assignedChildId }
+            } else {
+                children.filter { it.role == UserRole.CHILD }
             }
-
-            TaskCompletionMode.EACH_PERSON -> {
-                val relevantChildren =
-                    if (task.assignmentType == TaskAssignmentType.ASSIGNED && task.assignedChildId != null) {
-                        children.filter { child ->
-                            child.id == task.assignedChildId
-                        }
-                    } else {
-                        children.filter { child ->
-                            child.role == UserRole.CHILD
-                        }
-                    }
-
-                relevantChildren.isNotEmpty() &&
-                        relevantChildren.all { child ->
-                            task.completions.any { completion ->
-                                completion.childId == child.id &&
-                                        completion.date == selectedDateText
-                            }
-                        }
+            relevantChildren.isNotEmpty() && relevantChildren.all { child ->
+                task.completions.any { it.childId == child.id && it.date == selectedDateText }
             }
         }
+    }
 
-    val assignedName =
-        task.assignedChildId?.let { childId ->
-            children.firstOrNull { child ->
-                child.id == childId
-            }?.name
-        }
+    val assignedName = task.assignedChildId?.let { id ->
+        children.firstOrNull { it.id == id }?.name
+    }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 1.dp
-        )
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = if (isDoneToday) {
-                    "✅ ${task.title}"
-                } else {
-                    "⬜ ${task.title}"
-                },
+                text = if (isDoneToday) "✅ ${task.title}" else "⬜ ${task.title}",
                 style = MaterialTheme.typography.titleMedium
             )
-
             if (task.description.isNotBlank()) {
-                Text(
-                    text = task.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Text(task.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-
             Text(
                 text = buildString {
                     append(task.rewardCoins)
                     append(" Coins")
-
-                    if (assignedName != null) {
-                        append(" · ")
-                        append(assignedName)
-                    }
-
-                    append(" · ")
-                    append(
-                        if (isDoneToday) {
-                            "Heute erledigt"
-                        } else {
-                            "Heute noch offen"
-                        }
-                    )
+                    assignedName?.let { append(" · $it") }
+                    append(" · ${if (isDoneToday) "Heute erledigt" else "Heute noch offen"}")
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant

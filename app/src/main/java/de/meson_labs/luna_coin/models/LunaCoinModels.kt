@@ -1,7 +1,13 @@
 package de.meson_labs.luna_coin.models
 
+import de.meson_labs.luna_coin.data.models.FirebaseModel
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
+import java.util.Date
 
+// =============================================
+// Haupt-Daten-Container
+// =============================================
 @Serializable
 data class LunaCoinData(
     val children: List<Child> = emptyList(),
@@ -13,172 +19,35 @@ data class LunaCoinData(
     val gameHighscores: List<GameHighscore> = emptyList()
 )
 
-@Serializable
-data class GameHighscore(
-    val game: LunaGameType,
-    val childId: String,
-    val scoreType: LunaGameScoreType,
-    val level: LunaGameLevel = LunaGameLevel.DEFAULT,
-    val value: Int,
-    val timestamp: String
-)
-
-@Serializable
-enum class LunaGameType {
-    MEMORY,
-    NUMBER_GUESS,
-    MULTIPLICATION
-}
-
-@Serializable
-enum class LunaGameScoreType {
-    ATTEMPTS,
-    TIME_SECONDS
-}
-
-@Serializable
-enum class LunaGameLevel {
-    DEFAULT,
-    EASY,
-    HARD
-}
-
-@Serializable
-data class LuckyWheelUsage(
-    val childId: String,
-    val date: String,
-    val freeSpinUsed: Boolean = false,
-    val skinWon: Boolean = false
-)
+// =============================================
+// MODELLE (Firestore-kompatibel mit Defaults)
+// =============================================
 
 @Serializable
 data class Child(
-    val id: String,
-    val name: String,
-    val coins: Int = 0,
+    override var id: String = "",
+    override var familyId: String = "",
+    val name: String = "",
+    var coins: Int = 0,
     val role: UserRole = UserRole.CHILD,
-    val password: String = "",
+    var password: String = "",
 
     val inventory: List<LunaInventoryItem> = emptyList(),
-
     val equippedItem: LunaInventoryItem? = null,
-
     val profileImageItem: LunaInventoryItem? = null,
+    val hasProfileImage: Boolean = false,
 
-    val hasProfileImage: Boolean = false
-)
-
-@Serializable
-enum class UserRole {
-    CHILD,
-    PARENT,
-    ADMIN
-}
-
-@Serializable
-enum class LunaInventoryItem {
-    SUNGLASSES_1,
-    SUNGLASSES_2,
-    jacke_1,
-    halstuch_1,
-    kappe_1,
-    huffel_1,
-    chase_1,
-    flash_1,
-    iron_1,
-    ballett_1,
-    lunacraft_1,
-    gandalf_1,
-    slytherin,
-    ravenclaw,
-    griffindor,
-    warhammer_1,
-    pirat_1,
-    cowboy_1,
-    diabetis_1,
-    knight_1,
-    marshall_1,
-    tau_1,
-    ork_1,
-    dark_knight_1,
-    batman_1,
-    gow_1,
-    gow_2,
-    wurst_1,
-    shit_1,
-    judo_1,
-    kleid_1,
-    talahoon_1,
-    engel_1,
-    cowboy_2,
-    hase_1,
-    schmucker_1,
-    esel_1,
-    zuma_1,
-    jedi_1,
-    hotdog_1,
-    plume_1,
-    greenlantern_1,
-    greenarrow_1,
-    unicorn_1,
-    deadpool_1,
-    spiderman_1,
-    krypto_1,
-    captainunderpants_1,
-    cyber_1,
-    cyber_2,
-    perry_1,
-    perry_2,
-    ca_1,
-    ca_2,
-    fledermaus_1,
-    rochen_1,
-    toolshed_1,
-    deutschland_1,
-    niederlande_1,
-    portugal_1,
-    virgil_1,
-    dante_1,
-    blade_1
-}
-
-@Serializable
-enum class TaskAssignmentType {
-    FREE_FOR_ALL,
-    ASSIGNED
-}
-
-@Serializable
-enum class TaskCompletionMode {
-    EACH_PERSON,
-    ONCE_TOTAL
-}
-
-@Serializable
-enum class TaskRepeatType {
-    DAILY,
-    WEEKDAYS,
-    WEEKEND,
-    WEEKLY,
-    BIWEEKLY,
-    MONTHLY,
-    YEARLY,
-    EVERY_TWO_YEARS
-}
-
-@Serializable
-data class TaskCompletion(
-    val childId: String,
-    val date: String,
-    val timestamp: String
-)
+    @Contextual override var createdAt: Date? = null,
+    @Contextual override var updatedAt: Date? = null
+) : FirebaseModel()
 
 @Serializable
 data class TaskItem(
-    val id: String,
-    val title: String,
+    override var id: String = "",
+    override var familyId: String = "",
+    val title: String = "",
     val description: String = "",
-    val rewardCoins: Int,
+    val rewardCoins: Int = 0,
     val assignmentType: TaskAssignmentType = TaskAssignmentType.FREE_FOR_ALL,
     val completionMode: TaskCompletionMode = TaskCompletionMode.EACH_PERSON,
     val assignedChildId: String? = null,
@@ -187,52 +56,126 @@ data class TaskItem(
     val dueDate: String? = null,
     val weeklyDay: DayOfWeekName? = null,
     val completions: List<TaskCompletion> = emptyList(),
-    val isWatchlist: Boolean = false
-)
+    val isWatchlist: Boolean = false,        // bleibt für den Code
+
+    @Contextual override var createdAt: Date? = null,
+    @Contextual override var updatedAt: Date? = null
+) : FirebaseModel()
 
 @Serializable
 data class ShopItem(
-    val id: String,
-    val title: String,
+    override var id: String = "",
+    override var familyId: String = "",
+    val title: String = "",
     val description: String = "",
-    val priceCoins: Int
-)
+    val priceCoins: Int = 0,
 
-@Serializable
-data class DogScheduleItem(
-    val id: String,
-    val childId: String,
-    val dayOfWeek: DayOfWeekName,
-    val careStartTime: String,
-    val careEndTime: String,
-    val feedingTime: String,
-    val walkTime: String
-)
-
-@Serializable
-enum class DayOfWeekName {
-    MONDAY,
-    TUESDAY,
-    WEDNESDAY,
-    THURSDAY,
-    FRIDAY,
-    SATURDAY,
-    SUNDAY
-}
+    @Contextual override var createdAt: Date? = null,
+    @Contextual override var updatedAt: Date? = null
+) : FirebaseModel()
 
 @Serializable
 data class LogEntry(
-    val id: String,
-    val timestamp: String,
-    val childId: String,
-    val type: LogType,
-    val text: String,
-    val coinChange: Int
+    override var id: String = "",
+    override var familyId: String = "",
+    val timestamp: String = "",
+    val childId: String = "",
+    val type: LogType = LogType.SYSTEM,
+    val text: String = "",
+    val coinChange: Int = 0,
+
+    @Contextual override var createdAt: Date? = null,
+    @Contextual override var updatedAt: Date? = null
+) : FirebaseModel()
+
+@Serializable
+data class DogScheduleItem(
+    override var id: String = "",
+    override var familyId: String = "",
+    val childId: String = "",
+    val dayOfWeek: DayOfWeekName = DayOfWeekName.MONDAY,
+    val careStartTime: String = "",
+    val careEndTime: String = "",
+    val feedingTime: String = "",
+    val walkTime: String = "",
+
+    @Contextual override var createdAt: Date? = null,
+    @Contextual override var updatedAt: Date? = null
+) : FirebaseModel()
+
+@Serializable
+data class GameHighscore(
+    val game: LunaGameType = LunaGameType.MEMORY,
+    val childId: String = "",
+    val scoreType: LunaGameScoreType = LunaGameScoreType.ATTEMPTS,
+    val level: LunaGameLevel = LunaGameLevel.DEFAULT,
+    val value: Int = 0,
+    val timestamp: String = ""
+)
+
+// =============================================
+// Einfache Klassen
+// =============================================
+
+@Serializable
+data class TaskCompletion(
+    val childId: String = "",
+    val date: String = "",
+    val timestamp: String = ""
 )
 
 @Serializable
-enum class LogType {
-    TASK_DONE,
-    SHOP_BUY,
-    SYSTEM
+data class LuckyWheelUsage(
+    val childId: String = "",
+    val date: String = "",
+    val freeSpinUsed: Boolean = false,
+    val skinWon: Boolean = false
+)
+
+// =============================================
+// Enums
+// =============================================
+
+@Serializable
+enum class UserRole { CHILD, PARENT, ADMIN }
+
+@Serializable
+enum class LunaInventoryItem {
+    SUNGLASSES_1, SUNGLASSES_2, jacke_1, halstuch_1, kappe_1, huffel_1, chase_1,
+    flash_1, iron_1, ballett_1, lunacraft_1, gandalf_1, slytherin, ravenclaw,
+    griffindor, warhammer_1, pirat_1, cowboy_1, diabetis_1, knight_1, marshall_1,
+    tau_1, ork_1, dark_knight_1, batman_1, gow_1, gow_2, wurst_1, shit_1, judo_1,
+    kleid_1, talahoon_1, engel_1, cowboy_2, hase_1, schmucker_1, esel_1, zuma_1,
+    jedi_1, hotdog_1, plume_1, greenlantern_1, greenarrow_1, unicorn_1, deadpool_1,
+    spiderman_1, krypto_1, captainunderpants_1, cyber_1, cyber_2, perry_1, perry_2,
+    ca_1, ca_2, fledermaus_1, rochen_1, toolshed_1, deutschland_1, niederlande_1,
+    portugal_1, virgil_1, dante_1, blade_1
 }
+
+@Serializable
+enum class TaskAssignmentType { FREE_FOR_ALL, ASSIGNED }
+
+@Serializable
+enum class TaskCompletionMode { EACH_PERSON, ONCE_TOTAL }
+
+@Serializable
+enum class TaskRepeatType {
+    DAILY, WEEKDAYS, WEEKEND, WEEKLY, BIWEEKLY, MONTHLY, YEARLY, EVERY_TWO_YEARS
+}
+
+@Serializable
+enum class DayOfWeekName {
+    MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY
+}
+
+@Serializable
+enum class LogType { TASK_DONE, SHOP_BUY, SYSTEM }
+
+@Serializable
+enum class LunaGameType { MEMORY, NUMBER_GUESS, MULTIPLICATION }
+
+@Serializable
+enum class LunaGameScoreType { ATTEMPTS, TIME_SECONDS }
+
+@Serializable
+enum class LunaGameLevel { DEFAULT, EASY, HARD }
