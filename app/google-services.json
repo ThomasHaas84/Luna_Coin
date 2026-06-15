@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "29230405594",
+    "project_id": "luna-coin-family",
+    "storage_bucket": "luna-coin-family.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:29230405594:android:50902e704dcb4f854692e3",
+        "android_client_info": {
+          "package_name": "de.meson_labs.luna_coin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCHmdDh-w1N57qgTgTD9hPh_NAGkRWm3tU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
