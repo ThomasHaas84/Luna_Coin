@@ -5,9 +5,6 @@ import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import java.util.Date
 
-// =============================================
-// Haupt-Daten-Container
-// =============================================
 @Serializable
 data class LunaCoinData(
     val children: List<Child> = emptyList(),
@@ -19,10 +16,6 @@ data class LunaCoinData(
     val gameHighscores: List<GameHighscore> = emptyList()
 )
 
-// =============================================
-// MODELLE (Firestore-kompatibel mit Defaults)
-// =============================================
-
 @Serializable
 data class Child(
     override var id: String = "",
@@ -31,6 +24,7 @@ data class Child(
     var coins: Int = 0,
     val role: UserRole = UserRole.CHILD,
     var password: String = "",
+    val age: Int = 0,
 
     val inventory: List<LunaInventoryItem> = emptyList(),
     val equippedItem: LunaInventoryItem? = null,
@@ -56,7 +50,7 @@ data class TaskItem(
     val dueDate: String? = null,
     val weeklyDay: DayOfWeekName? = null,
     val completions: List<TaskCompletion> = emptyList(),
-    val isWatchlist: Boolean = false,        // bleibt für den Code
+    val isWatchlist: Boolean = false,
 
     @Contextual override var createdAt: Date? = null,
     @Contextual override var updatedAt: Date? = null
@@ -104,18 +98,32 @@ data class DogScheduleItem(
 ) : FirebaseModel()
 
 @Serializable
+data class LuckyWheelUsage(
+    override var id: String = "",
+    override var familyId: String = "",
+    val childId: String = "",
+    val date: String = "",
+    val freeSpinUsed: Boolean = false,
+    val skinWon: Boolean = false,
+
+    @Contextual override var createdAt: Date? = null,
+    @Contextual override var updatedAt: Date? = null
+) : FirebaseModel()
+
+@Serializable
 data class GameHighscore(
+    override var id: String = "",
+    override var familyId: String = "",
     val game: LunaGameType = LunaGameType.MEMORY,
     val childId: String = "",
     val scoreType: LunaGameScoreType = LunaGameScoreType.ATTEMPTS,
     val level: LunaGameLevel = LunaGameLevel.DEFAULT,
     val value: Int = 0,
-    val timestamp: String = ""
-)
+    val timestamp: String = "",
 
-// =============================================
-// Einfache Klassen
-// =============================================
+    @Contextual override var createdAt: Date? = null,
+    @Contextual override var updatedAt: Date? = null
+) : FirebaseModel()
 
 @Serializable
 data class TaskCompletion(
@@ -123,18 +131,6 @@ data class TaskCompletion(
     val date: String = "",
     val timestamp: String = ""
 )
-
-@Serializable
-data class LuckyWheelUsage(
-    val childId: String = "",
-    val date: String = "",
-    val freeSpinUsed: Boolean = false,
-    val skinWon: Boolean = false
-)
-
-// =============================================
-// Enums
-// =============================================
 
 @Serializable
 enum class UserRole { CHILD, PARENT, ADMIN }

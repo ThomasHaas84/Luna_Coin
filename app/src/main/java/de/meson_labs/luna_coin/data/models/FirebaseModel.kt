@@ -1,15 +1,24 @@
 package de.meson_labs.luna_coin.data.models
 
-import com.google.firebase.firestore.ServerTimestamp
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import java.util.Date
 
+@Serializable
 open class FirebaseModel {
-    open var id: String = ""                    // ← open hinzugefügt
-    open var familyId: String = ""              // ← open hinzugefügt
 
-    @ServerTimestamp
-    open var createdAt: Date? = null            // ← open hinzugefügt
+    @Transient
+    open var id: String = ""
 
-    @ServerTimestamp
-    open var updatedAt: Date? = null            // ← open hinzugefügt
+    @Transient
+    open var familyId: String = ""
+
+    @Transient
+    @Contextual
+    open var createdAt: Date? = null
+
+    @Transient
+    @Contextual
+    open var updatedAt: Date? = null
 }
