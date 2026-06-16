@@ -8,7 +8,6 @@ import de.meson_labs.luna_coin.data.repository.DataRepository
 import de.meson_labs.luna_coin.data.repository.FirestoreRepository
 import de.meson_labs.luna_coin.screens.MainScreen
 import de.meson_labs.luna_coin.sound.LunaSoundManager
-import de.meson_labs.luna_coin.storage.LunaCoinStorage
 import de.meson_labs.luna_coin.ui.theme.LunaCoinTheme
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModelFactory
@@ -20,18 +19,13 @@ class MainActivity : ComponentActivity() {
 
         LunaSoundManager.init(context = applicationContext)
 
-        val legacyStorage = LunaCoinStorage(context = applicationContext)
-
-        // Neues Firestore Repository
+        // Nur noch Firestore Repository
         val repository: DataRepository = FirestoreRepository()
 
         setContent {
             LunaCoinTheme {
-                val viewModel: LunaCoinViewModel = viewModel(        // ← Typ explizit angegeben
-                    factory = LunaCoinViewModelFactory(
-                        repository = repository,
-                        legacyStorage = legacyStorage
-                    )
+                val viewModel: LunaCoinViewModel = viewModel(
+                    factory = LunaCoinViewModelFactory(repository)
                 )
 
                 MainScreen(viewModel = viewModel)

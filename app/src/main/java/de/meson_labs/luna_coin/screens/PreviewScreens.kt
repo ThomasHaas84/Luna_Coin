@@ -20,10 +20,7 @@ fun UserSelectionScreenPreview() {
     val demoData = DemoData.create()
     val fakeRepository = FakeDataRepository(demoData)
 
-    val viewModel = LunaCoinViewModel(
-        repository = fakeRepository,
-        legacyStorage = null
-    )
+    val viewModel = LunaCoinViewModel(repository = fakeRepository)
 
     UserSelectionScreen(
         viewModel = viewModel,
@@ -81,12 +78,15 @@ fun ShopScreenPreview() {
 @Composable
 fun SettingsScreenChildPreview() {
     val demoData = DemoData.create()
+    val fakeRepository = FakeDataRepository(demoData)
+    val viewModel = LunaCoinViewModel(repository = fakeRepository)
 
     SettingsScreen(
         data = demoData,
         selectedChild = demoData.children.firstOrNull(),
         selectedDate = LocalDate.now(),
         jsonText = "",
+        viewModel = viewModel,
 
         onAddTask = { _, _, _, _, _, _, _, _, _, _, _ -> },
         onUpdateTask = { _, _, _, _, _, _, _, _, _, _, _, _ -> },
@@ -122,6 +122,8 @@ fun SettingsScreenChildPreview() {
 @Composable
 fun SettingsScreenAdminPreview() {
     val demoData = DemoData.create()
+    val fakeRepository = FakeDataRepository(demoData)
+    val viewModel = LunaCoinViewModel(repository = fakeRepository)
 
     val admin = demoData.children.firstOrNull { child ->
         child.name.equals("Thomas", ignoreCase = true)
@@ -132,6 +134,7 @@ fun SettingsScreenAdminPreview() {
         selectedChild = admin,
         selectedDate = LocalDate.now(),
         jsonText = "",
+        viewModel = viewModel,
 
         onAddTask = { _, _, _, _, _, _, _, _, _, _, _ -> },
         onUpdateTask = { _, _, _, _, _, _, _, _, _, _, _, _ -> },

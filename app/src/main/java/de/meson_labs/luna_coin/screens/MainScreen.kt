@@ -134,7 +134,8 @@ fun MainScreen(
                         data = data,
                         selectedChild = selectedChild,
                         selectedDate = selectedDate,
-                        jsonText = viewModel.getJsonText(),
+                        jsonText = "",
+                        viewModel = viewModel,
 
                         onAddTask = viewModel::addTask,
                         onUpdateTask = viewModel::updateTask,

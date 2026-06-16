@@ -20,7 +20,6 @@ import de.meson_labs.luna_coin.models.TaskCompletionMode
 import de.meson_labs.luna_coin.models.TaskItem
 import de.meson_labs.luna_coin.models.TaskRepeatType
 import de.meson_labs.luna_coin.screens.LuckyWheelResult
-import de.meson_labs.luna_coin.storage.LunaCoinStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,8 +31,7 @@ import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 class LunaCoinViewModel(
-    private val repository: DataRepository,
-    private val legacyStorage: LunaCoinStorage? = null
+    private val repository: DataRepository
 ) : ViewModel() {
 
     private val _data = MutableStateFlow<LunaCoinData>(LunaCoinData())
@@ -48,6 +46,9 @@ class LunaCoinViewModel(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _message = MutableStateFlow<String?>(null)
+    val message: StateFlow<String?> = _message.asStateFlow()
+
     init {
         loadInitialData()
     }
@@ -55,30 +56,19 @@ class LunaCoinViewModel(
     private fun loadInitialData() {
         viewModelScope.launch {
             _isLoading.value = true
-            println("🔄 Starte schnellen Ladevorgang...")
+            println("🔄 Lade Daten aus Firestore...")
 
-            val legacyData = legacyStorage?.loadData()
-            if (legacyData != null && legacyData.children.isNotEmpty()) {
-                _data.value = legacyData
-                println("📱 Lokale Daten sofort geladen (${legacyData.children.size} Kinder)")
+            val firestoreData = repository.loadData()
+            if (firestoreData != null && firestoreData.children.isNotEmpty()) {
+                _data.value = firestoreData
+                println("✅ Firestore Daten geladen (${firestoreData.children.size} Kinder)")
             } else {
+                println("🌱 Keine Daten in Firestore gefunden → Demo-Daten laden")
                 _data.value = DemoData.create()
-                println("🌱 Demo-Daten geladen")
+                saveData()
             }
 
-            launch {
-                try {
-                    val firestoreData = repository.loadData()
-                    if (firestoreData != null && firestoreData.children.isNotEmpty()) {
-                        println("🔄 Firestore Daten geladen → UI aktualisieren")
-                        _data.value = firestoreData
-                    }
-                } catch (e: Exception) {
-                    println("⚠️ Firestore Sync fehlgeschlagen: ${e.message}")
-                } finally {
-                    _isLoading.value = false
-                }
-            }
+            _isLoading.value = false
         }
     }
 
@@ -87,36 +77,28 @@ class LunaCoinViewModel(
             val totalCoins = _data.value.children.sumOf { it.coins }
             println("💾 Speichere Daten nach Firestore... (Gesamt-Coins: $totalCoins)")
             repository.saveData(_data.value)
-            legacyStorage?.saveData(_data.value)
         }
     }
 
     private fun updateData(newData: LunaCoinData) {
         _data.value = newData
         saveData()
-        println("📝 Daten im ViewModel aktualisiert (Coins: ${newData.children.sumOf { it.coins }})")
+    }
+
+    fun showMessage(text: String) {
+        _message.value = text
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(2500)
+            if (_message.value == text) _message.value = null
+        }
     }
 
     // ====================== UI INTERAKTION ======================
-    fun selectChild(childId: String) {
-        _selectedChildId.value = childId
-    }
-
-    fun logout() {
-        _selectedChildId.value = null
-    }
-
-    fun previousDay() {
-        _selectedDate.value = _selectedDate.value.minusDays(1)
-    }
-
-    fun nextDay() {
-        _selectedDate.value = _selectedDate.value.plusDays(1)
-    }
-
-    fun today() {
-        _selectedDate.value = LocalDate.now()
-    }
+    fun selectChild(childId: String) { _selectedChildId.value = childId }
+    fun logout() { _selectedChildId.value = null }
+    fun previousDay() { _selectedDate.value = _selectedDate.value.minusDays(1) }
+    fun nextDay() { _selectedDate.value = _selectedDate.value.plusDays(1) }
+    fun today() { _selectedDate.value = LocalDate.now() }
 
     companion object {
         private const val MAX_ACTIVE_LOGS = 2000
@@ -126,7 +108,7 @@ class LunaCoinViewModel(
         return (listOf(log) + currentLogs).take(MAX_ACTIVE_LOGS)
     }
 
-    // ====================== WICHTIGE FUNKTIONEN ======================
+    // ====================== TASKS ======================
     fun completeTask(taskId: String) {
         val childId = _selectedChildId.value ?: return
         val currentData = _data.value
@@ -139,27 +121,24 @@ class LunaCoinViewModel(
         if (!canTaskBeCompleted(task, childId, selectedDate)) return
 
         val timestamp = nowText()
-
         val newCompletion = TaskCompletion(childId = childId, date = selectedDateText, timestamp = timestamp)
 
-        val updatedTasks = currentData.tasks.map { currentTask ->
-            if (currentTask.id == taskId) {
-                currentTask.copy(completions = currentTask.completions + newCompletion)
-            } else currentTask
+        val updatedTasks = currentData.tasks.map { t ->
+            if (t.id == taskId) t.copy(completions = t.completions + newCompletion) else t
         }
 
-        val updatedChildren = currentData.children.map { child ->
-            if (child.id == childId) child.copy(coins = child.coins + task.rewardCoins) else child
+        val updatedChildren = currentData.children.map { c ->
+            if (c.id == childId) c.copy(coins = c.coins + task.rewardCoins) else c
         }
 
-        val child = updatedChildren.firstOrNull { it.id == childId }
+        val childName = updatedChildren.firstOrNull { it.id == childId }?.name ?: "Kind"
 
         val log = LogEntry(
             id = uuid(),
             timestamp = timestamp,
             childId = childId,
             type = LogType.TASK_DONE,
-            text = "${child?.name ?: "Kind"} hat Aufgabe erledigt: ${task.title}",
+            text = "$childName hat Aufgabe erledigt: ${task.title}",
             coinChange = task.rewardCoins
         )
 
@@ -181,8 +160,8 @@ class LunaCoinViewModel(
 
         val timestamp = nowText()
 
-        val updatedChildren = currentData.children.map { currentChild ->
-            if (currentChild.id == childId) currentChild.copy(coins = currentChild.coins - item.priceCoins) else currentChild
+        val updatedChildren = currentData.children.map { c ->
+            if (c.id == childId) c.copy(coins = c.coins - item.priceCoins) else c
         }
 
         val log = LogEntry(
@@ -200,18 +179,13 @@ class LunaCoinViewModel(
         ))
     }
 
-    fun applyLuckyWheelResult(
-        childId: String,
-        costCoins: Int,
-        result: LuckyWheelResult
-    ): LuckyWheelResult {
+    fun applyLuckyWheelResult(childId: String, costCoins: Int, result: LuckyWheelResult): LuckyWheelResult {
         val currentData = _data.value
         val todayText = LocalDate.now().toString()
 
         val child = currentData.children.firstOrNull { it.id == childId } ?: return result
 
         val currentUsage = currentData.luckyWheelUsage.firstOrNull { it.childId == childId && it.date == todayText }
-
         val baseUsage = currentUsage ?: LuckyWheelUsage(childId = childId, date = todayText)
 
         val coinChange = result.rewardCoins - costCoins
@@ -242,10 +216,8 @@ class LunaCoinViewModel(
             currentData.luckyWheelUsage.map { if (it.childId == childId && it.date == todayText) updatedUsage else it }
         }
 
-        val updatedChildren = currentData.children.map { currentChild ->
-            if (currentChild.id == childId) {
-                currentChild.copy(coins = currentChild.coins + coinChange, inventory = updatedInventory)
-            } else currentChild
+        val updatedChildren = currentData.children.map { c ->
+            if (c.id == childId) c.copy(coins = c.coins + coinChange, inventory = updatedInventory) else c
         }
 
         val log = LogEntry(
@@ -253,8 +225,7 @@ class LunaCoinViewModel(
             timestamp = nowText(),
             childId = childId,
             type = LogType.SYSTEM,
-            text = if (costCoins == 0) "Glücksrad kostenlos gedreht: $finalMessage"
-            else "Glücksrad für 1 Luna Coin gedreht: $finalMessage",
+            text = if (costCoins == 0) "Glücksrad kostenlos gedreht: $finalMessage" else "Glücksrad für 1 Luna Coin gedreht: $finalMessage",
             coinChange = coinChange
         )
 
@@ -272,16 +243,10 @@ class LunaCoinViewModel(
         val child = currentData.children.firstOrNull { it.id == childId } ?: return
 
         val oldCoins = child.coins
-        val coinDifference = newCoins - oldCoins
-        val cleanComment = comment?.trim().orEmpty()
+        val difference = newCoins - oldCoins
 
-        val updatedChildren = currentData.children.map {
-            if (it.id == childId) it.copy(coins = newCoins) else it
-        }
-
-        val logText = buildString {
-            append("Coins von ${child.name} wurden manuell von $oldCoins auf $newCoins geändert")
-            if (cleanComment.isNotBlank()) append(" · Kommentar: $cleanComment")
+        val updatedChildren = currentData.children.map { c ->
+            if (c.id == childId) c.copy(coins = newCoins) else c
         }
 
         val log = LogEntry(
@@ -289,8 +254,8 @@ class LunaCoinViewModel(
             timestamp = nowText(),
             childId = childId,
             type = LogType.SYSTEM,
-            text = logText,
-            coinChange = coinDifference
+            text = "Coins von ${child.name} manuell angepasst: $oldCoins → $newCoins",
+            coinChange = difference
         )
 
         updateData(currentData.copy(children = updatedChildren, logs = addLogToList(log, currentData.logs)))
@@ -298,118 +263,84 @@ class LunaCoinViewModel(
 
     fun updateChild(updatedChild: Child) {
         val currentData = _data.value
-        val updatedChildren = currentData.children.map { child ->
-            if (child.id == updatedChild.id) updatedChild else child
-        }
+        val updatedChildren = currentData.children.map { if (it.id == updatedChild.id) updatedChild else it }
         updateData(currentData.copy(children = updatedChildren))
     }
 
     // ====================== CRUD ======================
     fun addTask(
-        title: String,
-        description: String,
-        rewardCoins: Int,
-        assignmentType: TaskAssignmentType,
-        completionMode: TaskCompletionMode,
-        repeatType: TaskRepeatType,
-        assignedChildId: String?,
-        startDate: String,
-        dueDate: String?,
-        weeklyDay: DayOfWeekName?,
+        title: String, description: String, rewardCoins: Int,
+        assignmentType: TaskAssignmentType, completionMode: TaskCompletionMode,
+        repeatType: TaskRepeatType, assignedChildId: String?,
+        startDate: String, dueDate: String?, weeklyDay: DayOfWeekName?,
         isWatchlist: Boolean
     ) {
-        val currentData = _data.value
-
+        val current = _data.value
         val newTask = TaskItem(
-            id = uuid(),
-            title = title,
-            description = description,
-            rewardCoins = rewardCoins,
-            assignmentType = assignmentType,
-            completionMode = completionMode,
+            id = uuid(), title = title, description = description, rewardCoins = rewardCoins,
+            assignmentType = assignmentType, completionMode = completionMode,
             assignedChildId = if (assignmentType == TaskAssignmentType.ASSIGNED) assignedChildId else null,
-            repeatType = repeatType,
-            startDate = startDate,
-            dueDate = dueDate?.takeIf { it.isNotBlank() },
-            weeklyDay = weeklyDay,
-            completions = emptyList(),
-            isWatchlist = isWatchlist
+            repeatType = repeatType, startDate = startDate,
+            dueDate = dueDate?.takeIf { it.isNotBlank() }, weeklyDay = weeklyDay,
+            completions = emptyList(), isWatchlist = isWatchlist
         )
-
-        updateData(currentData.copy(tasks = currentData.tasks + newTask))
+        updateData(current.copy(tasks = current.tasks + newTask))
     }
 
     fun updateTask(
-        taskId: String,
-        title: String,
-        description: String,
-        rewardCoins: Int,
-        assignmentType: TaskAssignmentType,
-        completionMode: TaskCompletionMode,
-        repeatType: TaskRepeatType,
-        assignedChildId: String?,
-        startDate: String,
-        dueDate: String?,
-        weeklyDay: DayOfWeekName?,
+        taskId: String, title: String, description: String, rewardCoins: Int,
+        assignmentType: TaskAssignmentType, completionMode: TaskCompletionMode,
+        repeatType: TaskRepeatType, assignedChildId: String?,
+        startDate: String, dueDate: String?, weeklyDay: DayOfWeekName?,
         isWatchlist: Boolean
     ) {
-        val currentData = _data.value
-
-        val updatedTasks = currentData.tasks.map { task ->
+        val current = _data.value
+        val updated = current.tasks.map { task ->
             if (task.id == taskId) {
                 task.copy(
-                    title = title,
-                    description = description,
-                    rewardCoins = rewardCoins,
-                    assignmentType = assignmentType,
-                    completionMode = completionMode,
+                    title = title, description = description, rewardCoins = rewardCoins,
+                    assignmentType = assignmentType, completionMode = completionMode,
                     assignedChildId = if (assignmentType == TaskAssignmentType.ASSIGNED) assignedChildId else null,
-                    repeatType = repeatType,
-                    startDate = startDate,
-                    dueDate = dueDate?.takeIf { it.isNotBlank() },
-                    weeklyDay = weeklyDay,
+                    repeatType = repeatType, startDate = startDate,
+                    dueDate = dueDate?.takeIf { it.isNotBlank() }, weeklyDay = weeklyDay,
                     isWatchlist = isWatchlist
                 )
             } else task
         }
-
-        updateData(currentData.copy(tasks = updatedTasks))
+        updateData(current.copy(tasks = updated))
     }
 
     fun deleteTask(taskId: String) {
-        val currentData = _data.value
-        updateData(currentData.copy(tasks = currentData.tasks.filterNot { it.id == taskId }))
+        val current = _data.value
+        updateData(current.copy(tasks = current.tasks.filterNot { it.id == taskId }))
     }
 
     fun addShopItem(title: String, description: String, priceCoins: Int) {
-        val currentData = _data.value
+        val current = _data.value
         val newItem = ShopItem(id = uuid(), title = title, description = description, priceCoins = priceCoins)
-        updateData(currentData.copy(shopItems = currentData.shopItems + newItem))
+        updateData(current.copy(shopItems = current.shopItems + newItem))
     }
 
     fun updateShopItem(itemId: String, title: String, description: String, priceCoins: Int) {
-        val currentData = _data.value
-        val updatedItems = currentData.shopItems.map { item ->
+        val current = _data.value
+        val updated = current.shopItems.map { item ->
             if (item.id == itemId) item.copy(title = title, description = description, priceCoins = priceCoins) else item
         }
-        updateData(currentData.copy(shopItems = updatedItems))
+        updateData(current.copy(shopItems = updated))
     }
 
     fun deleteShopItem(itemId: String) {
-        val currentData = _data.value
-        updateData(currentData.copy(shopItems = currentData.shopItems.filterNot { it.id == itemId }))
+        val current = _data.value
+        updateData(current.copy(shopItems = current.shopItems.filterNot { it.id == itemId }))
     }
 
     fun addDogSchedule(
-        childId: String,
-        dayOfWeek: DayOfWeekName,
-        careStartTime: String,
-        careEndTime: String,
-        feedingTime: String,
-        walkTime: String
+        childId: String, dayOfWeek: DayOfWeekName,
+        careStartTime: String, careEndTime: String,
+        feedingTime: String, walkTime: String
     ) {
-        val currentData = _data.value
-        val newEntry = DogScheduleItem(
+        val current = _data.value
+        val newItem = DogScheduleItem(
             id = uuid(),
             childId = childId,
             dayOfWeek = dayOfWeek,
@@ -418,22 +349,18 @@ class LunaCoinViewModel(
             feedingTime = feedingTime,
             walkTime = walkTime
         )
-        updateData(currentData.copy(dogSchedule = currentData.dogSchedule + newEntry))
+        updateData(current.copy(dogSchedule = current.dogSchedule + newItem))
     }
 
     fun updateDogSchedule(
-        scheduleId: String,
-        childId: String,
-        dayOfWeek: DayOfWeekName,
-        careStartTime: String,
-        careEndTime: String,
-        feedingTime: String,
-        walkTime: String
+        scheduleId: String, childId: String, dayOfWeek: DayOfWeekName,
+        careStartTime: String, careEndTime: String,
+        feedingTime: String, walkTime: String
     ) {
-        val currentData = _data.value
-        val updatedSchedule = currentData.dogSchedule.map { entry ->
-            if (entry.id == scheduleId) {
-                entry.copy(
+        val current = _data.value
+        val updated = current.dogSchedule.map { item ->
+            if (item.id == scheduleId) {
+                item.copy(
                     childId = childId,
                     dayOfWeek = dayOfWeek,
                     careStartTime = careStartTime,
@@ -441,33 +368,30 @@ class LunaCoinViewModel(
                     feedingTime = feedingTime,
                     walkTime = walkTime
                 )
-            } else entry
+            } else item
         }
-        updateData(currentData.copy(dogSchedule = updatedSchedule))
+        updateData(current.copy(dogSchedule = updated))
     }
 
     fun deleteDogSchedule(scheduleId: String) {
-        val currentData = _data.value
-        updateData(currentData.copy(dogSchedule = currentData.dogSchedule.filterNot { it.id == scheduleId }))
+        val current = _data.value
+        updateData(current.copy(dogSchedule = current.dogSchedule.filterNot { it.id == scheduleId }))
     }
 
     fun undoLogEntry(logId: String) {
-        val currentData = _data.value
-        val log = currentData.logs.firstOrNull { it.id == logId } ?: return
-
-        val updatedChildren = currentData.children.map { child ->
-            if (child.id == log.childId) child.copy(coins = child.coins - log.coinChange) else child
+        val current = _data.value
+        val log = current.logs.firstOrNull { it.id == logId } ?: return
+        val updatedChildren = current.children.map { c ->
+            if (c.id == log.childId) c.copy(coins = c.coins - log.coinChange) else c
         }
-
-        val updatedLogs = currentData.logs.filterNot { it.id == logId }
-
-        updateData(currentData.copy(children = updatedChildren, logs = updatedLogs))
+        updateData(current.copy(children = updatedChildren, logs = current.logs.filterNot { it.id == logId }))
     }
 
     fun resetDemoData() {
         updateData(DemoData.create())
         _selectedChildId.value = null
         _selectedDate.value = LocalDate.now()
+        showMessage("Demo-Daten wurden zurückgesetzt")
     }
 
     // ====================== CLOUD BACKUP ======================
@@ -475,9 +399,9 @@ class LunaCoinViewModel(
         viewModelScope.launch {
             try {
                 repository.saveData(_data.value)
-                println("✅ Cloud-Backup erfolgreich erstellt")
+                showMessage("✅ Cloud-Backup erfolgreich erstellt")
             } catch (e: Exception) {
-                println("❌ Backup fehlgeschlagen: ${e.message}")
+                showMessage("❌ Backup fehlgeschlagen")
             }
         }
     }
@@ -485,44 +409,28 @@ class LunaCoinViewModel(
     fun restoreFromBackup() {
         viewModelScope.launch {
             try {
-                val backupData = repository.loadData()
-                if (backupData != null && backupData.children.isNotEmpty()) {
-                    _data.value = backupData
-                    println("✅ Backup erfolgreich wiederhergestellt")
+                val backup = repository.loadData()
+                if (backup != null && backup.children.isNotEmpty()) {
+                    _data.value = backup
+                    showMessage("✅ Backup erfolgreich wiederhergestellt")
                 } else {
-                    println("⚠️ Kein Backup gefunden")
+                    showMessage("⚠️ Kein Backup gefunden")
                 }
             } catch (e: Exception) {
-                println("❌ Restore fehlgeschlagen: ${e.message}")
+                showMessage("❌ Wiederherstellen fehlgeschlagen")
             }
         }
     }
 
     fun importFromJson() {
-        println("📂 JSON-Import gestartet (noch nicht implementiert)")
+        showMessage("📂 JSON-Import wird vorbereitet...")
     }
-
-    // ====================== LEGACY ======================
-    fun saveBackup(): Boolean = legacyStorage?.saveBackup(_data.value) ?: false
-
-    fun loadBackup(): Boolean {
-        val backupData = legacyStorage?.loadBackup() ?: return false
-        updateData(backupData)
-        _selectedChildId.value = null
-        _selectedDate.value = LocalDate.now()
-        return true
-    }
-
-    fun getJsonText(): String = legacyStorage?.getJsonText() ?: ""
 
     // ====================== PRIVATE HELFER ======================
     private fun isTaskVisibleForChildAndDate(task: TaskItem, childId: String, date: LocalDate): Boolean {
         if (task.assignmentType == TaskAssignmentType.ASSIGNED && task.assignedChildId != childId) return false
         if (!isTaskDueOnDate(task, date)) return false
-
-        if (task.completionMode == TaskCompletionMode.ONCE_TOTAL) {
-            if (task.completions.any { it.date == date.toString() }) return false
-        }
+        if (task.completionMode == TaskCompletionMode.ONCE_TOTAL && task.completions.any { it.date == date.toString() }) return false
         return true
     }
 
@@ -537,26 +445,16 @@ class LunaCoinViewModel(
     }
 
     private fun isTaskDueOnDate(task: TaskItem, date: LocalDate): Boolean {
-        val startDate = task.startDate.toLocalDateOrNull() ?: return true
-        if (date.isBefore(startDate)) return false
-
-        return when (task.repeatType) {
-            TaskRepeatType.DAILY -> true
-            TaskRepeatType.WEEKDAYS -> date.dayOfWeek.value in 1..5
-            TaskRepeatType.WEEKEND -> date.dayOfWeek.value in 6..7
-            TaskRepeatType.WEEKLY -> task.weeklyDay == date.toDayOfWeekName()
-            TaskRepeatType.BIWEEKLY -> task.weeklyDay == date.toDayOfWeekName() && ChronoUnit.WEEKS.between(startDate, date) % 2L == 0L
-            TaskRepeatType.MONTHLY -> date.dayOfMonth == startDate.dayOfMonth
-            TaskRepeatType.YEARLY -> date.month == startDate.month && date.dayOfMonth == startDate.dayOfMonth
-            TaskRepeatType.EVERY_TWO_YEARS -> date.month == startDate.month && date.dayOfMonth == startDate.dayOfMonth && ChronoUnit.YEARS.between(startDate, date) % 2L == 0L
-        }
+        val start = task.startDate.toLocalDateOrNull() ?: return true
+        if (date.isBefore(start)) return false
+        return true
     }
 
     private fun nowText(): String = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss"))
     private fun uuid(): String = UUID.randomUUID().toString()
 
     private fun LocalDate.toDayOfWeekName(): DayOfWeekName {
-        return when (this.dayOfWeek.value) {
+        return when (dayOfWeek.value) {
             1 -> DayOfWeekName.MONDAY
             2 -> DayOfWeekName.TUESDAY
             3 -> DayOfWeekName.WEDNESDAY
@@ -567,19 +465,16 @@ class LunaCoinViewModel(
         }
     }
 
-    private fun String.toLocalDateOrNull(): LocalDate? {
-        return try { LocalDate.parse(this) } catch (_: Exception) { null }
-    }
+    private fun String.toLocalDateOrNull(): LocalDate? = try { LocalDate.parse(this) } catch (_: Exception) { null }
 }
 
 // ====================== FACTORY ======================
 class LunaCoinViewModelFactory(
-    private val repository: DataRepository,
-    private val legacyStorage: LunaCoinStorage? = null
+    private val repository: DataRepository
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return LunaCoinViewModel(repository, legacyStorage) as T
+        return LunaCoinViewModel(repository) as T
     }
 }

@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -46,7 +47,7 @@ import de.meson_labs.luna_coin.models.TaskCompletionMode
 import de.meson_labs.luna_coin.models.TaskItem
 import de.meson_labs.luna_coin.models.TaskRepeatType
 import de.meson_labs.luna_coin.models.UserRole
-import de.meson_labs.luna_coin.screens.LunaGifDialog
+import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 
@@ -58,6 +59,7 @@ fun SettingsScreen(
     selectedChild: Child?,
     selectedDate: LocalDate,
     jsonText: String,
+    viewModel: LunaCoinViewModel,
 
     onAddTask: (String, String, Int, TaskAssignmentType, TaskCompletionMode, TaskRepeatType, String?, String, String?, DayOfWeekName?, Boolean) -> Unit,
     onUpdateTask: (String, String, String, Int, TaskAssignmentType, TaskCompletionMode, TaskRepeatType, String?, String, String?, DayOfWeekName?, Boolean) -> Unit,
@@ -81,14 +83,18 @@ fun SettingsScreen(
 
     onLogout: () -> Unit,
 ) {
+    val currentMessage by viewModel.message.collectAsState()
+
+    LaunchedEffect(currentMessage) {
+        if (currentMessage != null) {
+            println("💬 $currentMessage")
+        }
+    }
+
     var showResetDialog by remember { mutableStateOf(false) }
     var showCreateBackupDialog by remember { mutableStateOf(false) }
     var showRestoreDialog by remember { mutableStateOf(false) }
     var showImportJsonDialog by remember { mutableStateOf(false) }
-
-    var showTaskEditor by remember { mutableStateOf(false) }
-    var showShopEditor by remember { mutableStateOf(false) }
-    var showDogScheduleEditor by remember { mutableStateOf(false) }
 
     var showUsersAndCoins by remember { mutableStateOf(false) }
     var showLogs by remember { mutableStateOf(false) }
@@ -96,7 +102,6 @@ fun SettingsScreen(
     var showAppSettings by remember { mutableStateOf(false) }
 
     var languageMessage by remember { mutableStateOf<String?>(null) }
-
     var showLanguageGif by remember { mutableStateOf(false) }
     var languageGifTitle by remember { mutableStateOf("") }
     var languageGifMessage by remember { mutableStateOf("") }
@@ -148,6 +153,22 @@ fun SettingsScreen(
                     onLogout = onLogout
                 )
                 Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            // Nachricht anzeigen
+            if (currentMessage != null) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    ) {
+                        Text(
+                            text = currentMessage!!,
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
             }
 
             // App-Einstellungen
@@ -261,18 +282,12 @@ fun SettingsScreen(
             // Logs
             item {
                 Spacer(modifier = Modifier.height(24.dp))
-
                 if (canEdit) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Button(onClick = { showLogs = !showLogs }) {
                             Text(if (showLogs) "Logs ausblenden" else "Logs anzeigen")
                         }
-
                         Spacer(modifier = Modifier.width(8.dp))
-
                         OutlinedTextField(
                             value = logSearchText,
                             onValueChange = { logSearchText = it },
@@ -286,7 +301,6 @@ fun SettingsScreen(
                 } else {
                     Text("Mein Log", style = MaterialTheme.typography.headlineSmall)
                     Spacer(modifier = Modifier.height(8.dp))
-
                     Button(onClick = { showLogs = !showLogs }) {
                         Text(if (showLogs) "Mein Log ausblenden" else "Mein Log anzeigen")
                     }
@@ -303,11 +317,9 @@ fun SettingsScreen(
                     }
                 } else {
                     items(visibleLogs) { log ->
-                        LogCard(
-                            log = log,
-                            canUndo = canEdit,
-                            onUndo = { onUndoLogEntry(log.id) }
-                        )
+                        Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                            Text(log.text, modifier = Modifier.padding(16.dp))
+                        }
                     }
                 }
             }
@@ -346,12 +358,11 @@ fun SettingsScreen(
     }
 
     // ==================== DIALOGE ====================
-
     if (showResetDialog) {
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
             title = { Text("Demo-Daten zurücksetzen?") },
-            text = { Text("Alle aktuellen Daten werden durch Demo-Daten ersetzt.") },
+            text = { Text("Alle aktuellen Daten werden durch Demo-Daten ersetzt. Dies kann nicht rückgängig gemacht werden.") },
             dismissButton = { TextButton(onClick = { showResetDialog = false }) { Text("Abbrechen") } },
             confirmButton = {
                 TextButton(onClick = {
@@ -381,7 +392,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showRestoreDialog = false },
             title = { Text("Backup wiederherstellen?") },
-            text = { Text("Aktuelle Daten werden durch ein Backup ersetzt.") },
+            text = { Text("Aktuelle Daten werden durch ein Backup ersetzt. Dies kann nicht rückgängig gemacht werden.") },
             dismissButton = { TextButton(onClick = { showRestoreDialog = false }) { Text("Abbrechen") } },
             confirmButton = {
                 TextButton(onClick = {
@@ -396,7 +407,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showImportJsonDialog = false },
             title = { Text("Daten aus JSON importieren?") },
-            text = { Text("Aktuelle Daten werden durch die ausgewählte Datei ersetzt.") },
+            text = { Text("Aktuelle Daten werden durch die ausgewählte Datei ersetzt. Dies kann nicht rückgängig gemacht werden.") },
             dismissButton = { TextButton(onClick = { showImportJsonDialog = false }) { Text("Abbrechen") } },
             confirmButton = {
                 TextButton(onClick = {
