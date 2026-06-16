@@ -48,7 +48,9 @@ fun TasksScreenPreview() {
         onNextDay = {},
         onToday = {},
         onCompleteTask = {},
-        onLogout = {}
+        onLogout = {},
+        canGoToPreviousDay = true,
+        canGoToNextDay = true
     )
 }
 

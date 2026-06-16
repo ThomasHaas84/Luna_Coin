@@ -103,7 +103,9 @@ fun MainScreen(
                         onNextDay = viewModel::nextDay,
                         onToday = viewModel::today,
                         onCompleteTask = viewModel::completeTask,
-                        onLogout = viewModel::logout
+                        onLogout = viewModel::logout,
+                        canGoToPreviousDay = viewModel.canGoToPreviousDay,
+                        canGoToNextDay = viewModel.canGoToNextDay
                     )
 
                     1 -> ShopScreen(

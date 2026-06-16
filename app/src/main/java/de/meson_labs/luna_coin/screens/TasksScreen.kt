@@ -3,6 +3,7 @@ package de.meson_labs.luna_coin.screens
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,8 +13,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -60,7 +65,9 @@ fun TasksScreen(
     onNextDay: () -> Unit,
     onToday: () -> Unit,
     onCompleteTask: (String) -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    canGoToPreviousDay: Boolean,   // ← neu
+    canGoToNextDay: Boolean        // ← neu
 ) {
     val childId = selectedChild?.id
     val selectedDay = selectedDate.toDayOfWeekName()
@@ -101,7 +108,9 @@ fun TasksScreen(
                 selectedDate = selectedDate,
                 onPreviousDay = onPreviousDay,
                 onNextDay = onNextDay,
-                onToday = onToday
+                onToday = onToday,
+                canGoToPreviousDay = canGoToPreviousDay,   // ← neu
+                canGoToNextDay = canGoToNextDay            // ← neu
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -210,56 +219,129 @@ private fun DateSelector(
     selectedDate: LocalDate,
     onPreviousDay: () -> Unit,
     onNextDay: () -> Unit,
-    onToday: () -> Unit
+    onToday: () -> Unit,
+    canGoToPreviousDay: Boolean,   // ← neu
+    canGoToNextDay: Boolean        // ← neu
 ) {
+    val isToday = selectedDate == LocalDate.now()
+    val daysDifference = ChronoUnit.DAYS.between(LocalDate.now(), selectedDate)
+
     val dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+    val dayFormatter = DateTimeFormatter.ofPattern("EEEE", Locale.GERMAN)
 
-    val dayFormatter = DateTimeFormatter.ofPattern(
-        "EEEE",
-        Locale.GERMAN
-    )
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+    Box(
+        modifier = Modifier.fillMaxWidth()
     ) {
-        OutlinedButton(
-            onClick = onPreviousDay
+        // ==================== STABILES HAUPT-LAYOUT ====================
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("<")
+            OutlinedButton(
+                onClick = onPreviousDay,
+                enabled = canGoToPreviousDay          // ← deaktiviert bei Limit
+            ) {
+                Text("<")
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = selectedDate.format(dayFormatter)
+                        .replaceFirstChar { it.uppercase() },
+                    style = MaterialTheme.typography.headlineMedium
+                )
+
+                Text(
+                    text = selectedDate.format(dateFormatter),
+                    style = MaterialTheme.typography.headlineSmall
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                AssistChip(
+                    onClick = onToday,
+                    enabled = !isToday,
+                    label = { Text("Heute") }
+                )
+            }
+
+            OutlinedButton(
+                onClick = onNextDay,
+                enabled = canGoToNextDay              // ← deaktiviert bei Limit
+            ) {
+                Text(">")
+            }
         }
 
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = selectedDate.format(dayFormatter)
-                    .replaceFirstChar {
-                        it.uppercase()
-                    },
-                style = MaterialTheme.typography.headlineSmall
-            )
-
-            Text(
-                text = selectedDate.format(dateFormatter),
-                style = MaterialTheme.typography.titleLarge
-            )
-
-            AssistChip(
-                onClick = onToday,
-                enabled = selectedDate != LocalDate.now(),
-                label = {
-                    Text("Heute")
-                }
+        // ==================== PUNKTE-INDIKATOR (Overlay) ====================
+        if (daysDifference < 0) {
+            DayOffsetIndicator(
+                daysDifference = daysDifference,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 460.dp)
             )
         }
 
-        OutlinedButton(
-            onClick = onNextDay
-        ) {
-            Text(">")
+        if (daysDifference > 0) {
+            DayOffsetIndicator(
+                daysDifference = daysDifference,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 460.dp)
+            )
         }
+    }
+}
+
+@Composable
+private fun DayOffsetIndicator(
+    daysDifference: Long,
+    modifier: Modifier = Modifier
+) {
+    val label = when {
+        daysDifference == -1L -> "Gestern"
+        daysDifference == 1L -> "Morgen"
+        daysDifference < 0 -> "vor ${-daysDifference} Tagen"
+        else -> "in $daysDifference Tagen"
+    }
+
+    val activeColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+    val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+
+    val clamped = daysDifference.coerceIn(-2L, 2L).toInt()
+
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            repeat(5) { index ->
+                val dotIndex = index - 2
+                val isActive = dotIndex == clamped
+
+                Box(
+                    modifier = Modifier
+                        .size(if (isActive) 12.dp else 8.dp)
+                        .clip(CircleShape)
+                        .background(if (isActive) activeColor else inactiveColor)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(5.dp))
+
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

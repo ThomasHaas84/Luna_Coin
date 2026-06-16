@@ -49,6 +49,16 @@ class LunaCoinViewModel(
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
+    // ==================== DATUMS-BEGRENZUNG (±14 Tage) ====================
+    private val minSelectableDate = LocalDate.now().minusDays(14)
+    private val maxSelectableDate = LocalDate.now().plusDays(14)
+
+    val canGoToPreviousDay: Boolean
+        get() = _selectedDate.value.isAfter(minSelectableDate)
+
+    val canGoToNextDay: Boolean
+        get() = _selectedDate.value.isBefore(maxSelectableDate)
+
     init {
         loadInitialData()
     }
@@ -96,9 +106,22 @@ class LunaCoinViewModel(
     // ====================== UI INTERAKTION ======================
     fun selectChild(childId: String) { _selectedChildId.value = childId }
     fun logout() { _selectedChildId.value = null }
-    fun previousDay() { _selectedDate.value = _selectedDate.value.minusDays(1) }
-    fun nextDay() { _selectedDate.value = _selectedDate.value.plusDays(1) }
-    fun today() { _selectedDate.value = LocalDate.now() }
+
+    fun previousDay() {
+        if (canGoToPreviousDay) {
+            _selectedDate.value = _selectedDate.value.minusDays(1)
+        }
+    }
+
+    fun nextDay() {
+        if (canGoToNextDay) {
+            _selectedDate.value = _selectedDate.value.plusDays(1)
+        }
+    }
+
+    fun today() {
+        _selectedDate.value = LocalDate.now()
+    }
 
     companion object {
         private const val MAX_ACTIVE_LOGS = 2000
