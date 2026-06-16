@@ -1,3 +1,4 @@
+// screens/LunaMeScreen.kt
 package de.meson_labs.luna_coin.screens
 
 import androidx.compose.foundation.Image
@@ -43,7 +44,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.LunaScreenHeader
+import de.meson_labs.luna_coin.components.dialogs.NotEnoughCoinsDialog
 import de.meson_labs.luna_coin.models.Child
+import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.LunaInventoryItem
 import de.meson_labs.luna_coin.models.LunaItemCatalog
 import de.meson_labs.luna_coin.models.LunaItemDefinition
@@ -53,7 +56,9 @@ import kotlinx.coroutines.delay
 @Composable
 fun LunaMeScreen(
     modifier: Modifier = Modifier,
+    data: LunaCoinData,
     selectedChild: Child?,
+    onBuyItem: (String) -> Unit,
     onLogout: () -> Unit,
     onChildChanged: (Child) -> Unit
 ) {
@@ -274,9 +279,7 @@ fun LunaMeScreen(
                         .clickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
-                        ) {
-                            // Klicks im Kauf-Fenster nicht nach außen weitergeben
-                        },
+                        ) {},
                     shape = RoundedCornerShape(24.dp)
                 ) {
                     Column(
@@ -342,6 +345,8 @@ fun LunaMeScreen(
                                                 )
                                             )
 
+                                            onBuyItem(definition.item.name)   // ← Korrigiert!
+
                                             itemToBuy = null
                                         } else {
                                             showNotEnoughCoinsDialog = true
@@ -359,11 +364,7 @@ fun LunaMeScreen(
     }
 
     if (showNotEnoughCoinsDialog) {
-        LunaGifDialog(
-            title = "Computer sagt Nein",
-            message = "Dafür hast du leider nicht genug Coins.",
-            gifResId = R.drawable.nein,
-            contentDescription = "Computer sagt Nein",
+        NotEnoughCoinsDialog(
             onDismiss = {
                 showNotEnoughCoinsDialog = false
             }

@@ -1,4 +1,4 @@
-package de.meson_labs.luna_coin.screens
+package de.meson_labs.luna_coin.components.dialogs
 
 import android.os.Build
 import androidx.annotation.DrawableRes

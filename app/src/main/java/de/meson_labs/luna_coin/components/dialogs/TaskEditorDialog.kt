@@ -1,4 +1,4 @@
-package de.meson_labs.luna_coin.screens.settings
+package de.meson_labs.luna_coin.components.dialogs
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Column

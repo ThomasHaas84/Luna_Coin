@@ -1,3 +1,4 @@
+// screens/MainScreen.kt
 package de.meson_labs.luna_coin.screens
 
 import android.view.SoundEffectConstants
@@ -23,7 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import de.meson_labs.luna_coin.models.Child
-import de.meson_labs.luna_coin.screens.settings.SettingsScreen
+import de.meson_labs.luna_coin.screens.settings.SettingsScreen   // ← Dieser Import fehlte!
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 
 @Composable
@@ -124,7 +125,9 @@ fun MainScreen(
 
                     3 -> LunaMeScreen(
                         modifier = Modifier.padding(innerPadding),
+                        data = data,
                         selectedChild = selectedChild,
+                        onBuyItem = viewModel::buyShopItem,
                         onLogout = viewModel::logout,
                         onChildChanged = viewModel::updateChild
                     )

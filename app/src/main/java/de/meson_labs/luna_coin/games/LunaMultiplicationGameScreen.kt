@@ -1,3 +1,4 @@
+// games/LunaMultiplicationGameScreen.kt
 package de.meson_labs.luna_coin.games
 
 import androidx.compose.foundation.background
@@ -40,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.components.LunaScreenHeader
+import de.meson_labs.luna_coin.components.dialogs.ConfirmationDialog
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.GameHighscore
 import de.meson_labs.luna_coin.models.LunaGameLevel
@@ -78,6 +80,9 @@ fun LunaMultiplicationGameScreen(
     var elapsedSeconds by remember { mutableLongStateOf(0L) }
     var timerStarted by remember { mutableStateOf(false) }
     var highscoreSaved by remember { mutableStateOf(false) }
+
+    var showRestartConfirmation by remember { mutableStateOf(false) }
+    var showExitConfirmation by remember { mutableStateOf(false) }
 
     fun createNewGame() {
         missingFields = (1..10)
@@ -242,13 +247,13 @@ fun LunaMultiplicationGameScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    Button(onClick = onBack) {
+                    Button(onClick = { showExitConfirmation = true }) {
                         Text(text = "Verlassen")
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Button(onClick = { createNewGame() }) {
+                    Button(onClick = { showRestartConfirmation = true }) {
                         Text(text = "Neu starten")
                     }
 
@@ -283,6 +288,36 @@ fun LunaMultiplicationGameScreen(
                 )
             }
         }
+    }
+
+    // ==================== ZENTRALISIERTE DIALOGE ====================
+
+    if (showRestartConfirmation) {
+        ConfirmationDialog(
+            title = "Neues Spiel starten?",
+            message = "Möchtest du wirklich ein neues Spiel starten? Der aktuelle Fortschritt geht verloren.",
+            confirmText = "Neu starten",
+            dismissText = "Abbrechen",
+            onConfirm = {
+                createNewGame()
+                showRestartConfirmation = false
+            },
+            onDismiss = { showRestartConfirmation = false }
+        )
+    }
+
+    if (showExitConfirmation) {
+        ConfirmationDialog(
+            title = "Spiel verlassen?",
+            message = "Möchtest du wirklich zum Menü zurückkehren? Der aktuelle Fortschritt geht verloren.",
+            confirmText = "Verlassen",
+            dismissText = "Weiter spielen",
+            onConfirm = {
+                onBack()
+                showExitConfirmation = false
+            },
+            onDismiss = { showExitConfirmation = false }
+        )
     }
 }
 

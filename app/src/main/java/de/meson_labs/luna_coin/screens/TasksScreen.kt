@@ -24,6 +24,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -33,6 +36,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.components.LunaScreenHeader
+import de.meson_labs.luna_coin.components.dialogs.ConfirmationDialog
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.DogScheduleItem
@@ -76,6 +80,8 @@ fun TasksScreen(
     val dogTasksForDay = data.dogSchedule.filter { dogTask ->
         dogTask.dayOfWeek == selectedDay
     }
+
+    var taskToComplete by remember { mutableStateOf<TaskItem?>(null) }
 
     LazyColumn(
         modifier = modifier
@@ -121,7 +127,7 @@ fun TasksScreen(
                     children = data.children,
                     selectedChild = selectedChild,
                     selectedDate = selectedDate,
-                    onCompleteTask = onCompleteTask
+                    onCompleteTask = { taskToComplete = task }
                 )
             }
         }
@@ -159,6 +165,23 @@ fun TasksScreen(
                 )
             }
         }
+    }
+
+    // ==================== ZENTRALISIERTER DIALOG ====================
+    taskToComplete?.let { task ->
+        ConfirmationDialog(
+            title = "Aufgabe abschließen?",
+            message = "Möchtest du '${task.title}' wirklich als erledigt markieren?",
+            confirmText = "Ja, erledigt",
+            dismissText = "Abbrechen",
+            onConfirm = {
+                onCompleteTask(task.id)
+                taskToComplete = null
+            },
+            onDismiss = {
+                taskToComplete = null
+            }
+        )
     }
 }
 
@@ -246,7 +269,7 @@ private fun TaskCard(
     children: List<Child>,
     selectedChild: Child?,
     selectedDate: LocalDate,
-    onCompleteTask: (String) -> Unit
+    onCompleteTask: () -> Unit
 ) {
     val childId = selectedChild?.id
     val dateText = selectedDate.toString()
@@ -298,7 +321,7 @@ private fun TaskCard(
                 checked = isDone,
                 onCheckedChange = {
                     if (canComplete) {
-                        onCompleteTask(task.id)
+                        onCompleteTask()
                     }
                 },
                 enabled = canComplete || isDone

@@ -1,3 +1,4 @@
+// screens/ShopScreen.kt
 package de.meson_labs.luna_coin.screens
 
 import android.widget.VideoView
@@ -38,6 +39,8 @@ import androidx.core.net.toUri
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.components.LunaScreenHeader
+import de.meson_labs.luna_coin.components.dialogs.NotEnoughCoinsDialog
+import de.meson_labs.luna_coin.components.dialogs.PurchaseResultDialog
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.ShopItem
@@ -57,37 +60,21 @@ fun ShopScreen(
     ) -> LuckyWheelResult,
     onLogout: () -> Unit
 ) {
-    var showSugarVideo by remember {
-        mutableStateOf(false)
-    }
-
-    var showNotEnoughCoinsDialog by remember {
-        mutableStateOf(false)
-    }
-
-    var purchaseMessage by remember {
-        mutableStateOf<String?>(null)
-    }
-
-    var isPurchaseLocked by remember {
-        mutableStateOf(false)
-    }
-
-    var showLuckyWheelDialog by remember {
-        mutableStateOf(false)
-    }
+    var showSugarVideo by remember { mutableStateOf(false) }
+    var showNotEnoughCoinsDialog by remember { mutableStateOf(false) }
+    var purchaseMessage by remember { mutableStateOf<String?>(null) }
+    var isPurchaseLocked by remember { mutableStateOf(false) }
+    var showLuckyWheelDialog by remember { mutableStateOf(false) }
 
     val todayText = LocalDate.now().toString()
     val selectedChildId = selectedChild?.id
 
     val luckyWheelUsageToday = data.luckyWheelUsage.firstOrNull { usage ->
-        usage.childId == selectedChildId &&
-                usage.date == todayText
+        usage.childId == selectedChildId && usage.date == todayText
     }
 
-    val luckyWheelIsFreeToday =
-        selectedChildId != null &&
-                luckyWheelUsageToday?.freeSpinUsed != true
+    val luckyWheelIsFreeToday = selectedChildId != null &&
+            luckyWheelUsageToday?.freeSpinUsed != true
 
     LaunchedEffect(purchaseMessage) {
         if (purchaseMessage != null) {
@@ -97,9 +84,7 @@ fun ShopScreen(
         }
     }
 
-    Box(
-        modifier = modifier.fillMaxSize()
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -112,9 +97,7 @@ fun ShopScreen(
                     onLogout = onLogout
                 )
 
-                Spacer(
-                    modifier = Modifier.height(24.dp)
-                )
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
             item {
@@ -123,19 +106,10 @@ fun ShopScreen(
                     isFreeToday = luckyWheelIsFreeToday,
                     isPurchaseLocked = isPurchaseLocked,
                     onSpinClick = {
-                        if (isPurchaseLocked) {
-                            return@LuckyWheelShopCard
-                        }
+                        if (isPurchaseLocked) return@LuckyWheelShopCard
 
-                        val costCoins =
-                            if (luckyWheelIsFreeToday) {
-                                0
-                            } else {
-                                1
-                            }
-
-                        val hasEnoughCoins =
-                            (selectedChild?.coins ?: 0) >= costCoins
+                        val costCoins = if (luckyWheelIsFreeToday) 0 else 1
+                        val hasEnoughCoins = (selectedChild?.coins ?: 0) >= costCoins
 
                         if (!hasEnoughCoins) {
                             showNotEnoughCoinsDialog = true
@@ -150,9 +124,7 @@ fun ShopScreen(
 
             if (data.shopItems.isEmpty()) {
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
                         Text(
                             text = "Noch keine Shop-Artikel vorhanden.",
                             modifier = Modifier.padding(16.dp)
@@ -166,19 +138,15 @@ fun ShopScreen(
                         currentCoins = selectedChild?.coins ?: 0,
                         isPurchaseLocked = isPurchaseLocked,
                         onBuyItem = {
-                            if (isPurchaseLocked) {
-                                return@ShopItemCard
-                            }
+                            if (isPurchaseLocked) return@ShopItemCard
 
-                            val hasEnoughCoins =
-                                (selectedChild?.coins ?: 0) >= item.priceCoins
+                            val hasEnoughCoins = (selectedChild?.coins ?: 0) >= item.priceCoins
 
                             if (hasEnoughCoins) {
                                 isPurchaseLocked = true
                                 onBuyItem(item.id)
 
-                                purchaseMessage =
-                                    "Gekauft: ${item.title}\nLogeintrag wurde erstellt."
+                                purchaseMessage = "Gekauft: ${item.title}\nLogeintrag wurde erstellt."
 
                                 if (item.title == "Gib mir Zucker!") {
                                     showSugarVideo = true
@@ -193,29 +161,13 @@ fun ShopScreen(
         }
 
         purchaseMessage?.let { message ->
-            Card(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(
-                        start = 24.dp,
-                        end = 24.dp,
-                        bottom = 24.dp
-                    ),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                ),
-                elevation = CardDefaults.cardElevation(
-                    defaultElevation = 12.dp
-                )
-            ) {
-                Text(
-                    text = message,
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
+            PurchaseResultDialog(
+                message = message,
+                onDismiss = {
+                    purchaseMessage = null
+                    isPurchaseLocked = false
+                }
+            )
         }
     }
 
@@ -228,44 +180,23 @@ fun ShopScreen(
             onResult = { result ->
                 val childId = selectedChild?.id ?: return@LuckyWheelDialog result
 
-                val costCoins =
-                    if (luckyWheelIsFreeToday) {
-                        0
-                    } else {
-                        1
-                    }
+                val costCoins = if (luckyWheelIsFreeToday) 0 else 1
 
-                val finalResult = onLuckyWheelResult(
-                    childId,
-                    costCoins,
-                    result
-                )
+                val finalResult = onLuckyWheelResult(childId, costCoins, result)
 
-                purchaseMessage =
-                    "${finalResult.message}\nLogeintrag wurde erstellt."
-
+                // Kein purchaseMessage mehr → kein zweiter redundanter Dialog
                 finalResult
             }
         )
     }
 
     if (showSugarVideo) {
-        SugarVideoDialog(
-            onDismiss = {
-                showSugarVideo = false
-            }
-        )
+        SugarVideoDialog(onDismiss = { showSugarVideo = false })
     }
 
     if (showNotEnoughCoinsDialog) {
-        LunaGifDialog(
-            title = "Computer sagt Nein",
-            message = "Dafür hast du leider nicht genug Coins.",
-            gifResId = R.drawable.nein,
-            contentDescription = "Computer sagt Nein",
-            onDismiss = {
-                showNotEnoughCoinsDialog = false
-            }
+        NotEnoughCoinsDialog(
+            onDismiss = { showNotEnoughCoinsDialog = false }
         )
     }
 }
@@ -279,29 +210,23 @@ private fun ShopItemCard(
 ) {
     val canBuy = currentCoins >= item.priceCoins
 
-    val buttonContainerColor =
-        if (canBuy && !isPurchaseLocked) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant
-        }
+    val buttonContainerColor = if (canBuy && !isPurchaseLocked) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
 
-    val buttonContentColor =
-        if (canBuy && !isPurchaseLocked) {
-            MaterialTheme.colorScheme.onPrimary
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        }
+    val buttonContentColor = if (canBuy && !isPurchaseLocked) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(
-                vertical = 6.dp
-            ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        )
+            .padding(vertical = 6.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
@@ -309,9 +234,7 @@ private fun ShopItemCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.title,
                     style = MaterialTheme.typography.titleMedium
@@ -324,9 +247,7 @@ private fun ShopItemCard(
                     )
                 }
 
-                CoinDisplay(
-                    amount = item.priceCoins
-                )
+                CoinDisplay(amount = item.priceCoins)
 
                 if (!canBuy) {
                     Text(
@@ -362,16 +283,12 @@ private fun ShopItemCard(
 }
 
 @Composable
-private fun SugarVideoDialog(
-    onDismiss: () -> Unit
-) {
+private fun SugarVideoDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false
-        )
+        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
             modifier = Modifier
@@ -379,15 +296,12 @@ private fun SugarVideoDialog(
                 .background(Color.Black),
             color = Color.Black
         ) {
-            Box(
-                modifier = Modifier.fillMaxSize()
-            ) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = {
                         VideoView(context).apply {
-                            val videoUri =
-                                "android.resource://${context.packageName}/${R.raw.gib_mir_zucker}".toUri()
+                            val videoUri = "android.resource://${context.packageName}/${R.raw.gib_mir_zucker}".toUri()
 
                             setVideoURI(videoUri)
 

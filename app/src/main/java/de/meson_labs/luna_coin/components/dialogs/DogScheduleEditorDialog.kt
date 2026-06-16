@@ -1,4 +1,5 @@
-package de.meson_labs.luna_coin.screens.settings
+// components/dialogs/DogScheduleEditorDialog.kt
+package de.meson_labs.luna_coin.components.dialogs
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -153,9 +154,7 @@ fun DogScheduleEditorDialog(
                         value = careStartTime,
                         onValueChange = { careStartTime = it },
                         label = { Text("Betreuung von, z.B. 08:00") },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number
-                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -163,9 +162,7 @@ fun DogScheduleEditorDialog(
                         value = careEndTime,
                         onValueChange = { careEndTime = it },
                         label = { Text("Betreuung bis, z.B. 16:00") },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number
-                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -173,9 +170,7 @@ fun DogScheduleEditorDialog(
                         value = feedingTime,
                         onValueChange = { feedingTime = it },
                         label = { Text("Füttern um, z.B. 07:30") },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number
-                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -183,9 +178,7 @@ fun DogScheduleEditorDialog(
                         value = walkTime,
                         onValueChange = { walkTime = it },
                         label = { Text("Gassi um, z.B. 18:00") },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number
-                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -317,48 +310,30 @@ fun DogScheduleEditorDialog(
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = onDismiss
-            ) {
+            TextButton(onClick = onDismiss) {
                 Text("Schließen")
             }
         }
     )
 
+    // Delete Confirmation
     entryToDelete?.let { entry ->
-        AlertDialog(
-            onDismissRequest = {
+        ConfirmationDialog(
+            title = "Hundeplan-Eintrag löschen?",
+            message = "Soll dieser Hundeplan-Eintrag wirklich gelöscht werden?",
+            confirmText = "Löschen",
+            dismissText = "Abbrechen",
+            onConfirm = {
+                onDeleteDogSchedule(entry.id)
+
+                if (selectedEntry?.id == entry.id) {
+                    resetFields()
+                }
+
                 entryToDelete = null
             },
-            title = {
-                Text("Hundeplan-Eintrag löschen?")
-            },
-            text = {
-                Text("Soll dieser Hundeplan-Eintrag wirklich gelöscht werden?")
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        onDeleteDogSchedule(entry.id)
-
-                        if (selectedEntry?.id == entry.id) {
-                            resetFields()
-                        }
-
-                        entryToDelete = null
-                    }
-                ) {
-                    Text("Löschen")
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        entryToDelete = null
-                    }
-                ) {
-                    Text("Abbrechen")
-                }
+            onDismiss = {
+                entryToDelete = null
             }
         )
     }

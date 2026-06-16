@@ -1,3 +1,4 @@
+// screens/settings/SettingsScreen.kt
 package de.meson_labs.luna_coin.screens.settings
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -13,8 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,11 +33,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.components.LunaScreenHeader
+import de.meson_labs.luna_coin.components.common.LogCard
+import de.meson_labs.luna_coin.components.common.toDisplayText
+import de.meson_labs.luna_coin.components.dialogs.CoinEditDialog
+import de.meson_labs.luna_coin.components.dialogs.ConfirmationDialog
+import de.meson_labs.luna_coin.components.dialogs.DogScheduleEditorDialog
+import de.meson_labs.luna_coin.components.dialogs.LunaGifDialog
+import de.meson_labs.luna_coin.components.dialogs.ShopEditorDialog
+import de.meson_labs.luna_coin.components.dialogs.TaskEditorDialog
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.LunaCoinData
@@ -91,6 +97,7 @@ fun SettingsScreen(
         }
     }
 
+    // Dialog & Section States
     var showResetDialog by remember { mutableStateOf(false) }
     var showCreateBackupDialog by remember { mutableStateOf(false) }
     var showRestoreDialog by remember { mutableStateOf(false) }
@@ -100,21 +107,28 @@ fun SettingsScreen(
     var showLogs by remember { mutableStateOf(false) }
     var showWatchlist by remember { mutableStateOf(true) }
     var showAppSettings by remember { mutableStateOf(false) }
+    var showShopEditor by remember { mutableStateOf(false) }
+    var showDogScheduleEditor by remember { mutableStateOf(false) }
+    var showTaskEditor by remember { mutableStateOf(false) }
 
+    // Language GIF
     var languageMessage by remember { mutableStateOf<String?>(null) }
     var showLanguageGif by remember { mutableStateOf(false) }
     var languageGifTitle by remember { mutableStateOf("") }
     var languageGifMessage by remember { mutableStateOf("") }
     var languageGifResId by remember { mutableIntStateOf(0) }
 
-    var mimiModeEnabled by remember { mutableStateOf(false) }
-
+    // Coin Edit
     var childForCoinEdit by remember { mutableStateOf<Child?>(null) }
     var coinEditText by remember { mutableStateOf("") }
     var coinEditCommentText by remember { mutableStateOf("") }
     var coinEditError by remember { mutableStateOf<String?>(null) }
-    var logSearchText by remember { mutableStateOf("") }
 
+    // Sonstiges
+    var logSearchText by remember { mutableStateOf("") }
+    var mimiModeEnabled by remember { mutableStateOf(false) }
+
+    // Auto-hide language message
     LaunchedEffect(languageMessage) {
         if (languageMessage != null) {
             delay(3000)
@@ -246,7 +260,10 @@ fun SettingsScreen(
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text("${child.name}: ", style = MaterialTheme.typography.bodyLarge)
                             CoinDisplay(amount = child.coins)
-                            Text(" · ${roleText(child.role)}", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                text = " · ${child.role.toDisplayText()}",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
                         }
                     }
                 }
@@ -317,14 +334,41 @@ fun SettingsScreen(
                     }
                 } else {
                     items(visibleLogs) { log ->
-                        Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                            Text(log.text, modifier = Modifier.padding(16.dp))
-                        }
+                        LogCard(
+                            log = log,
+                            canUndo = canEdit,
+                            onUndo = { onUndoLogEntry(log.id) }
+                        )
                     }
                 }
             }
 
-            // Admin Backup Bereich
+            // Verwaltung (Aufgaben, Shop, Hundeplan) → für PARENT + ADMIN
+            if (canEdit) {
+                item {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Text("Verwaltung", style = MaterialTheme.typography.headlineSmall)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(onClick = { showTaskEditor = true }) {
+                        Text("Aufgaben bearbeiten")
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(onClick = { showShopEditor = true }) {
+                        Text("Shop bearbeiten")
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(onClick = { showDogScheduleEditor = true }) {
+                        Text("Hundeplan bearbeiten")
+                    }
+                }
+            }
+
+            // Nur Admin: Datensicherung
             if (isAdmin) {
                 item {
                     Spacer(modifier = Modifier.height(32.dp))
@@ -357,114 +401,131 @@ fun SettingsScreen(
         }
     }
 
-    // ==================== DIALOGE ====================
+    // ==================== ZENTRALISIERTE DIALOGE ====================
+
     if (showResetDialog) {
-        AlertDialog(
-            onDismissRequest = { showResetDialog = false },
-            title = { Text("Demo-Daten zurücksetzen?") },
-            text = { Text("Alle aktuellen Daten werden durch Demo-Daten ersetzt. Dies kann nicht rückgängig gemacht werden.") },
-            dismissButton = { TextButton(onClick = { showResetDialog = false }) { Text("Abbrechen") } },
-            confirmButton = {
-                TextButton(onClick = {
-                    showResetDialog = false
-                    onResetDemoData()
-                }) { Text("Zurücksetzen") }
-            }
+        ConfirmationDialog(
+            title = "Demo-Daten zurücksetzen?",
+            message = "Alle aktuellen Daten werden durch Demo-Daten ersetzt. Dies kann nicht rückgängig gemacht werden.",
+            confirmText = "Zurücksetzen",
+            dismissText = "Abbrechen",
+            onConfirm = {
+                showResetDialog = false
+                onResetDemoData()
+            },
+            onDismiss = { showResetDialog = false }
         )
     }
 
     if (showCreateBackupDialog) {
-        AlertDialog(
-            onDismissRequest = { showCreateBackupDialog = false },
-            title = { Text("Cloud-Backup erstellen?") },
-            text = { Text("Der aktuelle Stand wird in der Cloud gesichert.") },
-            dismissButton = { TextButton(onClick = { showCreateBackupDialog = false }) { Text("Abbrechen") } },
-            confirmButton = {
-                TextButton(onClick = {
-                    showCreateBackupDialog = false
-                    onCreateCloudBackup()
-                }) { Text("Backup erstellen") }
-            }
+        ConfirmationDialog(
+            title = "Cloud-Backup erstellen?",
+            message = "Der aktuelle Stand wird in der Cloud gesichert.",
+            confirmText = "Backup erstellen",
+            dismissText = "Abbrechen",
+            onConfirm = {
+                showCreateBackupDialog = false
+                onCreateCloudBackup()
+            },
+            onDismiss = { showCreateBackupDialog = false }
         )
     }
 
     if (showRestoreDialog) {
-        AlertDialog(
-            onDismissRequest = { showRestoreDialog = false },
-            title = { Text("Backup wiederherstellen?") },
-            text = { Text("Aktuelle Daten werden durch ein Backup ersetzt. Dies kann nicht rückgängig gemacht werden.") },
-            dismissButton = { TextButton(onClick = { showRestoreDialog = false }) { Text("Abbrechen") } },
-            confirmButton = {
-                TextButton(onClick = {
-                    showRestoreDialog = false
-                    onRestoreFromBackup()
-                }) { Text("Wiederherstellen") }
-            }
+        ConfirmationDialog(
+            title = "Backup wiederherstellen?",
+            message = "Aktuelle Daten werden durch ein Backup ersetzt. Dies kann nicht rückgängig gemacht werden.",
+            confirmText = "Wiederherstellen",
+            dismissText = "Abbrechen",
+            onConfirm = {
+                showRestoreDialog = false
+                onRestoreFromBackup()
+            },
+            onDismiss = { showRestoreDialog = false }
         )
     }
 
     if (showImportJsonDialog) {
-        AlertDialog(
-            onDismissRequest = { showImportJsonDialog = false },
-            title = { Text("Daten aus JSON importieren?") },
-            text = { Text("Aktuelle Daten werden durch die ausgewählte Datei ersetzt. Dies kann nicht rückgängig gemacht werden.") },
-            dismissButton = { TextButton(onClick = { showImportJsonDialog = false }) { Text("Abbrechen") } },
-            confirmButton = {
-                TextButton(onClick = {
-                    showImportJsonDialog = false
-                    onImportFromJson()
-                }) { Text("Importieren") }
-            }
+        ConfirmationDialog(
+            title = "Daten aus JSON importieren?",
+            message = "Aktuelle Daten werden durch die ausgewählte Datei ersetzt. Dies kann nicht rückgängig gemacht werden.",
+            confirmText = "Importieren",
+            dismissText = "Abbrechen",
+            onConfirm = {
+                showImportJsonDialog = false
+                onImportFromJson()
+            },
+            onDismiss = { showImportJsonDialog = false }
+        )
+    }
+
+    // Language GIF Dialog
+    if (showLanguageGif) {
+        LunaGifDialog(
+            title = languageGifTitle,
+            message = languageGifMessage,
+            gifResId = languageGifResId,
+            contentDescription = languageGifTitle,
+            onDismiss = { showLanguageGif = false }
         )
     }
 
     // Coin Edit Dialog
     childForCoinEdit?.let { child ->
-        AlertDialog(
-            onDismissRequest = {
+        CoinEditDialog(
+            child = child,
+            coinText = coinEditText,
+            commentText = coinEditCommentText,
+            errorMessage = coinEditError,
+            onCoinTextChange = {
+                coinEditText = it.filterIndexed { index, char ->
+                    char.isDigit() || (char == '-' && index == 0)
+                }
+                coinEditError = null
+            },
+            onCommentTextChange = { coinEditCommentText = it },
+            onSave = { newCoins ->
+                onUpdateChildCoins(child.id, newCoins, coinEditCommentText.trim().ifBlank { null })
+                childForCoinEdit = null
+            },
+            onDismiss = {
                 childForCoinEdit = null
                 coinEditText = ""
                 coinEditCommentText = ""
                 coinEditError = null
-            },
-            title = { Text("Coins bearbeiten") },
-            text = {
-                Column {
-                    Text("Benutzer: ${child.name}", style = MaterialTheme.typography.bodyLarge)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = coinEditText,
-                        onValueChange = {
-                            coinEditText = it.filterIndexed { index, char -> char.isDigit() || (char == '-' && index == 0) }
-                            coinEditError = null
-                        },
-                        label = { Text("Coins") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = coinEditCommentText,
-                        onValueChange = { coinEditCommentText = it },
-                        label = { Text("Kommentar optional") },
-                        singleLine = false,
-                        minLines = 2,
-                        maxLines = 4
-                    )
-                }
-            },
-            dismissButton = { TextButton(onClick = { childForCoinEdit = null }) { Text("Abbrechen") } },
-            confirmButton = {
-                TextButton(onClick = {
-                    val newCoins = coinEditText.toIntOrNull()
-                    if (newCoins == null) {
-                        coinEditError = "Bitte eine gültige Zahl eingeben."
-                    } else {
-                        onUpdateChildCoins(child.id, newCoins, coinEditCommentText.trim().ifBlank { null })
-                        childForCoinEdit = null
-                    }
-                }) { Text("Speichern") }
             }
+        )
+    }
+
+    if (showShopEditor) {
+        ShopEditorDialog(
+            items = data.shopItems,
+            onDismiss = { showShopEditor = false },
+            onAddShopItem = onAddShopItem,
+            onUpdateShopItem = onUpdateShopItem,
+            onDeleteShopItem = onDeleteShopItem
+        )
+    }
+
+    if (showDogScheduleEditor) {
+        DogScheduleEditorDialog(
+            dogSchedule = data.dogSchedule,
+            children = data.children,
+            onDismiss = { showDogScheduleEditor = false },
+            onAddDogSchedule = onAddDogSchedule,
+            onUpdateDogSchedule = onUpdateDogSchedule,
+            onDeleteDogSchedule = onDeleteDogSchedule
+        )
+    }
+
+    if (showTaskEditor) {
+        TaskEditorDialog(
+            tasks = data.tasks,
+            children = data.children,
+            onDismiss = { showTaskEditor = false },
+            onAddTask = onAddTask,
+            onUpdateTask = onUpdateTask,
+            onDeleteTask = onDeleteTask
         )
     }
 }
@@ -504,7 +565,11 @@ private fun WatchlistTaskCard(
                 style = MaterialTheme.typography.titleMedium
             )
             if (task.description.isNotBlank()) {
-                Text(task.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    task.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Text(
                 text = buildString {

@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.components.LunaScreenHeader
+import de.meson_labs.luna_coin.components.dialogs.ConfirmationDialog
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.GameHighscore
 import de.meson_labs.luna_coin.models.LunaGameLevel
@@ -100,6 +101,9 @@ fun LunaMemoryGameScreen(
     var currentPlayer by remember { mutableIntStateOf(1) }
     var playerOneScore by remember { mutableIntStateOf(0) }
     var playerTwoScore by remember { mutableIntStateOf(0) }
+
+    var showRestartConfirmation by remember { mutableStateOf(false) }
+    var showExitConfirmation by remember { mutableStateOf(false) }
 
     fun createCards(difficulty: MemoryDifficulty): List<MemoryCard> {
         val symbols = when (difficulty) {
@@ -423,12 +427,42 @@ fun LunaMemoryGameScreen(
                         moves = moves,
                         elapsedSeconds = elapsedSeconds,
                         finished = finished,
-                        onRestart = { restartSameGame() },
-                        onExit = { resetToSelection() }
+                        onRestart = { showRestartConfirmation = true },
+                        onExit = { showExitConfirmation = true }
                     )
                 }
             }
         }
+    }
+
+    // ==================== ZENTRALISIERTE DIALOGE ====================
+
+    if (showRestartConfirmation) {
+        ConfirmationDialog(
+            title = "Spiel neu starten?",
+            message = "Möchtest du das aktuelle Spiel wirklich neu starten?",
+            confirmText = "Neu starten",
+            dismissText = "Abbrechen",
+            onConfirm = {
+                restartSameGame()
+                showRestartConfirmation = false
+            },
+            onDismiss = { showRestartConfirmation = false }
+        )
+    }
+
+    if (showExitConfirmation) {
+        ConfirmationDialog(
+            title = "Spiel verlassen?",
+            message = "Möchtest du wirklich zum Menü zurückkehren? Der aktuelle Fortschritt geht verloren.",
+            confirmText = "Verlassen",
+            dismissText = "Weiter spielen",
+            onConfirm = {
+                resetToSelection()
+                showExitConfirmation = false
+            },
+            onDismiss = { showExitConfirmation = false }
+        )
     }
 }
 

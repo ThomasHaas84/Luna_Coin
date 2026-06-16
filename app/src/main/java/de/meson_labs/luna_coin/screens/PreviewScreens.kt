@@ -1,11 +1,13 @@
+// screens/PreviewScreens.kt
 package de.meson_labs.luna_coin.screens
 
+import android.annotation.SuppressLint
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import de.meson_labs.luna_coin.data.DemoData
 import de.meson_labs.luna_coin.data.repository.DataRepository
 import de.meson_labs.luna_coin.models.LunaCoinData
-import de.meson_labs.luna_coin.screens.settings.SettingsScreen
+import de.meson_labs.luna_coin.screens.settings.SettingsScreen   // ← Dieser Import war entscheidend!
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 import java.time.LocalDate
 
@@ -113,6 +115,7 @@ fun SettingsScreenChildPreview() {
     )
 }
 
+@SuppressLint("ViewModelConstructorInComposable")
 @Preview(
     name = "Settings Screen - Admin",
     showBackground = true,

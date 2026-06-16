@@ -1,4 +1,4 @@
-package de.meson_labs.luna_coin.screens.settings
+package de.meson_labs.luna_coin.components.dialogs
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text

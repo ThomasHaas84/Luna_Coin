@@ -1,3 +1,4 @@
+// screens/UserSelectionScreen.kt
 package de.meson_labs.luna_coin.screens
 
 import android.app.Activity
@@ -60,6 +61,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import coil.compose.AsyncImage
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.CoinDisplay
+import de.meson_labs.luna_coin.components.dialogs.ConfirmationDialog
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.LunaItemCatalog
 import de.meson_labs.luna_coin.models.UserRole
@@ -115,7 +117,6 @@ fun UserSelectionScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (isLoading) {
-            // Lade-Indikator
             Column(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -132,7 +133,6 @@ fun UserSelectionScreen(
                 )
             }
         } else {
-            // Normale Benutzerauswahl
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -199,7 +199,8 @@ fun UserSelectionScreen(
         }
     }
 
-    // Dialoge
+    // ==================== ZENTRALISIERTE DIALOGE ====================
+
     if (showImageSettingsDialog) {
         ImageModeSettingsDialog(
             currentDelayMs = imageChangeDelayMs,

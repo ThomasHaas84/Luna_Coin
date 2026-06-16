@@ -1,4 +1,4 @@
-package de.meson_labs.luna_coin.screens.settings
+package de.meson_labs.luna_coin.components.common
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
