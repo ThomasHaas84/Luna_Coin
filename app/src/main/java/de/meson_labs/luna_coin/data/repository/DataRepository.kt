@@ -16,6 +16,9 @@ interface DataRepository {
     suspend fun loadData(): LunaCoinData?
     suspend fun saveData(data: LunaCoinData)
 
+    suspend fun createCloudBackup(data: LunaCoinData)
+    suspend fun loadCloudBackup(): LunaCoinData?
+
     fun startRealtimeSync(
         onDataChanged: (LunaCoinData) -> Unit,
         onError: (Exception) -> Unit

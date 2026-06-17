@@ -920,12 +920,17 @@ class LunaCoinViewModel(
     fun createCloudBackup() {
         viewModelScope.launch {
             try {
-                repository.saveData(_data.value)
+                _isLoading.value = true
+
+                repository.createCloudBackup(_data.value)
+
                 showMessage("✅ Cloud-Backup erfolgreich erstellt")
             } catch (e: Exception) {
                 println("❌ Backup fehlgeschlagen: ${e.message}")
                 e.printStackTrace()
                 showMessage("❌ Backup fehlgeschlagen")
+            } finally {
+                _isLoading.value = false
             }
         }
     }
@@ -935,13 +940,15 @@ class LunaCoinViewModel(
             try {
                 _isLoading.value = true
 
-                val backup = repository.loadData()
+                val backup = repository.loadCloudBackup()
 
                 if (backup != null && backup.children.isNotEmpty()) {
+                    repository.saveData(backup)
                     _data.value = backup
-                    showMessage("✅ Backup erfolgreich wiederhergestellt")
+
+                    showMessage("✅ Cloud-Backup erfolgreich wiederhergestellt")
                 } else {
-                    showMessage("⚠️ Kein Backup gefunden")
+                    showMessage("⚠️ Kein Cloud-Backup gefunden")
                 }
             } catch (e: Exception) {
                 println("❌ Wiederherstellen fehlgeschlagen: ${e.message}")

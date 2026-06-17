@@ -35,6 +35,15 @@ class FirestoreRepository : DataRepository {
     private val luckyWheelUsageRef = familyRef.collection("luckyWheelUsage")
     private val gameHighscoresRef = familyRef.collection("gameHighscores")
 
+    private val backupDocumentRef = familyRef.collection("backups").document("current")
+    private val backupChildrenRef = backupDocumentRef.collection("children")
+    private val backupTasksRef = backupDocumentRef.collection("tasks")
+    private val backupShopItemsRef = backupDocumentRef.collection("shopItems")
+    private val backupDogScheduleRef = backupDocumentRef.collection("dogSchedule")
+    private val backupLogsRef = backupDocumentRef.collection("logs")
+    private val backupLuckyWheelUsageRef = backupDocumentRef.collection("luckyWheelUsage")
+    private val backupGameHighscoresRef = backupDocumentRef.collection("gameHighscores")
+
     private val listenerRegistrations = mutableListOf<ListenerRegistration>()
 
     private var realtimeChildren: List<Child>? = null
@@ -86,6 +95,84 @@ class FirestoreRepository : DataRepository {
         } catch (e: Exception) {
             println("❌ Fehler beim Speichern in Firestore: ${e.message}")
             e.printStackTrace()
+        }
+    }
+
+    override suspend fun createCloudBackup(data: LunaCoinData) {
+        try {
+            backupDocumentRef.set(
+                mapOf(
+                    "familyId" to familyId,
+                    "createdAt" to Timestamp.now(),
+                    "updatedAt" to Timestamp.now(),
+                    "childrenCount" to data.children.size,
+                    "tasksCount" to data.tasks.size,
+                    "shopItemsCount" to data.shopItems.size,
+                    "dogScheduleCount" to data.dogSchedule.size,
+                    "logsCount" to data.logs.size,
+                    "luckyWheelUsageCount" to data.luckyWheelUsage.size,
+                    "gameHighscoresCount" to data.gameHighscores.size
+                ),
+                SetOptions.merge()
+            ).await()
+
+            replaceCollection(backupChildrenRef, data.children.map { prepareForSave(it) })
+            replaceCollection(backupTasksRef, data.tasks.map { prepareForSave(it) })
+            replaceCollection(backupShopItemsRef, data.shopItems.map { prepareForSave(it) })
+            replaceCollection(backupDogScheduleRef, data.dogSchedule.map { prepareForSave(it) })
+            replaceCollection(backupLogsRef, data.logs.map { prepareForSave(it) })
+            replaceCollection(backupLuckyWheelUsageRef, data.luckyWheelUsage.map { prepareForSave(it) })
+            replaceCollection(backupGameHighscoresRef, data.gameHighscores.map { prepareForSave(it) })
+
+            println("✅ Cloud-Backup erfolgreich erstellt")
+        } catch (e: Exception) {
+            println("❌ Fehler beim Erstellen des Cloud-Backups: ${e.message}")
+            e.printStackTrace()
+            throw e
+        }
+    }
+
+    override suspend fun loadCloudBackup(): LunaCoinData? {
+        return try {
+            val backupSnapshot = backupDocumentRef.get().await()
+
+            if (!backupSnapshot.exists()) {
+                println("⚠️ Kein Cloud-Backup vorhanden")
+                return null
+            }
+
+            val children = backupChildrenRef
+                .orderBy("age", Query.Direction.ASCENDING)
+                .get()
+                .await()
+                .toObjects(Child::class.java)
+
+            if (children.isEmpty()) {
+                println("⚠️ Cloud-Backup enthält keine Kinder")
+                return null
+            }
+
+            val backupData = LunaCoinData(
+                children = children,
+                tasks = backupTasksRef.get().await().toObjects(TaskItem::class.java),
+                shopItems = backupShopItemsRef.get().await().toObjects(ShopItem::class.java),
+                dogSchedule = backupDogScheduleRef.get().await().toObjects(DogScheduleItem::class.java),
+                logs = backupLogsRef
+                    .orderBy("createdAt", Query.Direction.DESCENDING)
+                    .limit(MAX_ACTIVE_LOGS)
+                    .get()
+                    .await()
+                    .toObjects(LogEntry::class.java),
+                luckyWheelUsage = backupLuckyWheelUsageRef.get().await().toObjects(LuckyWheelUsage::class.java),
+                gameHighscores = backupGameHighscoresRef.get().await().toObjects(GameHighscore::class.java)
+            )
+
+            println("✅ Cloud-Backup erfolgreich geladen")
+            backupData
+        } catch (e: Exception) {
+            println("❌ Fehler beim Laden des Cloud-Backups: ${e.message}")
+            e.printStackTrace()
+            null
         }
     }
 

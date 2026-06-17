@@ -185,6 +185,13 @@ class FakeDataRepository(
     override suspend fun loadData(): LunaCoinData? = demoData
 
     override suspend fun saveData(data: LunaCoinData) {}
+    override suspend fun createCloudBackup(data: LunaCoinData) {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun loadCloudBackup(): LunaCoinData? {
+        TODO("Not yet implemented")
+    }
 
     override fun startRealtimeSync(
         onDataChanged: (LunaCoinData) -> Unit,
