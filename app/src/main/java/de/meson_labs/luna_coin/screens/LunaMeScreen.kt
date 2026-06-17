@@ -142,8 +142,7 @@ fun LunaMeScreen(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight()
-                        .padding(top = 0.dp, bottom = 0.dp),
+                        .fillMaxHeight(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Box(
@@ -327,26 +326,13 @@ fun LunaMeScreen(
                                     selectedChild?.let { child ->
                                         if (definition.item in child.inventory) {
                                             itemToBuy = null
-                                            previewItem = selectedChild.equippedItem
+                                            previewItem = selectedChild?.equippedItem
                                             return@Button
                                         }
 
                                         if (child.coins >= definition.priceCoins) {
-                                            val newInventory =
-                                                child.inventory + definition.item
-
                                             previewItem = definition.item
-
-                                            onChildChanged(
-                                                child.copy(
-                                                    coins = child.coins - definition.priceCoins,
-                                                    inventory = newInventory,
-                                                    equippedItem = definition.item
-                                                )
-                                            )
-
-                                            onBuyItem(definition.item.name)   // ← Korrigiert!
-
+                                            onBuyItem(definition.item.name)
                                             itemToBuy = null
                                         } else {
                                             showNotEnoughCoinsDialog = true

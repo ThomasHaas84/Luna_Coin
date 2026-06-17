@@ -394,6 +394,18 @@ class FirestoreRepository : DataRepository {
             val currentCoins = snapshot.getLong("coins")?.toInt() ?: 0
             val updatedCoins = currentCoins + coinDelta
 
+            println(
+                "DEBUG COINS: " +
+                        "childId=$childId, " +
+                        "currentCoins=$currentCoins, " +
+                        "coinDelta=$coinDelta, " +
+                        "updatedCoins=$updatedCoins"
+            )
+
+            if (updatedCoins < 0) {
+                throw IllegalStateException("Nicht genug Luna Coins")
+            }
+
             transaction.update(
                 documentRef,
                 mapOf(
@@ -404,6 +416,12 @@ class FirestoreRepository : DataRepository {
 
             updatedCoins
         }.await()
+
+        println(
+            "DEBUG COINS: " +
+                    "childId=$childId erfolgreich gespeichert. " +
+                    "Neuer Wert=$newCoinValue"
+        )
 
         updateFamilyTimestamp()
 
@@ -417,6 +435,13 @@ class FirestoreRepository : DataRepository {
         val documentRef = childrenRef.document(childId)
 
         val newCoinValue = db.runTransaction { transaction ->
+
+            println(
+                "DEBUG SET COINS: " +
+                        "childId=$childId, " +
+                        "newCoins=$coins"
+            )
+
             transaction.update(
                 documentRef,
                 mapOf(
@@ -427,6 +452,12 @@ class FirestoreRepository : DataRepository {
 
             coins
         }.await()
+
+        println(
+            "DEBUG SET COINS: " +
+                    "childId=$childId erfolgreich gespeichert. " +
+                    "Neuer Wert=$newCoinValue"
+        )
 
         updateFamilyTimestamp()
 

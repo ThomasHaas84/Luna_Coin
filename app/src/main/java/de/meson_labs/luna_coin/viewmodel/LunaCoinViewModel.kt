@@ -12,6 +12,7 @@ import de.meson_labs.luna_coin.models.LogEntry
 import de.meson_labs.luna_coin.models.LogType
 import de.meson_labs.luna_coin.models.LuckyWheelUsage
 import de.meson_labs.luna_coin.models.LunaCoinData
+import de.meson_labs.luna_coin.models.LunaInventoryItem
 import de.meson_labs.luna_coin.models.LunaItemCatalog
 import de.meson_labs.luna_coin.models.ShopItem
 import de.meson_labs.luna_coin.models.TaskAssignmentType
@@ -118,7 +119,7 @@ class LunaCoinViewModel(
             onDataChanged = { realtimeData ->
                 viewModelScope.launch {
                     if (realtimeData.children.isEmpty()) {
-                        println("⚠️ Realtime-Update ohne Kinder ignoriert, um lokale Anzeige nicht mit leerem Cloud-Zustand zu überschreiben")
+                        println("⚠️ Realtime-Update ohne Kinder ignoriert")
                         return@launch
                     }
 
@@ -256,6 +257,7 @@ class LunaCoinViewModel(
                 repository.saveTask(updatedTask)
                 repository.saveLog(log)
             } catch (e: Exception) {
+                _data.value = currentData
                 println("❌ Fehler beim Abschließen der Aufgabe: ${e.message}")
                 e.printStackTrace()
                 showMessage("❌ Aufgabe konnte nicht gespeichert werden")
@@ -314,9 +316,108 @@ class LunaCoinViewModel(
 
                 repository.saveLog(log)
             } catch (e: Exception) {
+                _data.value = currentData
                 println("❌ Fehler beim Kaufen des Shop-Items: ${e.message}")
                 e.printStackTrace()
-                showMessage("❌ Kauf konnte nicht gespeichert werden")
+                showMessage(e.message ?: "❌ Kauf konnte nicht gespeichert werden")
+            }
+        }
+    }
+
+    fun buyLunaMeItem(itemName: String) {
+        val childId = _selectedChildId.value ?: return
+        val currentData = _data.value
+
+        val child = currentData.children.firstOrNull { it.id == childId } ?: return
+
+        val inventoryItem = try {
+            LunaInventoryItem.valueOf(itemName)
+        } catch (e: Exception) {
+            println("❌ Unbekanntes LunaMe-Item: $itemName")
+            showMessage("❌ Item konnte nicht gefunden werden")
+            return
+        }
+
+        if (inventoryItem in child.inventory) {
+            showMessage("Item ist bereits freigeschaltet")
+            return
+        }
+
+        val definition = LunaItemCatalog.allItems.firstOrNull { it.item == inventoryItem }
+            ?: run {
+                println("❌ Keine Item-Definition gefunden für: $itemName")
+                showMessage("❌ Item konnte nicht gefunden werden")
+                return
+            }
+
+        if (child.coins < definition.priceCoins) {
+            showMessage("Nicht genug Luna Coins")
+            return
+        }
+
+        val coinDelta = -definition.priceCoins
+        val timestamp = nowText()
+
+        val newInventory = child.inventory + inventoryItem
+
+        val optimisticChild = child.copy(
+            coins = child.coins + coinDelta,
+            inventory = newInventory,
+            equippedItem = inventoryItem
+        )
+
+        val log = LogEntry(
+            id = uuid(),
+            timestamp = timestamp,
+            childId = childId,
+            type = LogType.SHOP_BUY,
+            text = "${child.name} hat LunaME-Item gekauft: ${definition.title}",
+            coinChange = coinDelta
+        )
+
+        _data.value = currentData.copy(
+            children = currentData.children.map { c ->
+                if (c.id == childId) optimisticChild else c
+            },
+            logs = addLogToList(log, currentData.logs)
+        )
+
+        viewModelScope.launch {
+            try {
+                val realCoinValue = repository.changeChildCoins(
+                    childId = childId,
+                    coinDelta = coinDelta
+                )
+
+                val childWithRealCoins = optimisticChild.copy(
+                    coins = realCoinValue
+                )
+
+                val latestData = _data.value
+                _data.value = latestData.copy(
+                    children = latestData.children.map { c ->
+                        if (c.id == childId) childWithRealCoins else c
+                    }
+                )
+
+                repository.updateChildInventory(
+                    childId = childId,
+                    inventory = childWithRealCoins.inventory,
+                    equippedItem = childWithRealCoins.equippedItem,
+                    profileImageItem = childWithRealCoins.profileImageItem,
+                    hasProfileImage = childWithRealCoins.hasProfileImage
+                )
+
+                repository.saveLog(log)
+
+                showMessage("✅ ${definition.title} gekauft")
+            } catch (e: Exception) {
+                _data.value = currentData
+
+                println("❌ Fehler beim Kaufen des LunaME-Items: ${e.message}")
+                e.printStackTrace()
+
+                showMessage(e.message ?: "❌ LunaME-Item konnte nicht gekauft werden")
             }
         }
     }
@@ -429,6 +530,7 @@ class LunaCoinViewModel(
                 repository.saveLuckyWheelUsage(updatedUsage)
                 repository.saveLog(log)
             } catch (e: Exception) {
+                _data.value = currentData
                 println("❌ Fehler beim Speichern des Glücksrad-Ergebnisses: ${e.message}")
                 e.printStackTrace()
                 showMessage("❌ Glücksrad-Ergebnis konnte nicht gespeichert werden")
@@ -487,8 +589,8 @@ class LunaCoinViewModel(
                 )
 
                 repository.saveLog(log)
-
             } catch (e: Exception) {
+                _data.value = currentData
                 println("❌ Fehler beim manuellen Anpassen der Coins: ${e.message}")
                 e.printStackTrace()
                 showMessage("❌ Coins konnten nicht gespeichert werden")
@@ -788,6 +890,7 @@ class LunaCoinViewModel(
 
                 repository.deleteLog(logId)
             } catch (e: Exception) {
+                _data.value = current
                 println("❌ Fehler beim Rückgängig machen des Logs: ${e.message}")
                 e.printStackTrace()
                 showMessage("❌ Aktion konnte nicht rückgängig gemacht werden")

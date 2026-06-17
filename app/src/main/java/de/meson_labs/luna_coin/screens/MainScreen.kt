@@ -129,7 +129,7 @@ fun MainScreen(
                         modifier = Modifier.padding(innerPadding),
                         data = data,
                         selectedChild = selectedChild,
-                        onBuyItem = viewModel::buyShopItem,
+                        onBuyItem = viewModel::buyLunaMeItem,
                         onLogout = viewModel::logout,
                         onChildChanged = viewModel::updateChild
                     )
