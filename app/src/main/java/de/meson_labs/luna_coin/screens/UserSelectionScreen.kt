@@ -7,6 +7,7 @@ import android.content.ContextWrapper
 import android.view.WindowManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +28,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -61,7 +63,6 @@ import androidx.core.view.WindowInsetsControllerCompat
 import coil.compose.AsyncImage
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.CoinDisplay
-import de.meson_labs.luna_coin.components.dialogs.ConfirmationDialog
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.LunaItemCatalog
 import de.meson_labs.luna_coin.models.UserRole
@@ -88,18 +89,51 @@ fun UserSelectionScreen(
     var imageChangeDelayMs by remember {
         mutableLongStateOf(LunaImageModeStorage.getImageChangeDelayMs(context))
     }
+
     var imagePlayMode by remember {
         mutableStateOf(LunaImageModeStorage.getPlayMode(context))
     }
-    var idleResetKey by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
-    val hasThomas = children.any { it.name.equals("Thomas", ignoreCase = true) }
+    var autoStartEnabled by remember {
+        mutableStateOf(LunaImageModeStorage.isAutoStartEnabled(context))
+    }
 
-    // Auto-start Bild-Modus
-    LaunchedEffect(idleResetKey, imageModeActive, passwordUser, showImageSettingsDialog) {
-        if (!imageModeActive && passwordUser == null && !showImageSettingsDialog) {
-            delay(LunaImageModeConfig.AUTO_START_DELAY_MS)
-            imageModeActive = true
+    var autoStartDelaySeconds by remember {
+        mutableLongStateOf(LunaImageModeStorage.getAutoStartDelaySeconds(context))
+    }
+
+    var idleResetKey by remember {
+        mutableLongStateOf(System.currentTimeMillis())
+    }
+
+    val hasThomas = children.any {
+        it.name.equals("Thomas", ignoreCase = true)
+    }
+
+    LaunchedEffect(
+        idleResetKey,
+        imageModeActive,
+        passwordUser,
+        showImageSettingsDialog,
+        autoStartEnabled,
+        autoStartDelaySeconds
+    ) {
+        if (
+            autoStartEnabled &&
+            !imageModeActive &&
+            passwordUser == null &&
+            !showImageSettingsDialog
+        ) {
+            delay(autoStartDelaySeconds * 1000L)
+
+            if (
+                autoStartEnabled &&
+                !imageModeActive &&
+                passwordUser == null &&
+                !showImageSettingsDialog
+            ) {
+                imageModeActive = true
+            }
         }
     }
 
@@ -126,6 +160,7 @@ fun UserSelectionScreen(
                     color = MaterialTheme.colorScheme.primary,
                     strokeWidth = 6.dp
                 )
+
                 Text(
                     text = "Daten werden geladen...",
                     style = MaterialTheme.typography.bodyLarge,
@@ -149,7 +184,10 @@ fun UserSelectionScreen(
                     text = "Wer bist du?",
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
+                    modifier = Modifier.padding(
+                        top = 8.dp,
+                        bottom = 32.dp
+                    )
                 )
 
                 LazyVerticalGrid(
@@ -163,6 +201,7 @@ fun UserSelectionScreen(
                             child = child,
                             onClick = {
                                 idleResetKey = System.currentTimeMillis()
+
                                 if (child.password.isBlank()) {
                                     onChildSelected(child.id)
                                 } else {
@@ -175,7 +214,6 @@ fun UserSelectionScreen(
             }
         }
 
-        // Admin-Buttons
         if (hasThomas && !isLoading) {
             Row(
                 modifier = Modifier
@@ -183,38 +221,63 @@ fun UserSelectionScreen(
                     .padding(24.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(onClick = { imageModeActive = true }) {
+                Button(
+                    onClick = {
+                        imageModeActive = true
+                    }
+                ) {
                     Text("Bild-Modus starten")
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                Button(onClick = {
-                    showImageSettingsDialog = true
-                    idleResetKey = System.currentTimeMillis()
-                }) {
+                Button(
+                    onClick = {
+                        showImageSettingsDialog = true
+                        idleResetKey = System.currentTimeMillis()
+                    }
+                ) {
                     Text("⚙")
                 }
             }
         }
     }
 
-    // ==================== ZENTRALISIERTE DIALOGE ====================
-
     if (showImageSettingsDialog) {
         ImageModeSettingsDialog(
             currentDelayMs = imageChangeDelayMs,
             currentPlayMode = imagePlayMode,
+            autoStartEnabled = autoStartEnabled,
+            autoStartDelaySeconds = autoStartDelaySeconds,
             onCancel = {
                 showImageSettingsDialog = false
                 idleResetKey = System.currentTimeMillis()
             },
-            onSave = { newDelayMs, newPlayMode ->
+            onSave = { newDelayMs, newPlayMode, newAutoStartEnabled, newAutoStartDelaySeconds ->
                 imageChangeDelayMs = newDelayMs
                 imagePlayMode = newPlayMode
+                autoStartEnabled = newAutoStartEnabled
+                autoStartDelaySeconds = newAutoStartDelaySeconds
 
-                LunaImageModeStorage.setImageChangeDelayMs(context, newDelayMs)
-                LunaImageModeStorage.setPlayMode(context, newPlayMode)
+                LunaImageModeStorage.setImageChangeDelayMs(
+                    context = context,
+                    delayMs = newDelayMs
+                )
+
+                LunaImageModeStorage.setPlayMode(
+                    context = context,
+                    playMode = newPlayMode
+                )
+
+                LunaImageModeStorage.setAutoStartEnabled(
+                    context = context,
+                    enabled = newAutoStartEnabled
+                )
+
+                LunaImageModeStorage.setAutoStartDelaySeconds(
+                    context = context,
+                    seconds = newAutoStartDelaySeconds
+                )
 
                 showImageSettingsDialog = false
                 idleResetKey = System.currentTimeMillis()
@@ -237,8 +300,6 @@ fun UserSelectionScreen(
     }
 }
 
-// ====================== UNVERÄNDERTE FUNKTIONEN ======================
-
 @Composable
 private fun LunaImageModeScreen(
     imageChangeDelayMs: Long,
@@ -253,38 +314,68 @@ private fun LunaImageModeScreen(
         LunaImageModeStorage.getImageFiles(context)
     }
 
-    var currentImageIndex by remember { mutableIntStateOf(0) }
-    var autoPlayActive by remember { mutableStateOf(true) }
-    var showExitButton by remember { mutableStateOf(false) }
+    var currentImageIndex by remember {
+        mutableIntStateOf(0)
+    }
+
+    var autoPlayActive by remember {
+        mutableStateOf(true)
+    }
+
+    var showExitButton by remember {
+        mutableStateOf(false)
+    }
 
     DisposableEffect(Unit) {
         val window = activity?.window
+
         if (window != null) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             WindowCompat.setDecorFitsSystemWindows(window, false)
 
-            val controller = WindowInsetsControllerCompat(window, view)
+            val controller = WindowInsetsControllerCompat(
+                window,
+                view
+            )
+
             controller.hide(WindowInsetsCompat.Type.systemBars())
-            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
 
         onDispose {
-            val window = activity?.window
-            if (window != null) {
-                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                val controller = WindowInsetsControllerCompat(window, view)
+            val disposeWindow = activity?.window
+
+            if (disposeWindow != null) {
+                disposeWindow.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+                val controller = WindowInsetsControllerCompat(
+                    disposeWindow,
+                    view
+                )
+
                 controller.show(WindowInsetsCompat.Type.systemBars())
-                WindowCompat.setDecorFitsSystemWindows(window, true)
+                WindowCompat.setDecorFitsSystemWindows(disposeWindow, true)
             }
         }
     }
 
-    LaunchedEffect(images, imageChangeDelayMs, imagePlayMode, autoPlayActive) {
+    LaunchedEffect(
+        images,
+        imageChangeDelayMs,
+        imagePlayMode,
+        autoPlayActive
+    ) {
         if (autoPlayActive) {
             while (true) {
                 delay(imageChangeDelayMs)
+
                 if (images.isNotEmpty()) {
-                    currentImageIndex = getNextImageIndex(currentImageIndex, images.size, imagePlayMode)
+                    currentImageIndex = getNextImageIndex(
+                        currentImageIndex = currentImageIndex,
+                        imageCount = images.size,
+                        imagePlayMode = imagePlayMode
+                    )
                 }
             }
         }
@@ -301,11 +392,16 @@ private fun LunaImageModeScreen(
                         showExitButton = true
                     } else {
                         if (images.isNotEmpty()) {
-                            currentImageIndex = if (offset.x < size.width / 2f) {
-                                if (currentImageIndex == 0) images.lastIndex else currentImageIndex - 1
-                            } else {
-                                (currentImageIndex + 1) % images.size
-                            }
+                            currentImageIndex =
+                                if (offset.x < size.width / 2f) {
+                                    if (currentImageIndex == 0) {
+                                        images.lastIndex
+                                    } else {
+                                        currentImageIndex - 1
+                                    }
+                                } else {
+                                    (currentImageIndex + 1) % images.size
+                                }
                         }
                     }
                 }
@@ -331,13 +427,24 @@ private fun LunaImageModeScreen(
 
         if (showExitButton) {
             Column(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Button(onClick = { autoPlayActive = true; showExitButton = false }) {
+                Button(
+                    onClick = {
+                        autoPlayActive = true
+                        showExitButton = false
+                    }
+                ) {
                     Text("Autoplay fortsetzen")
                 }
-                Button(onClick = onExit, modifier = Modifier.padding(top = 12.dp)) {
+
+                Button(
+                    onClick = onExit,
+                    modifier = Modifier.padding(top = 12.dp)
+                ) {
                     Text("Bild-Modus verlassen")
                 }
             }
@@ -353,14 +460,20 @@ private fun getNextImageIndex(
     if (imageCount <= 0) return 0
 
     return when (imagePlayMode) {
-        LunaImagePlayMode.SEQUENTIAL -> (currentImageIndex + 1) % imageCount
+        LunaImagePlayMode.SEQUENTIAL -> {
+            (currentImageIndex + 1) % imageCount
+        }
+
         LunaImagePlayMode.RANDOM -> {
-            if (imageCount == 1) 0
-            else {
+            if (imageCount == 1) {
+                0
+            } else {
                 var nextIndex: Int
+
                 do {
                     nextIndex = (0 until imageCount).random()
                 } while (nextIndex == currentImageIndex)
+
                 nextIndex
             }
         }
@@ -371,64 +484,211 @@ private fun getNextImageIndex(
 private fun ImageModeSettingsDialog(
     currentDelayMs: Long,
     currentPlayMode: LunaImagePlayMode,
+    autoStartEnabled: Boolean,
+    autoStartDelaySeconds: Long,
     onCancel: () -> Unit,
-    onSave: (Long, LunaImagePlayMode) -> Unit
+    onSave: (
+        Long,
+        LunaImagePlayMode,
+        Boolean,
+        Long
+    ) -> Unit
 ) {
-    var secondsInput by remember { mutableStateOf((currentDelayMs / 1000L).toString()) }
-    var selectedPlayMode by remember { mutableStateOf(currentPlayMode) }
-    var showError by remember { mutableStateOf(false) }
+    var secondsInput by remember {
+        mutableStateOf((currentDelayMs / 1000L).toString())
+    }
+
+    var selectedPlayMode by remember {
+        mutableStateOf(currentPlayMode)
+    }
+
+    var autoStartEnabledState by remember {
+        mutableStateOf(autoStartEnabled)
+    }
+
+    var autoStartDelayInput by remember {
+        mutableStateOf(autoStartDelaySeconds.toString())
+    }
+
+    var showImageDelayError by remember {
+        mutableStateOf(false)
+    }
+
+    var showAutoStartDelayError by remember {
+        mutableStateOf(false)
+    }
 
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Bild-Modus Einstellungen") },
+        title = {
+            Text("Bild-Modus Einstellungen")
+        },
         text = {
             Column {
                 OutlinedTextField(
                     value = secondsInput,
                     onValueChange = {
-                        secondsInput = it.filter { char -> char.isDigit() }
-                        showError = false
+                        secondsInput = it.filter { char ->
+                            char.isDigit()
+                        }
+                        showImageDelayError = false
                     },
-                    label = { Text("Dauer pro Bild in Sekunden") },
+                    label = {
+                        Text("Dauer pro Bild in Sekunden")
+                    },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    )
                 )
 
                 Text(
                     text = "Bildreihenfolge",
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = 20.dp, bottom = 8.dp)
+                    modifier = Modifier.padding(
+                        top = 20.dp,
+                        bottom = 8.dp
+                    )
                 )
 
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { selectedPlayMode = LunaImagePlayMode.SEQUENTIAL }) {
-                    RadioButton(selected = selectedPlayMode == LunaImagePlayMode.SEQUENTIAL, onClick = { selectedPlayMode = LunaImagePlayMode.SEQUENTIAL })
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable {
+                        selectedPlayMode = LunaImagePlayMode.SEQUENTIAL
+                    }
+                ) {
+                    RadioButton(
+                        selected = selectedPlayMode == LunaImagePlayMode.SEQUENTIAL,
+                        onClick = {
+                            selectedPlayMode = LunaImagePlayMode.SEQUENTIAL
+                        }
+                    )
+
                     Text("Der Reihe nach")
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { selectedPlayMode = LunaImagePlayMode.RANDOM }) {
-                    RadioButton(selected = selectedPlayMode == LunaImagePlayMode.RANDOM, onClick = { selectedPlayMode = LunaImagePlayMode.RANDOM })
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable {
+                        selectedPlayMode = LunaImagePlayMode.RANDOM
+                    }
+                ) {
+                    RadioButton(
+                        selected = selectedPlayMode == LunaImagePlayMode.RANDOM,
+                        onClick = {
+                            selectedPlayMode = LunaImagePlayMode.RANDOM
+                        }
+                    )
+
                     Text("Zufällig")
                 }
 
-                if (showError) {
+                Text(
+                    text = "Automatischer Start",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(
+                        top = 20.dp,
+                        bottom = 8.dp
+                    )
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable {
+                        autoStartEnabledState = !autoStartEnabledState
+                    }
+                ) {
+                    Checkbox(
+                        checked = autoStartEnabledState,
+                        onCheckedChange = {
+                            autoStartEnabledState = it
+                            showAutoStartDelayError = false
+                        }
+                    )
+
+                    Text("Bild-Modus automatisch starten")
+                }
+
+                if (autoStartEnabledState) {
+                    OutlinedTextField(
+                        value = autoStartDelayInput,
+                        onValueChange = {
+                            autoStartDelayInput = it.filter { char ->
+                                char.isDigit()
+                            }
+                            showAutoStartDelayError = false
+                        },
+                        label = {
+                            Text("Start nach Sekunden")
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number
+                        ),
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                if (showImageDelayError) {
                     Text(
-                        text = "Bitte einen Wert von ${LunaImageModeConfig.MIN_IMAGE_CHANGE_DELAY_SECONDS} bis ${LunaImageModeConfig.MAX_IMAGE_CHANGE_DELAY_SECONDS} Sekunden eingeben.",
+                        text = "Bitte für die Bilddauer einen Wert von ${LunaImageModeConfig.MIN_IMAGE_CHANGE_DELAY_SECONDS} bis ${LunaImageModeConfig.MAX_IMAGE_CHANGE_DELAY_SECONDS} Sekunden eingeben.",
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                if (showAutoStartDelayError) {
+                    Text(
+                        text = "Bitte für den automatischen Start einen Wert von 10 bis 300 Sekunden eingeben.",
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
             }
         },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Abbrechen") } },
+        dismissButton = {
+            TextButton(
+                onClick = onCancel
+            ) {
+                Text("Abbrechen")
+            }
+        },
         confirmButton = {
-            TextButton(onClick = {
-                val seconds = secondsInput.toLongOrNull()
-                if (seconds == null || seconds < LunaImageModeConfig.MIN_IMAGE_CHANGE_DELAY_SECONDS || seconds > LunaImageModeConfig.MAX_IMAGE_CHANGE_DELAY_SECONDS) {
-                    showError = true
-                } else {
-                    onSave(seconds * 1000L, selectedPlayMode)
+            TextButton(
+                onClick = {
+                    val imageSeconds = secondsInput.toLongOrNull()
+
+                    if (
+                        imageSeconds == null ||
+                        imageSeconds < LunaImageModeConfig.MIN_IMAGE_CHANGE_DELAY_SECONDS ||
+                        imageSeconds > LunaImageModeConfig.MAX_IMAGE_CHANGE_DELAY_SECONDS
+                    ) {
+                        showImageDelayError = true
+                        return@TextButton
+                    }
+
+                    val autoStartSeconds = autoStartDelayInput.toLongOrNull()
+
+                    if (
+                        autoStartEnabledState &&
+                        (
+                                autoStartSeconds == null ||
+                                        autoStartSeconds < 10L ||
+                                        autoStartSeconds > 300L
+                                )
+                    ) {
+                        showAutoStartDelayError = true
+                        return@TextButton
+                    }
+
+                    onSave(
+                        imageSeconds * 1000L,
+                        selectedPlayMode,
+                        autoStartEnabledState,
+                        autoStartSeconds ?: autoStartDelaySeconds
+                    )
                 }
-            }) {
+            ) {
                 Text("Speichern")
             }
         }
@@ -452,28 +712,44 @@ private fun UserProfileCard(
     }
 
     val profileImageRes = if (child.hasProfileImage) {
-        child.profileImageItem?.let { LunaItemCatalog.getDefinition(it).lunaImageRes } ?: R.drawable.luna_dog
-    } else null
+        child.profileImageItem?.let {
+            LunaItemCatalog.getDefinition(it).lunaImageRes
+        } ?: R.drawable.luna_dog
+    } else {
+        null
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable { onClick() }
+        modifier = Modifier.clickable {
+            onClick()
+        }
     ) {
         Card(
             modifier = Modifier.aspectRatio(1f),
-            colors = CardDefaults.cardColors(containerColor = cardColor),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = cardColor
+            ),
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 8.dp
+            ),
             shape = RoundedCornerShape(24.dp)
         ) {
             Box(
-                modifier = Modifier.fillMaxSize().background(cardColor),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(cardColor),
                 contentAlignment = Alignment.Center
             ) {
                 if (profileImageRes != null) {
                     Image(
-                        painter = androidx.compose.ui.res.painterResource(id = profileImageRes),
+                        painter = androidx.compose.ui.res.painterResource(
+                            id = profileImageRes
+                        ),
                         contentDescription = child.name,
-                        modifier = Modifier.fillMaxSize().scale(1.4f),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .scale(1.4f),
                         contentScale = ContentScale.Fit
                     )
                 } else {
@@ -495,9 +771,28 @@ private fun UserProfileCard(
         )
 
         when (child.role) {
-            UserRole.CHILD -> CoinDisplay(amount = child.coins, coinSize = 48.dp)
-            UserRole.PARENT -> Text("Eltern", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-            UserRole.ADMIN -> Text("Administrator", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.tertiary)
+            UserRole.CHILD -> {
+                CoinDisplay(
+                    amount = child.coins,
+                    coinSize = 48.dp
+                )
+            }
+
+            UserRole.PARENT -> {
+                Text(
+                    text = "Eltern",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            UserRole.ADMIN -> {
+                Text(
+                    text = "Administrator",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
         }
     }
 }
@@ -508,12 +803,19 @@ private fun PasswordDialog(
     onCancel: () -> Unit,
     onSuccess: () -> Unit
 ) {
-    var passwordInput by remember { mutableStateOf("") }
-    var showError by remember { mutableStateOf(false) }
+    var passwordInput by remember {
+        mutableStateOf("")
+    }
+
+    var showError by remember {
+        mutableStateOf(false)
+    }
 
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("${child.name} anmelden") },
+        title = {
+            Text("${child.name} anmelden")
+        },
         text = {
             Column {
                 OutlinedTextField(
@@ -522,7 +824,9 @@ private fun PasswordDialog(
                         passwordInput = it
                         showError = false
                     },
-                    label = { Text("Passwort") },
+                    label = {
+                        Text("Passwort")
+                    },
                     visualTransformation = PasswordVisualTransformation()
                 )
 
@@ -535,16 +839,24 @@ private fun PasswordDialog(
                 }
             }
         },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Abbrechen") } },
+        dismissButton = {
+            TextButton(
+                onClick = onCancel
+            ) {
+                Text("Abbrechen")
+            }
+        },
         confirmButton = {
-            TextButton(onClick = {
-                if (passwordInput == child.password) {
-                    onSuccess()
-                } else {
-                    showError = true
-                    passwordInput = ""
+            TextButton(
+                onClick = {
+                    if (passwordInput == child.password) {
+                        onSuccess()
+                    } else {
+                        showError = true
+                        passwordInput = ""
+                    }
                 }
-            }) {
+            ) {
                 Text("Anmelden")
             }
         }
@@ -553,9 +865,14 @@ private fun PasswordDialog(
 
 private fun Context.findActivity(): Activity? {
     var currentContext = this
+
     while (currentContext is ContextWrapper) {
-        if (currentContext is Activity) return currentContext
+        if (currentContext is Activity) {
+            return currentContext
+        }
+
         currentContext = currentContext.baseContext
     }
+
     return null
 }

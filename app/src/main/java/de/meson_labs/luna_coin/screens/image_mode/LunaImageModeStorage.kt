@@ -6,8 +6,12 @@ import java.io.File
 object LunaImageModeStorage {
 
     private const val PREFS_NAME = "luna_image_mode_prefs"
+
     private const val KEY_IMAGE_CHANGE_DELAY_MS = "image_change_delay_ms"
     private const val KEY_PLAY_MODE = "play_mode"
+
+    private const val KEY_AUTO_START_ENABLED = "auto_start_enabled"
+    private const val KEY_AUTO_START_DELAY_SECONDS = "auto_start_delay_seconds"
 
     fun getImageFiles(
         context: Context
@@ -103,6 +107,68 @@ object LunaImageModeStorage {
             .putString(
                 KEY_PLAY_MODE,
                 playMode.name
+            )
+            .apply()
+    }
+
+    fun isAutoStartEnabled(
+        context: Context
+    ): Boolean {
+        val prefs = context.getSharedPreferences(
+            PREFS_NAME,
+            Context.MODE_PRIVATE
+        )
+
+        return prefs.getBoolean(
+            KEY_AUTO_START_ENABLED,
+            true
+        )
+    }
+
+    fun setAutoStartEnabled(
+        context: Context,
+        enabled: Boolean
+    ) {
+        val prefs = context.getSharedPreferences(
+            PREFS_NAME,
+            Context.MODE_PRIVATE
+        )
+
+        prefs.edit()
+            .putBoolean(
+                KEY_AUTO_START_ENABLED,
+                enabled
+            )
+            .apply()
+    }
+
+    fun getAutoStartDelaySeconds(
+        context: Context
+    ): Long {
+        val prefs = context.getSharedPreferences(
+            PREFS_NAME,
+            Context.MODE_PRIVATE
+        )
+
+        return prefs.getLong(
+            KEY_AUTO_START_DELAY_SECONDS,
+            10L
+        )
+    }
+
+    fun setAutoStartDelaySeconds(
+        context: Context,
+        seconds: Long
+    ) {
+        val prefs = context.getSharedPreferences(
+            PREFS_NAME,
+            Context.MODE_PRIVATE
+        )
+
+        prefs.edit()
+            .putLong(
+                KEY_AUTO_START_DELAY_SECONDS,
+                seconds
             )
             .apply()
     }
