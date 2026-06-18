@@ -79,11 +79,27 @@ object LunaItemCatalog {
         ),
 
         LunaItemDefinition(
+            item = LunaInventoryItem.teeth_1,
+            title = "Zähne",
+            priceCoins = 5,
+            iconRes = R.drawable.teeth_1,
+            lunaImageRes = R.drawable.teeth_1
+        ),
+
+        LunaItemDefinition(
             item = LunaInventoryItem.jacke_1,
             title = "Lederjacke",
             priceCoins = 10,
             iconRes = R.drawable.lederjacke_1,
             lunaImageRes = R.drawable.luna_lederjacke_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.rich_1,
+            title = "Rich-Kid",
+            priceCoins = 10,
+            iconRes = R.drawable.rich_1,
+            lunaImageRes = R.drawable.rich_1
         ),
 
         LunaItemDefinition(
@@ -156,6 +172,30 @@ object LunaItemCatalog {
             priceCoins = 20,
             iconRes = R.drawable.hase_1,
             lunaImageRes = R.drawable.hase_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.owl_1,
+            title = "Eule",
+            priceCoins = 20,
+            iconRes = R.drawable.owl_1,
+            lunaImageRes = R.drawable.owl_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.doc_1,
+            title = "Doc",
+            priceCoins = 20,
+            iconRes = R.drawable.doc_1,
+            lunaImageRes = R.drawable.doc_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.buffy_1,
+            title = "Buffy",
+            priceCoins = 20,
+            iconRes = R.drawable.buffy_1,
+            lunaImageRes = R.drawable.buffy_1
         ),
 
         LunaItemDefinition(
