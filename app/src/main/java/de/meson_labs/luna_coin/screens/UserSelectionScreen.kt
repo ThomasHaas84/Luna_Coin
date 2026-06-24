@@ -7,7 +7,6 @@ import android.content.ContextWrapper
 import android.view.WindowManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -314,7 +313,22 @@ private fun LunaImageModeScreen(
         LunaImageModeStorage.getImageFiles(context)
     }
 
-    var currentImageIndex by remember {
+    var imageOrder by remember(
+        images,
+        imagePlayMode
+    ) {
+        mutableStateOf(
+            createImageOrder(
+                imageCount = images.size,
+                imagePlayMode = imagePlayMode
+            )
+        )
+    }
+
+    var currentOrderPosition by remember(
+        images,
+        imagePlayMode
+    ) {
         mutableIntStateOf(0)
     }
 
@@ -360,6 +374,35 @@ private fun LunaImageModeScreen(
         }
     }
 
+    fun goToNextImage() {
+        if (images.isEmpty() || imageOrder.isEmpty()) {
+            return
+        }
+
+        if (currentOrderPosition >= imageOrder.lastIndex) {
+            imageOrder = createImageOrder(
+                imageCount = images.size,
+                imagePlayMode = imagePlayMode
+            )
+            currentOrderPosition = 0
+        } else {
+            currentOrderPosition++
+        }
+    }
+
+    fun goToPreviousImage() {
+        if (images.isEmpty() || imageOrder.isEmpty()) {
+            return
+        }
+
+        currentOrderPosition =
+            if (currentOrderPosition == 0) {
+                imageOrder.lastIndex
+            } else {
+                currentOrderPosition - 1
+            }
+    }
+
     LaunchedEffect(
         images,
         imageChangeDelayMs,
@@ -369,14 +412,7 @@ private fun LunaImageModeScreen(
         if (autoPlayActive) {
             while (true) {
                 delay(imageChangeDelayMs)
-
-                if (images.isNotEmpty()) {
-                    currentImageIndex = getNextImageIndex(
-                        currentImageIndex = currentImageIndex,
-                        imageCount = images.size,
-                        imagePlayMode = imagePlayMode
-                    )
-                }
+                goToNextImage()
             }
         }
     }
@@ -385,32 +421,32 @@ private fun LunaImageModeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .pointerInput(autoPlayActive, images) {
+            .pointerInput(
+                autoPlayActive,
+                images,
+                imageOrder,
+                currentOrderPosition
+            ) {
                 detectTapGestures { offset ->
                     if (autoPlayActive) {
                         autoPlayActive = false
                         showExitButton = true
                     } else {
-                        if (images.isNotEmpty()) {
-                            currentImageIndex =
-                                if (offset.x < size.width / 2f) {
-                                    if (currentImageIndex == 0) {
-                                        images.lastIndex
-                                    } else {
-                                        currentImageIndex - 1
-                                    }
-                                } else {
-                                    (currentImageIndex + 1) % images.size
-                                }
+                        if (offset.x < size.width / 2f) {
+                            goToPreviousImage()
+                        } else {
+                            goToNextImage()
                         }
                     }
                 }
             },
         contentAlignment = Alignment.Center
     ) {
-        if (images.isNotEmpty()) {
+        if (images.isNotEmpty() && imageOrder.isNotEmpty()) {
+            val imageIndex = imageOrder[currentOrderPosition]
+
             AsyncImage(
-                model = images[currentImageIndex],
+                model = images[imageIndex],
                 contentDescription = "Bild-Modus",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit
@@ -452,30 +488,21 @@ private fun LunaImageModeScreen(
     }
 }
 
-private fun getNextImageIndex(
-    currentImageIndex: Int,
+private fun createImageOrder(
     imageCount: Int,
     imagePlayMode: LunaImagePlayMode
-): Int {
-    if (imageCount <= 0) return 0
+): List<Int> {
+    if (imageCount <= 0) {
+        return emptyList()
+    }
 
     return when (imagePlayMode) {
         LunaImagePlayMode.SEQUENTIAL -> {
-            (currentImageIndex + 1) % imageCount
+            (0 until imageCount).toList()
         }
 
         LunaImagePlayMode.RANDOM -> {
-            if (imageCount == 1) {
-                0
-            } else {
-                var nextIndex: Int
-
-                do {
-                    nextIndex = (0 until imageCount).random()
-                } while (nextIndex == currentImageIndex)
-
-                nextIndex
-            }
+            (0 until imageCount).shuffled()
         }
     }
 }
