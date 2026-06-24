@@ -71,8 +71,8 @@ fun SettingsScreen(
     onUpdateTask: (String, String, String, Int, TaskAssignmentType, TaskCompletionMode, TaskRepeatType, String?, String, String?, DayOfWeekName?, Boolean) -> Unit,
     onDeleteTask: (String) -> Unit,
 
-    onAddShopItem: (String, String, Int) -> Unit,
-    onUpdateShopItem: (String, String, String, Int) -> Unit,
+    onAddShopItem: (String, String, Int, Int) -> Unit,
+    onUpdateShopItem: (String, String, String, Int, Int) -> Unit,
     onDeleteShopItem: (String) -> Unit,
 
     onAddDogSchedule: (String, DayOfWeekName, String, String, String, String) -> Unit,
@@ -152,7 +152,7 @@ fun SettingsScreen(
         }
     }
 
-    val watchlistTasks = data.tasks.filter { it.isWatchlist }
+    val watchlistTasks = data.tasks.filter { it.watchlist }
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
@@ -173,7 +173,9 @@ fun SettingsScreen(
             if (currentMessage != null) {
                 item {
                     Card(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                     ) {
                         Text(
@@ -538,15 +540,27 @@ private fun WatchlistTaskCard(
 ) {
     val selectedDateText = selectedDate.toString()
     val isDoneToday = when (task.completionMode) {
-        TaskCompletionMode.ONCE_TOTAL -> task.completions.any { it.date == selectedDateText }
+        TaskCompletionMode.ONCE_TOTAL -> {
+            if (task.repeatType == TaskRepeatType.ONCE) {
+                task.completions.isNotEmpty()
+            } else {
+                task.completions.any { it.date == selectedDateText }
+            }
+        }
+
         TaskCompletionMode.EACH_PERSON -> {
             val relevantChildren = if (task.assignmentType == TaskAssignmentType.ASSIGNED && task.assignedChildId != null) {
                 children.filter { it.id == task.assignedChildId }
             } else {
                 children.filter { it.role == UserRole.CHILD }
             }
+
             relevantChildren.isNotEmpty() && relevantChildren.all { child ->
-                task.completions.any { it.childId == child.id && it.date == selectedDateText }
+                if (task.repeatType == TaskRepeatType.ONCE) {
+                    task.completions.any { it.childId == child.id }
+                } else {
+                    task.completions.any { it.childId == child.id && it.date == selectedDateText }
+                }
             }
         }
     }
@@ -556,7 +570,9 @@ private fun WatchlistTaskCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -576,7 +592,10 @@ private fun WatchlistTaskCard(
                     append(task.rewardCoins)
                     append(" Coins")
                     assignedName?.let { append(" · $it") }
-                    append(" · ${if (isDoneToday) "Heute erledigt" else "Heute noch offen"}")
+                    append(" · ${if (isDoneToday) "Erledigt" else "Offen"}")
+                    if (task.repeatType == TaskRepeatType.ONCE) {
+                        append(" · Einmalig")
+                    }
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant

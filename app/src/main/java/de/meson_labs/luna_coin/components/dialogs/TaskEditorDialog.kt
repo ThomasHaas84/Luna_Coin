@@ -89,7 +89,7 @@ fun TaskEditorDialog(
     var startDate by remember { mutableStateOf(isoDateToGerman(LocalDate.now().toString())) }
     var dueDate by remember { mutableStateOf("") }
     var selectedWeeklyDay by remember { mutableStateOf(DayOfWeekName.SATURDAY) }
-    var isWatchlist by remember { mutableStateOf(false) }
+    var watchlist by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -112,7 +112,7 @@ fun TaskEditorDialog(
         startDate = isoDateToGerman(LocalDate.now().toString())
         dueDate = ""
         selectedWeeklyDay = DayOfWeekName.SATURDAY
-        isWatchlist = false
+        watchlist = false
     }
 
     AlertDialog(
@@ -161,7 +161,7 @@ fun TaskEditorDialog(
                     OutlinedTextField(
                         value = coinsText,
                         onValueChange = {
-                            coinsText = it
+                            coinsText = it.filter { char -> char.isDigit() }
                         },
                         label = {
                             Text("Coins")
@@ -289,6 +289,20 @@ fun TaskEditorDialog(
                                 text = "Intervall",
                                 style = MaterialTheme.typography.titleMedium
                             )
+
+                            TextButton(
+                                onClick = {
+                                    repeatType = TaskRepeatType.ONCE
+                                }
+                            ) {
+                                Text(
+                                    if (repeatType == TaskRepeatType.ONCE) {
+                                        "✓ Einmalig"
+                                    } else {
+                                        "Einmalig"
+                                    }
+                                )
+                            }
 
                             TextButton(
                                 onClick = {
@@ -474,9 +488,9 @@ fun TaskEditorDialog(
 
                     Row {
                         Checkbox(
-                            checked = isWatchlist,
+                            checked = watchlist,
                             onCheckedChange = {
-                                isWatchlist = it
+                                watchlist = it
                             }
                         )
 
@@ -535,7 +549,7 @@ fun TaskEditorDialog(
                                             startDateIso,
                                             dueDateIso,
                                             weeklyDay,
-                                            isWatchlist
+                                            watchlist
                                         )
                                     } else {
                                         onUpdateTask(
@@ -550,7 +564,7 @@ fun TaskEditorDialog(
                                             startDateIso,
                                             dueDateIso,
                                             weeklyDay,
-                                            isWatchlist
+                                            watchlist
                                         )
                                     }
 
@@ -610,7 +624,7 @@ fun TaskEditorDialog(
                             modifier = Modifier.padding(12.dp)
                         ) {
                             Text(
-                                text = if (task.isWatchlist) {
+                                text = if (task.watchlist) {
                                     "👁 ${task.title}"
                                 } else {
                                     task.title
@@ -658,7 +672,7 @@ fun TaskEditorDialog(
                                         append(isoDateToGerman(task.dueDate))
                                     }
 
-                                    if (task.isWatchlist) {
+                                    if (task.watchlist) {
                                         append(" · Watchlist")
                                     }
                                 },
@@ -683,7 +697,7 @@ fun TaskEditorDialog(
                                         } ?: ""
                                         selectedWeeklyDay =
                                             task.weeklyDay ?: DayOfWeekName.SATURDAY
-                                        isWatchlist = task.isWatchlist
+                                        watchlist = task.watchlist
 
                                         coroutineScope.launch {
                                             listState.animateScrollToItem(0)
@@ -756,6 +770,7 @@ private fun repeatTypeText(
     repeatType: TaskRepeatType
 ): String {
     return when (repeatType) {
+        TaskRepeatType.ONCE -> "Einmalig"
         TaskRepeatType.DAILY -> "Täglich"
         TaskRepeatType.WEEKDAYS -> "Montag bis Freitag"
         TaskRepeatType.WEEKEND -> "Samstag bis Sonntag"

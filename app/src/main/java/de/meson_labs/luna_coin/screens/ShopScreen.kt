@@ -1,4 +1,3 @@
-// screens/ShopScreen.kt
 package de.meson_labs.luna_coin.screens
 
 import android.widget.VideoView
@@ -42,10 +41,12 @@ import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.components.dialogs.NotEnoughCoinsDialog
 import de.meson_labs.luna_coin.components.dialogs.PurchaseResultDialog
 import de.meson_labs.luna_coin.models.Child
+import de.meson_labs.luna_coin.models.LogType
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.ShopItem
 import kotlinx.coroutines.delay
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun ShopScreen(
@@ -133,14 +134,33 @@ fun ShopScreen(
                 }
             } else {
                 items(data.shopItems) { item ->
+                    val purchasesToday = selectedChildId?.let { childId ->
+                        countShopItemPurchasesToday(
+                            data = data,
+                            childId = childId,
+                            itemTitle = item.title
+                        )
+                    } ?: 0
+
                     ShopItemCard(
                         item = item,
                         currentCoins = selectedChild?.coins ?: 0,
+                        purchasesToday = purchasesToday,
                         isPurchaseLocked = isPurchaseLocked,
                         onBuyItem = {
                             if (isPurchaseLocked) return@ShopItemCard
 
                             val hasEnoughCoins = (selectedChild?.coins ?: 0) >= item.priceCoins
+                            val limitReached =
+                                item.maxPurchasesPerDay > 0 &&
+                                        purchasesToday >= item.maxPurchasesPerDay
+
+                            if (limitReached) {
+                                purchaseMessage =
+                                    "Tageslimit erreicht: ${item.title} kann heute nur ${item.maxPurchasesPerDay}x gekauft werden."
+                                isPurchaseLocked = true
+                                return@ShopItemCard
+                            }
 
                             if (hasEnoughCoins) {
                                 isPurchaseLocked = true
@@ -184,7 +204,6 @@ fun ShopScreen(
 
                 val finalResult = onLuckyWheelResult(childId, costCoins, result)
 
-                // Kein purchaseMessage mehr → kein zweiter redundanter Dialog
                 finalResult
             }
         )
@@ -205,18 +224,22 @@ fun ShopScreen(
 private fun ShopItemCard(
     item: ShopItem,
     currentCoins: Int,
+    purchasesToday: Int,
     isPurchaseLocked: Boolean,
     onBuyItem: () -> Unit
 ) {
     val canBuy = currentCoins >= item.priceCoins
+    val limitReached =
+        item.maxPurchasesPerDay > 0 &&
+                purchasesToday >= item.maxPurchasesPerDay
 
-    val buttonContainerColor = if (canBuy && !isPurchaseLocked) {
+    val buttonContainerColor = if (canBuy && !isPurchaseLocked && !limitReached) {
         MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.surfaceVariant
     }
 
-    val buttonContentColor = if (canBuy && !isPurchaseLocked) {
+    val buttonContentColor = if (canBuy && !isPurchaseLocked && !limitReached) {
         MaterialTheme.colorScheme.onPrimary
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
@@ -249,9 +272,25 @@ private fun ShopItemCard(
 
                 CoinDisplay(amount = item.priceCoins)
 
+                if (item.maxPurchasesPerDay > 0) {
+                    Text(
+                        text = "Heute gekauft: $purchasesToday/${item.maxPurchasesPerDay}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 if (!canBuy) {
                     Text(
                         text = "Nicht genug Coins",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                if (limitReached) {
+                    Text(
+                        text = "Tageslimit erreicht",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -268,7 +307,7 @@ private fun ShopItemCard(
 
             Button(
                 onClick = onBuyItem,
-                enabled = !isPurchaseLocked,
+                enabled = !isPurchaseLocked && !limitReached,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = buttonContainerColor,
                     contentColor = buttonContentColor,
@@ -279,6 +318,22 @@ private fun ShopItemCard(
                 Text("Kaufen")
             }
         }
+    }
+}
+
+private fun countShopItemPurchasesToday(
+    data: LunaCoinData,
+    childId: String,
+    itemTitle: String
+): Int {
+    val todayPrefix = LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+    val expectedText = "hat gekauft: $itemTitle"
+
+    return data.logs.count { log ->
+        log.childId == childId &&
+                log.type == LogType.SHOP_BUY &&
+                log.timestamp.startsWith(todayPrefix) &&
+                log.text.contains(expectedText)
     }
 }
 

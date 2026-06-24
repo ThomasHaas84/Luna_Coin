@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -277,6 +278,19 @@ class LunaCoinViewModel(
             return
         }
 
+        if (item.maxPurchasesPerDay > 0) {
+            val purchasesToday = countShopItemPurchasesToday(
+                logs = currentData.logs,
+                childId = childId,
+                itemTitle = item.title
+            )
+
+            if (purchasesToday >= item.maxPurchasesPerDay) {
+                showMessage("Tageslimit erreicht: ${item.title} kann heute nur ${item.maxPurchasesPerDay}x gekauft werden")
+                return
+            }
+        }
+
         val coinDelta = -item.priceCoins
         val timestamp = nowText()
 
@@ -486,9 +500,9 @@ class LunaCoinViewModel(
             childId = childId,
             type = LogType.SYSTEM,
             text = if (costCoins == 0) {
-                "Glücksrad kostenlos gedreht: $finalMessage"
+                "${child.name} hat das Glücksrad kostenlos gedreht: $finalMessage"
             } else {
-                "Glücksrad für $costCoins Luna Coin gedreht: $finalMessage"
+                "${child.name} hat das Glücksrad für $costCoins Luna Coin gedreht: $finalMessage"
             },
             coinChange = coinDelta
         )
@@ -648,7 +662,7 @@ class LunaCoinViewModel(
         startDate: String,
         dueDate: String?,
         weeklyDay: DayOfWeekName?,
-        isWatchlist: Boolean
+        watchlist: Boolean
     ) {
         val current = _data.value
 
@@ -665,7 +679,7 @@ class LunaCoinViewModel(
             dueDate = dueDate?.takeIf { it.isNotBlank() },
             weeklyDay = weeklyDay,
             completions = emptyList(),
-            isWatchlist = isWatchlist
+            watchlist = watchlist
         )
 
         _data.value = current.copy(
@@ -687,7 +701,7 @@ class LunaCoinViewModel(
         startDate: String,
         dueDate: String?,
         weeklyDay: DayOfWeekName?,
-        isWatchlist: Boolean
+        watchlist: Boolean
     ) {
         val current = _data.value
         var updatedTask: TaskItem? = null
@@ -705,7 +719,7 @@ class LunaCoinViewModel(
                     startDate = startDate,
                     dueDate = dueDate?.takeIf { it.isNotBlank() },
                     weeklyDay = weeklyDay,
-                    isWatchlist = isWatchlist
+                    watchlist = watchlist
                 ).also {
                     updatedTask = it
                 }
@@ -731,14 +745,20 @@ class LunaCoinViewModel(
         deleteTaskFromFirestore(taskId)
     }
 
-    fun addShopItem(title: String, description: String, priceCoins: Int) {
+    fun addShopItem(
+        title: String,
+        description: String,
+        priceCoins: Int,
+        maxPurchasesPerDay: Int
+    ) {
         val current = _data.value
 
         val newItem = ShopItem(
             id = uuid(),
             title = title,
             description = description,
-            priceCoins = priceCoins
+            priceCoins = priceCoins,
+            maxPurchasesPerDay = maxPurchasesPerDay
         )
 
         _data.value = current.copy(
@@ -748,7 +768,13 @@ class LunaCoinViewModel(
         saveShopItemToFirestore(newItem)
     }
 
-    fun updateShopItem(itemId: String, title: String, description: String, priceCoins: Int) {
+    fun updateShopItem(
+        itemId: String,
+        title: String,
+        description: String,
+        priceCoins: Int,
+        maxPurchasesPerDay: Int
+    ) {
         val current = _data.value
         var updatedItem: ShopItem? = null
 
@@ -757,7 +783,8 @@ class LunaCoinViewModel(
                 item.copy(
                     title = title,
                     description = description,
-                    priceCoins = priceCoins
+                    priceCoins = priceCoins,
+                    maxPurchasesPerDay = maxPurchasesPerDay
                 ).also {
                     updatedItem = it
                 }
@@ -967,7 +994,16 @@ class LunaCoinViewModel(
     private fun isTaskVisibleForChildAndDate(task: TaskItem, childId: String, date: LocalDate): Boolean {
         if (task.assignmentType == TaskAssignmentType.ASSIGNED && task.assignedChildId != childId) return false
         if (!isTaskDueOnDate(task, date)) return false
+
+        if (task.repeatType == TaskRepeatType.ONCE) {
+            return when (task.completionMode) {
+                TaskCompletionMode.EACH_PERSON -> task.completions.none { it.childId == childId }
+                TaskCompletionMode.ONCE_TOTAL -> task.completions.isEmpty()
+            }
+        }
+
         if (task.completionMode == TaskCompletionMode.ONCE_TOTAL && task.completions.any { it.date == date.toString() }) return false
+
         return true
     }
 
@@ -976,15 +1012,103 @@ class LunaCoinViewModel(
         if (task.assignmentType == TaskAssignmentType.ASSIGNED && task.assignedChildId != childId) return false
 
         return when (task.completionMode) {
-            TaskCompletionMode.EACH_PERSON -> task.completions.none { it.childId == childId && it.date == date.toString() }
-            TaskCompletionMode.ONCE_TOTAL -> task.completions.none { it.date == date.toString() }
+            TaskCompletionMode.EACH_PERSON -> {
+                if (task.repeatType == TaskRepeatType.ONCE) {
+                    task.completions.none { it.childId == childId }
+                } else {
+                    task.completions.none { it.childId == childId && it.date == date.toString() }
+                }
+            }
+
+            TaskCompletionMode.ONCE_TOTAL -> {
+                if (task.repeatType == TaskRepeatType.ONCE) {
+                    task.completions.isEmpty()
+                } else {
+                    task.completions.none { it.date == date.toString() }
+                }
+            }
         }
     }
 
     private fun isTaskDueOnDate(task: TaskItem, date: LocalDate): Boolean {
         val start = task.startDate.toLocalDateOrNull() ?: return true
+
         if (date.isBefore(start)) return false
-        return true
+
+        val dueDate = task.dueDate?.toLocalDateOrNull()
+        if (dueDate != null && date.isAfter(dueDate)) return false
+
+        return when (task.repeatType) {
+            TaskRepeatType.ONCE -> date == start
+
+            TaskRepeatType.DAILY -> true
+
+            TaskRepeatType.WEEKDAYS -> {
+                date.dayOfWeek != DayOfWeek.SATURDAY &&
+                        date.dayOfWeek != DayOfWeek.SUNDAY
+            }
+
+            TaskRepeatType.WEEKEND -> {
+                date.dayOfWeek == DayOfWeek.SATURDAY ||
+                        date.dayOfWeek == DayOfWeek.SUNDAY
+            }
+
+            TaskRepeatType.WEEKLY -> {
+                val weeklyDay = task.weeklyDay ?: return true
+                dayOfWeekNameToJavaDayOfWeek(weeklyDay) == date.dayOfWeek
+            }
+
+            TaskRepeatType.BIWEEKLY -> {
+                val weeklyDay = task.weeklyDay ?: return true
+                if (dayOfWeekNameToJavaDayOfWeek(weeklyDay) != date.dayOfWeek) return false
+
+                val weeksBetween = java.time.temporal.ChronoUnit.WEEKS.between(start, date)
+                weeksBetween % 2L == 0L
+            }
+
+            TaskRepeatType.MONTHLY -> {
+                date.dayOfMonth == start.dayOfMonth
+            }
+
+            TaskRepeatType.YEARLY -> {
+                date.dayOfMonth == start.dayOfMonth &&
+                        date.monthValue == start.monthValue
+            }
+
+            TaskRepeatType.EVERY_TWO_YEARS -> {
+                date.dayOfMonth == start.dayOfMonth &&
+                        date.monthValue == start.monthValue &&
+                        (date.year - start.year) % 2 == 0
+            }
+        }
+    }
+
+    private fun countShopItemPurchasesToday(
+        logs: List<LogEntry>,
+        childId: String,
+        itemTitle: String
+    ): Int {
+        val todayPrefix = LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+        val expectedText = "hat gekauft: $itemTitle"
+
+        return logs.count { log ->
+            log.childId == childId &&
+                    log.type == LogType.SHOP_BUY &&
+                    log.timestamp.startsWith(todayPrefix) &&
+                    log.text.contains(expectedText)
+        }
+    }
+
+    private fun dayOfWeekNameToJavaDayOfWeek(day: DayOfWeekName): DayOfWeek {
+        return when (day) {
+            DayOfWeekName.MONDAY -> DayOfWeek.MONDAY
+            DayOfWeekName.TUESDAY -> DayOfWeek.TUESDAY
+            DayOfWeekName.WEDNESDAY -> DayOfWeek.WEDNESDAY
+            DayOfWeekName.THURSDAY -> DayOfWeek.THURSDAY
+            DayOfWeekName.FRIDAY -> DayOfWeek.FRIDAY
+            DayOfWeekName.SATURDAY -> DayOfWeek.SATURDAY
+            DayOfWeekName.SUNDAY -> DayOfWeek.SUNDAY
+        }
     }
 
     private fun saveTaskToFirestore(task: TaskItem) {

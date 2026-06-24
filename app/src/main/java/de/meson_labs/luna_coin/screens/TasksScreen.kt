@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -66,8 +65,8 @@ fun TasksScreen(
     onToday: () -> Unit,
     onCompleteTask: (String) -> Unit,
     onLogout: () -> Unit,
-    canGoToPreviousDay: Boolean,   // ← neu
-    canGoToNextDay: Boolean        // ← neu
+    canGoToPreviousDay: Boolean,
+    canGoToNextDay: Boolean
 ) {
     val childId = selectedChild?.id
     val selectedDay = selectedDate.toDayOfWeekName()
@@ -109,8 +108,8 @@ fun TasksScreen(
                 onPreviousDay = onPreviousDay,
                 onNextDay = onNextDay,
                 onToday = onToday,
-                canGoToPreviousDay = canGoToPreviousDay,   // ← neu
-                canGoToNextDay = canGoToNextDay            // ← neu
+                canGoToPreviousDay = canGoToPreviousDay,
+                canGoToNextDay = canGoToNextDay
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -176,7 +175,6 @@ fun TasksScreen(
         }
     }
 
-    // ==================== ZENTRALISIERTER DIALOG ====================
     taskToComplete?.let { task ->
         ConfirmationDialog(
             title = "Aufgabe abschließen?",
@@ -220,8 +218,8 @@ private fun DateSelector(
     onPreviousDay: () -> Unit,
     onNextDay: () -> Unit,
     onToday: () -> Unit,
-    canGoToPreviousDay: Boolean,   // ← neu
-    canGoToNextDay: Boolean        // ← neu
+    canGoToPreviousDay: Boolean,
+    canGoToNextDay: Boolean
 ) {
     val isToday = selectedDate == LocalDate.now()
     val daysDifference = ChronoUnit.DAYS.between(LocalDate.now(), selectedDate)
@@ -232,14 +230,13 @@ private fun DateSelector(
     Box(
         modifier = Modifier.fillMaxWidth()
     ) {
-        // ==================== STABILES HAUPT-LAYOUT ====================
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedButton(
                 onClick = onPreviousDay,
-                enabled = canGoToPreviousDay          // ← deaktiviert bei Limit
+                enabled = canGoToPreviousDay
             ) {
                 Text("<")
             }
@@ -270,13 +267,12 @@ private fun DateSelector(
 
             OutlinedButton(
                 onClick = onNextDay,
-                enabled = canGoToNextDay              // ← deaktiviert bei Limit
+                enabled = canGoToNextDay
             ) {
                 Text(">")
             }
         }
 
-        // ==================== PUNKTE-INDIKATOR (Overlay) ====================
         if (daysDifference < 0) {
             DayOffsetIndicator(
                 daysDifference = daysDifference,
@@ -364,15 +360,25 @@ private fun TaskCard(
 
     val isDone = when (task.completionMode) {
         TaskCompletionMode.EACH_PERSON -> {
-            task.completions.any { completion ->
-                completion.childId == childId &&
-                        completion.date == dateText
+            if (task.repeatType == TaskRepeatType.ONCE) {
+                task.completions.any { completion ->
+                    completion.childId == childId
+                }
+            } else {
+                task.completions.any { completion ->
+                    completion.childId == childId &&
+                            completion.date == dateText
+                }
             }
         }
 
         TaskCompletionMode.ONCE_TOTAL -> {
-            task.completions.any { completion ->
-                completion.date == dateText
+            if (task.repeatType == TaskRepeatType.ONCE) {
+                task.completions.isNotEmpty()
+            } else {
+                task.completions.any { completion ->
+                    completion.date == dateText
+                }
             }
         }
     }
@@ -479,6 +485,14 @@ private fun TaskCard(
                 ) {
                     Text(
                         text = "Tägliche Aufgaben können nur heute abgehakt werden.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                if (task.repeatType == TaskRepeatType.ONCE) {
+                    Text(
+                        text = "Diese Aufgabe ist einmalig.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -628,6 +642,20 @@ private fun isTaskVisibleForChildAndDate(
         return false
     }
 
+    if (task.repeatType == TaskRepeatType.ONCE) {
+        return when (task.completionMode) {
+            TaskCompletionMode.EACH_PERSON -> {
+                task.completions.none { completion ->
+                    completion.childId == childId
+                }
+            }
+
+            TaskCompletionMode.ONCE_TOTAL -> {
+                task.completions.isEmpty()
+            }
+        }
+    }
+
     if (task.completionMode == TaskCompletionMode.ONCE_TOTAL) {
         val alreadyCompletedOnDate = task.completions.any { completion ->
             completion.date == date.toString()
@@ -662,15 +690,25 @@ private fun canTaskBeCompleted(
 
     return when (task.completionMode) {
         TaskCompletionMode.EACH_PERSON -> {
-            task.completions.none { completion ->
-                completion.childId == childId &&
-                        completion.date == date.toString()
+            if (task.repeatType == TaskRepeatType.ONCE) {
+                task.completions.none { completion ->
+                    completion.childId == childId
+                }
+            } else {
+                task.completions.none { completion ->
+                    completion.childId == childId &&
+                            completion.date == date.toString()
+                }
             }
         }
 
         TaskCompletionMode.ONCE_TOTAL -> {
-            task.completions.none { completion ->
-                completion.date == date.toString()
+            if (task.repeatType == TaskRepeatType.ONCE) {
+                task.completions.isEmpty()
+            } else {
+                task.completions.none { completion ->
+                    completion.date == date.toString()
+                }
             }
         }
     }
@@ -686,7 +724,16 @@ private fun isTaskDueOnDate(
         return false
     }
 
+    val dueDate = task.dueDate?.toLocalDateOrNull()
+    if (dueDate != null && date.isAfter(dueDate)) {
+        return false
+    }
+
     return when (task.repeatType) {
+        TaskRepeatType.ONCE -> {
+            date == startDate
+        }
+
         TaskRepeatType.DAILY -> {
             true
         }
@@ -730,13 +777,22 @@ private fun repeatTypeText(
     repeatType: TaskRepeatType
 ): String {
     return when (repeatType) {
+        TaskRepeatType.ONCE -> "Einmalig"
+
         TaskRepeatType.DAILY -> "Täglich"
+
         TaskRepeatType.WEEKDAYS -> "Montag bis Freitag"
+
         TaskRepeatType.WEEKEND -> "Samstag bis Sonntag"
+
         TaskRepeatType.WEEKLY -> "Wöchentlich"
+
         TaskRepeatType.BIWEEKLY -> "Zweiwöchentlich"
+
         TaskRepeatType.MONTHLY -> "Monatlich"
+
         TaskRepeatType.YEARLY -> "Jährlich"
+
         TaskRepeatType.EVERY_TWO_YEARS -> "Alle zwei Jahre"
     }
 }

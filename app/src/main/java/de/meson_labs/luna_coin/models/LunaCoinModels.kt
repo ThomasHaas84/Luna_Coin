@@ -50,7 +50,12 @@ data class TaskItem(
     val dueDate: String? = null,
     val weeklyDay: DayOfWeekName? = null,
     val completions: List<TaskCompletion> = emptyList(),
-    val isWatchlist: Boolean = false,
+
+    // Wichtig:
+    // Nicht "isWatchlist" verwenden.
+    // Firestore/Kotlin-Boolean-Properties mit "is..." können beim Speichern/Laden als "watchlist"
+    // gemappt werden und dadurch nach Realtime-Sync wieder false sein.
+    val watchlist: Boolean = false,
 
     @Contextual override var createdAt: Date? = null,
     @Contextual override var updatedAt: Date? = null
@@ -63,6 +68,9 @@ data class ShopItem(
     val title: String = "",
     val description: String = "",
     val priceCoins: Int = 0,
+
+    // 0 = unbegrenzt, 1 = 1x pro Tag, 2 = 2x pro Tag, ...
+    val maxPurchasesPerDay: Int = 0,
 
     @Contextual override var createdAt: Date? = null,
     @Contextual override var updatedAt: Date? = null
@@ -156,7 +164,15 @@ enum class TaskCompletionMode { EACH_PERSON, ONCE_TOTAL }
 
 @Serializable
 enum class TaskRepeatType {
-    DAILY, WEEKDAYS, WEEKEND, WEEKLY, BIWEEKLY, MONTHLY, YEARLY, EVERY_TWO_YEARS
+    ONCE,
+    DAILY,
+    WEEKDAYS,
+    WEEKEND,
+    WEEKLY,
+    BIWEEKLY,
+    MONTHLY,
+    YEARLY,
+    EVERY_TWO_YEARS
 }
 
 @Serializable

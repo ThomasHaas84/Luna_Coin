@@ -107,8 +107,8 @@ fun SettingsScreenChildPreview() {
         onUpdateTask = { _, _, _, _, _, _, _, _, _, _, _, _ -> },
         onDeleteTask = {},
 
-        onAddShopItem = { _, _, _ -> },
-        onUpdateShopItem = { _, _, _, _ -> },
+        onAddShopItem = { _, _, _, _ -> },
+        onUpdateShopItem = { _, _, _, _, _ -> },
         onDeleteShopItem = {},
 
         onAddDogSchedule = { _, _, _, _, _, _ -> },
@@ -156,8 +156,8 @@ fun SettingsScreenAdminPreview() {
         onUpdateTask = { _, _, _, _, _, _, _, _, _, _, _, _ -> },
         onDeleteTask = {},
 
-        onAddShopItem = { _, _, _ -> },
-        onUpdateShopItem = { _, _, _, _ -> },
+        onAddShopItem = { _, _, _, _ -> },
+        onUpdateShopItem = { _, _, _, _, _ -> },
         onDeleteShopItem = {},
 
         onAddDogSchedule = { _, _, _, _, _, _ -> },
@@ -185,12 +185,11 @@ class FakeDataRepository(
     override suspend fun loadData(): LunaCoinData? = demoData
 
     override suspend fun saveData(data: LunaCoinData) {}
-    override suspend fun createCloudBackup(data: LunaCoinData) {
-        TODO("Not yet implemented")
-    }
+
+    override suspend fun createCloudBackup(data: LunaCoinData) {}
 
     override suspend fun loadCloudBackup(): LunaCoinData? {
-        TODO("Not yet implemented")
+        return demoData
     }
 
     override fun startRealtimeSync(
