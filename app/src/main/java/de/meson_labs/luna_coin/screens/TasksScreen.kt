@@ -36,7 +36,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.components.LunaScreenHeader
@@ -68,6 +70,16 @@ fun TasksScreen(
     canGoToPreviousDay: Boolean,
     canGoToNextDay: Boolean
 ) {
+    val configuration = LocalConfiguration.current
+    val isTabletLayout = configuration.screenWidthDp >= 900
+    val isPhone = !isTabletLayout
+
+    val screenPadding = if (isPhone) {
+        14.dp
+    } else {
+        24.dp
+    }
+
     val childId = selectedChild?.id
     val selectedDay = selectedDate.toDayOfWeekName()
 
@@ -92,7 +104,7 @@ fun TasksScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(24.dp)
+            .padding(screenPadding)
     ) {
         item {
             LunaScreenHeader(
@@ -101,7 +113,7 @@ fun TasksScreen(
                 onLogout = onLogout
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
 
             DateSelector(
                 selectedDate = selectedDate,
@@ -112,11 +124,15 @@ fun TasksScreen(
                 canGoToNextDay = canGoToNextDay
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(if (isPhone) 18.dp else 24.dp))
 
             Text(
                 text = "Haushaltsaufgaben",
-                style = MaterialTheme.typography.headlineSmall
+                style = if (isPhone) {
+                    MaterialTheme.typography.titleLarge
+                } else {
+                    MaterialTheme.typography.headlineSmall
+                }
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -141,15 +157,19 @@ fun TasksScreen(
         }
 
         item {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(if (isPhone) 18.dp else 24.dp))
 
             Divider()
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(if (isPhone) 18.dp else 24.dp))
 
             Text(
                 text = "Hund-Plan",
-                style = MaterialTheme.typography.headlineSmall
+                style = if (isPhone) {
+                    MaterialTheme.typography.titleLarge
+                } else {
+                    MaterialTheme.typography.headlineSmall
+                }
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -221,39 +241,81 @@ private fun DateSelector(
     canGoToPreviousDay: Boolean,
     canGoToNextDay: Boolean
 ) {
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val isTabletLayout = screenWidthDp >= 900
+    val isPhone = !isTabletLayout
+
     val isToday = selectedDate == LocalDate.now()
     val daysDifference = ChronoUnit.DAYS.between(LocalDate.now(), selectedDate)
 
     val dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
     val dayFormatter = DateTimeFormatter.ofPattern("EEEE", Locale.GERMAN)
 
-    Box(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
+    if (isPhone) {
+        Card(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 2.dp
+            )
         ) {
-            OutlinedButton(
-                onClick = onPreviousDay,
-                enabled = canGoToPreviousDay
-            ) {
-                Text("<")
-            }
-
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 12.dp,
+                        vertical = 10.dp
+                    ),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = selectedDate.format(dayFormatter)
-                        .replaceFirstChar { it.uppercase() },
-                    style = MaterialTheme.typography.headlineMedium
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onPreviousDay,
+                        enabled = canGoToPreviousDay,
+                        modifier = Modifier.weight(0.8f)
+                    ) {
+                        Text("<")
+                    }
 
-                Text(
-                    text = selectedDate.format(dateFormatter),
-                    style = MaterialTheme.typography.headlineSmall
+                    Column(
+                        modifier = Modifier.weight(2.4f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = selectedDate.format(dayFormatter)
+                                .replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.titleLarge,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        Text(
+                            text = selectedDate.format(dateFormatter),
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = onNextDay,
+                        enabled = canGoToNextDay,
+                        modifier = Modifier.weight(0.8f)
+                    ) {
+                        Text(">")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                DayOffsetIndicator(
+                    daysDifference = daysDifference,
+                    compact = true
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -261,34 +323,94 @@ private fun DateSelector(
                 AssistChip(
                     onClick = onToday,
                     enabled = !isToday,
-                    label = { Text("Heute") }
+                    label = {
+                        Text(
+                            text = if (isToday) {
+                                "Heute ausgewählt"
+                            } else {
+                                "zu Heute springen"
+                            },
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                )
+            }
+        }
+    } else {
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = onPreviousDay,
+                    enabled = canGoToPreviousDay
+                ) {
+                    Text("<")
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = selectedDate.format(dayFormatter)
+                            .replaceFirstChar { it.uppercase() },
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+
+                    Text(
+                        text = selectedDate.format(dateFormatter),
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    AssistChip(
+                        onClick = onToday,
+                        enabled = !isToday,
+                        label = {
+                            Text(
+                                text = if (isToday) {
+                                    "Heute ausgewählt"
+                                } else {
+                                    "zu Heute springen"
+                                },
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = onNextDay,
+                    enabled = canGoToNextDay
+                ) {
+                    Text(">")
+                }
+            }
+
+            if (daysDifference < 0) {
+                DayOffsetIndicator(
+                    daysDifference = daysDifference,
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(start = 460.dp)
                 )
             }
 
-            OutlinedButton(
-                onClick = onNextDay,
-                enabled = canGoToNextDay
-            ) {
-                Text(">")
+            if (daysDifference > 0) {
+                DayOffsetIndicator(
+                    daysDifference = daysDifference,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 460.dp)
+                )
             }
-        }
-
-        if (daysDifference < 0) {
-            DayOffsetIndicator(
-                daysDifference = daysDifference,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 460.dp)
-            )
-        }
-
-        if (daysDifference > 0) {
-            DayOffsetIndicator(
-                daysDifference = daysDifference,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 460.dp)
-            )
         }
     }
 }
@@ -296,9 +418,11 @@ private fun DateSelector(
 @Composable
 private fun DayOffsetIndicator(
     daysDifference: Long,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
 ) {
     val label = when {
+        daysDifference == 0L -> "Heute"
         daysDifference == -1L -> "Gestern"
         daysDifference == 1L -> "Morgen"
         daysDifference < 0 -> "vor ${-daysDifference} Tagen"
@@ -315,7 +439,7 @@ private fun DayOffsetIndicator(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             repeat(5) { index ->
@@ -324,19 +448,33 @@ private fun DayOffsetIndicator(
 
                 Box(
                     modifier = Modifier
-                        .size(if (isActive) 12.dp else 8.dp)
+                        .size(
+                            when {
+                                compact && isActive -> 10.dp
+                                compact -> 7.dp
+                                isActive -> 12.dp
+                                else -> 8.dp
+                            }
+                        )
                         .clip(CircleShape)
                         .background(if (isActive) activeColor else inactiveColor)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(5.dp))
+        Spacer(modifier = Modifier.height(if (compact) 4.dp else 5.dp))
 
         Text(
             text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = if (compact) {
+                MaterialTheme.typography.labelSmall
+            } else {
+                MaterialTheme.typography.labelMedium
+            },
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import de.meson_labs.luna_coin.models.Child
 
 @Composable
@@ -44,12 +45,6 @@ fun LunaScreenHeader(
         38.dp
     } else {
         60.dp
-    }
-
-    val buttonText = if (isPhone) {
-        "Wechseln"
-    } else {
-        "Benutzer wechseln"
     }
 
     Row(
@@ -91,10 +86,14 @@ fun LunaScreenHeader(
         }
 
         OutlinedButton(
-            onClick = onLogout
+            onClick = onLogout,
+            modifier = Modifier.heightIn(
+                min = if (isPhone) 38.dp else 44.dp
+            )
         ) {
             Text(
-                text = buttonText,
+                text = "Benutzer wechseln",
+                fontSize = if (isPhone) 11.sp else 14.sp,
                 maxLines = 1,
                 softWrap = false
             )
