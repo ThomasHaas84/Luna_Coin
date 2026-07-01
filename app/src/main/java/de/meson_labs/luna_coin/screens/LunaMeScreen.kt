@@ -38,6 +38,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -62,6 +64,17 @@ fun LunaMeScreen(
     onLogout: () -> Unit,
     onChildChanged: (Child) -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isTabletLayout = configuration.smallestScreenWidthDp >= 600
+    val isPhone = !isTabletLayout
+    val isPhonePortrait = isPhone && configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+
+    val screenPadding = if (isPhone) {
+        14.dp
+    } else {
+        24.dp
+    }
+
     val isAdmin = selectedChild?.role == UserRole.ADMIN
 
     val unlockedItems = if (isAdmin) {
@@ -118,142 +131,277 @@ fun LunaMeScreen(
     Box(
         modifier = modifier.fillMaxSize()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp)
-        ) {
-            LunaScreenHeader(
-                title = "LunaME",
-                selectedChild = selectedChild,
-                onLogout = onLogout
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(
+        if (isPhone) {
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(screenPadding)
             ) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                LunaScreenHeader(
+                    title = "LunaME",
+                    selectedChild = selectedChild,
+                    onLogout = onLogout
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp)
                 ) {
-                    Box(
+                    Column(
                         modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Image(
-                            painter = painterResource(id = lunaImage),
-                            contentDescription = "Luna",
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .size(800.dp),
-                            contentScale = ContentScale.Fit
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Button(
-                        enabled = profileButtonEnabled,
-                        onClick = {
-                            selectedChild?.let { child ->
-                                onChildChanged(
-                                    child.copy(
-                                        profileImageItem = previewItem,
-                                        hasProfileImage = true
-                                    )
-                                )
-
-                                profileFeedback = "Profilbild wurde aktualisiert"
-                            }
-                        }
-                    ) {
-                        Text("Als Profilbild speichern")
-                    }
-
-                    Box(
-                        modifier = Modifier.height(18.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        profileFeedback?.let { message ->
-                            Text(
-                                text = message,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold,
-                                textAlign = TextAlign.Center
+                                .height(if (isPhonePortrait) 260.dp else 170.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter = painterResource(id = lunaImage),
+                                contentDescription = "Luna",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
                             )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Button(
+                            enabled = profileButtonEnabled,
+                            onClick = {
+                                selectedChild?.let { child ->
+                                    onChildChanged(
+                                        child.copy(
+                                            profileImageItem = previewItem,
+                                            hasProfileImage = true
+                                        )
+                                    )
+
+                                    profileFeedback = "Profilbild wurde aktualisiert"
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Als Profilbild speichern",
+                                maxLines = 1
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier.height(18.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            profileFeedback?.let { message ->
+                                Text(
+                                    text = message,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                Column(
+                Card(
                     modifier = Modifier
-                        .width(390.dp)
-                        .fillMaxHeight(),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .fillMaxWidth()
+                        .weight(1f),
+                    shape = RoundedCornerShape(22.dp)
                 ) {
-                    Text(
-                        text = "Inventar",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Inventar",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                    Text(
-                        text = "Coins: ${selectedChild?.coins ?: 0}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                        InventoryGrid(
+                            items = LunaItemCatalog.allItems,
+                            unlockedItems = unlockedItems,
+                            equippedItem = equippedItem,
+                            previewItem = previewItem,
+                            isAdmin = isAdmin,
+                            selectedChild = selectedChild,
+                            isCompact = true,
+                            onUnlockedItemClick = { clickedItem ->
+                                selectedChild?.let { child ->
+                                    if (child.equippedItem == clickedItem) {
+                                        previewItem = null
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                                        onChildChanged(
+                                            child.copy(
+                                                equippedItem = null
+                                            )
+                                        )
+                                    } else {
+                                        previewItem = clickedItem
 
-                    InventoryGrid(
-                        items = LunaItemCatalog.allItems,
-                        unlockedItems = unlockedItems,
-                        equippedItem = equippedItem,
-                        previewItem = previewItem,
-                        isAdmin = isAdmin,
-                        selectedChild = selectedChild,
-                        onUnlockedItemClick = { clickedItem ->
-                            selectedChild?.let { child ->
-                                if (child.equippedItem == clickedItem) {
-                                    previewItem = null
+                                        onChildChanged(
+                                            child.copy(
+                                                equippedItem = clickedItem
+                                            )
+                                        )
+                                    }
+                                }
+                            },
+                            onBuyRequest = { definition ->
+                                previewItem = definition.item
+                                itemToBuy = definition
+                            }
+                        )
+                    }
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(screenPadding)
+            ) {
+                LunaScreenHeader(
+                    title = "LunaME",
+                    selectedChild = selectedChild,
+                    onLogout = onLogout
+                )
 
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter = painterResource(id = lunaImage),
+                                contentDescription = "Luna",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .size(800.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        Button(
+                            enabled = profileButtonEnabled,
+                            onClick = {
+                                selectedChild?.let { child ->
                                     onChildChanged(
                                         child.copy(
-                                            equippedItem = null
+                                            profileImageItem = previewItem,
+                                            hasProfileImage = true
                                         )
                                     )
-                                } else {
-                                    previewItem = clickedItem
 
-                                    onChildChanged(
-                                        child.copy(
-                                            equippedItem = clickedItem
-                                        )
-                                    )
+                                    profileFeedback = "Profilbild wurde aktualisiert"
                                 }
                             }
-                        },
-                        onBuyRequest = { definition ->
-                            previewItem = definition.item
-                            itemToBuy = definition
+                        ) {
+                            Text("Als Profilbild speichern")
                         }
-                    )
+
+                        Box(
+                            modifier = Modifier.height(18.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            profileFeedback?.let { message ->
+                                Text(
+                                    text = message,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Column(
+                        modifier = Modifier
+                            .width(390.dp)
+                            .fillMaxHeight(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Inventar",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        InventoryGrid(
+                            items = LunaItemCatalog.allItems,
+                            unlockedItems = unlockedItems,
+                            equippedItem = equippedItem,
+                            previewItem = previewItem,
+                            isAdmin = isAdmin,
+                            selectedChild = selectedChild,
+                            isCompact = false,
+                            onUnlockedItemClick = { clickedItem ->
+                                selectedChild?.let { child ->
+                                    if (child.equippedItem == clickedItem) {
+                                        previewItem = null
+
+                                        onChildChanged(
+                                            child.copy(
+                                                equippedItem = null
+                                            )
+                                        )
+                                    } else {
+                                        previewItem = clickedItem
+
+                                        onChildChanged(
+                                            child.copy(
+                                                equippedItem = clickedItem
+                                            )
+                                        )
+                                    }
+                                }
+                            },
+                            onBuyRequest = { definition ->
+                                previewItem = definition.item
+                                itemToBuy = definition
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -269,12 +417,23 @@ fun LunaMeScreen(
                         itemToBuy = null
                         previewItem = selectedChild?.equippedItem
                     }
-                    .padding(end = 40.dp),
-                contentAlignment = Alignment.CenterEnd
+                    .padding(
+                        start = if (isPhone) 16.dp else 0.dp,
+                        end = if (isPhone) 16.dp else 40.dp,
+                        bottom = if (isPhonePortrait) 24.dp else 0.dp
+                    ),
+                contentAlignment = when {
+                    isPhonePortrait -> Alignment.BottomCenter
+                    isPhone -> Alignment.Center
+                    else -> Alignment.CenterEnd
+                }
             ) {
                 Card(
-                    modifier = Modifier
-                        .width(330.dp)
+                    modifier = if (isPhone) {
+                        Modifier.fillMaxWidth()
+                    } else {
+                        Modifier.width(330.dp)
+                    }
                         .clickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
@@ -282,7 +441,7 @@ fun LunaMeScreen(
                     shape = RoundedCornerShape(24.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(24.dp),
+                        modifier = Modifier.padding(if (isPhonePortrait) 18.dp else 24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
@@ -291,23 +450,23 @@ fun LunaMeScreen(
                             fontWeight = FontWeight.Bold
                         )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(if (isPhonePortrait) 10.dp else 16.dp))
 
                         Image(
                             painter = painterResource(id = definition.iconRes),
                             contentDescription = definition.title,
-                            modifier = Modifier.size(90.dp),
+                            modifier = Modifier.size(if (isPhonePortrait) 70.dp else 90.dp),
                             contentScale = ContentScale.Fit
                         )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(if (isPhonePortrait) 10.dp else 16.dp))
 
                         Text(
                             text = "Möchtest du „${definition.title}“ wirklich für ${definition.priceCoins} Coins kaufen?",
                             textAlign = TextAlign.Center
                         )
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(if (isPhonePortrait) 16.dp else 24.dp))
 
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -366,14 +525,19 @@ private fun InventoryGrid(
     previewItem: LunaInventoryItem?,
     isAdmin: Boolean,
     selectedChild: Child?,
+    isCompact: Boolean,
     onUnlockedItemClick: (LunaInventoryItem) -> Unit,
     onBuyRequest: (LunaItemDefinition) -> Unit
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(4),
+        columns = if (isCompact) {
+            GridCells.Adaptive(minSize = 78.dp)
+        } else {
+            GridCells.Fixed(4)
+        },
         modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(if (isCompact) 8.dp else 12.dp),
+        verticalArrangement = Arrangement.spacedBy(if (isCompact) 8.dp else 12.dp)
     ) {
         items(items) { definition ->
             val unlocked = definition.item in unlockedItems
@@ -388,6 +552,7 @@ private fun InventoryGrid(
                 isAdmin = isAdmin,
                 canAfford = selectedChild != null &&
                         selectedChild.coins >= definition.priceCoins,
+                isCompact = isCompact,
                 onClick = {
                     if (unlocked || isAdmin) {
                         onUnlockedItemClick(definition.item)
@@ -407,6 +572,7 @@ private fun InventoryTile(
     selected: Boolean,
     isAdmin: Boolean,
     canAfford: Boolean,
+    isCompact: Boolean,
     onClick: () -> Unit
 ) {
     val borderColor = if (selected) {
@@ -425,7 +591,10 @@ private fun InventoryTile(
 
     Column(
         modifier = Modifier
-            .size(width = 104.dp, height = 138.dp)
+            .size(
+                width = if (isCompact) 78.dp else 104.dp,
+                height = if (isCompact) 104.dp else 138.dp
+            )
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
             .border(
@@ -441,7 +610,7 @@ private fun InventoryTile(
     ) {
         Box(
             modifier = Modifier
-                .size(84.dp)
+                .size(if (isCompact) 58.dp else 84.dp)
                 .alpha(
                     if (visibleAsUnlocked || canAfford) {
                         1f
