@@ -2,6 +2,7 @@ package de.meson_labs.luna_coin.screens
 
 import android.widget.VideoView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,7 +30,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -67,6 +70,22 @@ fun ShopScreen(
     var isPurchaseLocked by remember { mutableStateOf(false) }
     var showLuckyWheelDialog by remember { mutableStateOf(false) }
 
+    val configuration = LocalConfiguration.current
+    val isTabletLayout = configuration.smallestScreenWidthDp >= 600
+    val isPhone = !isTabletLayout
+
+    val screenPadding = if (isPhone) {
+        14.dp
+    } else {
+        24.dp
+    }
+
+    val headerBottomSpacing = if (isPhone) {
+        16.dp
+    } else {
+        24.dp
+    }
+
     val todayText = LocalDate.now().toString()
     val selectedChildId = selectedChild?.id
 
@@ -89,7 +108,7 @@ fun ShopScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
+                .padding(screenPadding)
         ) {
             item {
                 LunaScreenHeader(
@@ -98,7 +117,7 @@ fun ShopScreen(
                     onLogout = onLogout
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(headerBottomSpacing))
             }
 
             item {
@@ -228,6 +247,10 @@ private fun ShopItemCard(
     isPurchaseLocked: Boolean,
     onBuyItem: () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isTabletLayout = configuration.smallestScreenWidthDp >= 600
+    val isPhone = !isTabletLayout
+
     val canBuy = currentCoins >= item.priceCoins
     val limitReached =
         item.maxPurchasesPerDay > 0 &&
@@ -245,78 +268,150 @@ private fun ShopItemCard(
         MaterialTheme.colorScheme.onSurfaceVariant
     }
 
+    val cardPadding = if (isPhone) {
+        12.dp
+    } else {
+        16.dp
+    }
+
+    val coinSize = if (isPhone) {
+        34.dp
+    } else {
+        48.dp
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .padding(vertical = if (isPhone) 5.dp else 6.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                if (item.description.isNotBlank()) {
-                    Text(
-                        text = item.description,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-                CoinDisplay(amount = item.priceCoins)
-
-                if (item.maxPurchasesPerDay > 0) {
-                    Text(
-                        text = "Heute gekauft: $purchasesToday/${item.maxPurchasesPerDay}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                if (!canBuy) {
-                    Text(
-                        text = "Nicht genug Coins",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-
-                if (limitReached) {
-                    Text(
-                        text = "Tageslimit erreicht",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-
-                if (isPurchaseLocked) {
-                    Text(
-                        text = "Kauf wird verarbeitet...",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Button(
-                onClick = onBuyItem,
-                enabled = !isPurchaseLocked && !limitReached,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = buttonContainerColor,
-                    contentColor = buttonContentColor,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        if (isPhone) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(cardPadding),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("Kaufen")
+                ShopItemInfo(
+                    item = item,
+                    purchasesToday = purchasesToday,
+                    canBuy = canBuy,
+                    limitReached = limitReached,
+                    isPurchaseLocked = isPurchaseLocked,
+                    coinSize = coinSize
+                )
+
+                Button(
+                    onClick = onBuyItem,
+                    enabled = !isPurchaseLocked && !limitReached,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = buttonContainerColor,
+                        contentColor = buttonContentColor,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Text("Kaufen")
+                }
             }
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(cardPadding),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                ShopItemInfo(
+                    item = item,
+                    purchasesToday = purchasesToday,
+                    canBuy = canBuy,
+                    limitReached = limitReached,
+                    isPurchaseLocked = isPurchaseLocked,
+                    coinSize = coinSize,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Button(
+                    onClick = onBuyItem,
+                    enabled = !isPurchaseLocked && !limitReached,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = buttonContainerColor,
+                        contentColor = buttonContentColor,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Text("Kaufen")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShopItemInfo(
+    item: ShopItem,
+    purchasesToday: Int,
+    canBuy: Boolean,
+    limitReached: Boolean,
+    isPurchaseLocked: Boolean,
+    coinSize: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        if (item.description.isNotBlank()) {
+            Text(
+                text = item.description,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+
+        CoinDisplay(
+            amount = item.priceCoins,
+            coinSize = coinSize
+        )
+
+        if (item.maxPurchasesPerDay > 0) {
+            Text(
+                text = "Heute gekauft: $purchasesToday/${item.maxPurchasesPerDay}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        if (!canBuy) {
+            Text(
+                text = "Nicht genug Coins",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+
+        if (limitReached) {
+            Text(
+                text = "Tageslimit erreicht",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+
+        if (isPurchaseLocked) {
+            Text(
+                text = "Kauf wird verarbeitet...",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
