@@ -26,6 +26,10 @@ data class Child(
     var password: String = "",
     val age: Int = 0,
 
+    val passwordRequired: Boolean = true,
+    val allowRememberLogin: Boolean = true,
+    val isBuiltInAdmin: Boolean = false,
+
     val inventory: List<LunaInventoryItem> = emptyList(),
     val equippedItem: LunaInventoryItem? = null,
     val profileImageItem: LunaInventoryItem? = null,
@@ -50,11 +54,6 @@ data class TaskItem(
     val dueDate: String? = null,
     val weeklyDay: DayOfWeekName? = null,
     val completions: List<TaskCompletion> = emptyList(),
-
-    // Wichtig:
-    // Nicht "isWatchlist" verwenden.
-    // Firestore/Kotlin-Boolean-Properties mit "is..." können beim Speichern/Laden als "watchlist"
-    // gemappt werden und dadurch nach Realtime-Sync wieder false sein.
     val watchlist: Boolean = false,
 
     @Contextual override var createdAt: Date? = null,
@@ -68,8 +67,6 @@ data class ShopItem(
     val title: String = "",
     val description: String = "",
     val priceCoins: Int = 0,
-
-    // 0 = unbegrenzt, 1 = 1x pro Tag, 2 = 2x pro Tag, ...
     val maxPurchasesPerDay: Int = 0,
 
     @Contextual override var createdAt: Date? = null,

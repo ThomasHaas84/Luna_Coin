@@ -68,6 +68,7 @@ import de.meson_labs.luna_coin.models.UserRole
 import de.meson_labs.luna_coin.screens.image_mode.LunaImageModeConfig
 import de.meson_labs.luna_coin.screens.image_mode.LunaImageModeStorage
 import de.meson_labs.luna_coin.screens.image_mode.LunaImagePlayMode
+import de.meson_labs.luna_coin.storage.TrustedDeviceStorage
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 import kotlinx.coroutines.delay
 
@@ -105,8 +106,8 @@ fun UserSelectionScreen(
         mutableLongStateOf(System.currentTimeMillis())
     }
 
-    val hasThomas = children.any {
-        it.name.equals("Thomas", ignoreCase = true)
+    val hasBuiltInAdmin = children.any {
+        it.isBuiltInAdmin || it.role == UserRole.ADMIN
     }
 
     LaunchedEffect(
@@ -201,10 +202,18 @@ fun UserSelectionScreen(
                             onClick = {
                                 idleResetKey = System.currentTimeMillis()
 
-                                if (child.password.isBlank()) {
-                                    onChildSelected(child.id)
-                                } else {
+                                val needsPassword =
+                                    child.passwordRequired &&
+                                            child.password.isNotBlank() &&
+                                            !TrustedDeviceStorage.isTrusted(
+                                                context = context,
+                                                childId = child.id
+                                            )
+
+                                if (needsPassword) {
                                     passwordUser = child
+                                } else {
+                                    onChildSelected(child.id)
                                 }
                             }
                         )
@@ -213,7 +222,7 @@ fun UserSelectionScreen(
             }
         }
 
-        if (hasThomas && !isLoading) {
+        if (hasBuiltInAdmin && !isLoading) {
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -287,11 +296,20 @@ fun UserSelectionScreen(
     passwordUser?.let { child ->
         PasswordDialog(
             child = child,
+            canRememberLogin = child.allowRememberLogin,
             onCancel = {
                 passwordUser = null
                 idleResetKey = System.currentTimeMillis()
             },
-            onSuccess = {
+            onSuccess = { rememberLogin ->
+                if (rememberLogin && child.allowRememberLogin) {
+                    TrustedDeviceStorage.setTrusted(
+                        context = context,
+                        childId = child.id,
+                        trusted = true
+                    )
+                }
+
                 passwordUser = null
                 onChildSelected(child.id)
             }
@@ -827,11 +845,16 @@ private fun UserProfileCard(
 @Composable
 private fun PasswordDialog(
     child: Child,
+    canRememberLogin: Boolean,
     onCancel: () -> Unit,
-    onSuccess: () -> Unit
+    onSuccess: (Boolean) -> Unit
 ) {
     var passwordInput by remember {
         mutableStateOf("")
+    }
+
+    var rememberLogin by remember {
+        mutableStateOf(false)
     }
 
     var showError by remember {
@@ -857,6 +880,26 @@ private fun PasswordDialog(
                     visualTransformation = PasswordVisualTransformation()
                 )
 
+                if (canRememberLogin) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .padding(top = 12.dp)
+                            .clickable {
+                                rememberLogin = !rememberLogin
+                            }
+                    ) {
+                        Checkbox(
+                            checked = rememberLogin,
+                            onCheckedChange = {
+                                rememberLogin = it
+                            }
+                        )
+
+                        Text("Diesem Gerät vertrauen")
+                    }
+                }
+
                 if (showError) {
                     Text(
                         text = "Passwort falsch",
@@ -877,7 +920,7 @@ private fun PasswordDialog(
             TextButton(
                 onClick = {
                     if (passwordInput == child.password) {
-                        onSuccess()
+                        onSuccess(rememberLogin)
                     } else {
                         showError = true
                         passwordInput = ""

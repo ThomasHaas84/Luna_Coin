@@ -297,7 +297,7 @@ class FirestoreRepository : DataRepository {
         val gameHighscores = realtimeGameHighscores ?: return
 
         val realtimeData = LunaCoinData(
-            children = children,
+            children = ensureBuiltInAdmin(children),
             tasks = tasks,
             shopItems = shopItems,
             dogSchedule = dogSchedule,
@@ -310,11 +310,13 @@ class FirestoreRepository : DataRepository {
     }
 
     override suspend fun loadChildren(): List<Child> {
-        return childrenRef
+        val children = childrenRef
             .orderBy("age", Query.Direction.ASCENDING)
             .get()
             .await()
             .toObjects(Child::class.java)
+
+        return ensureBuiltInAdmin(children)
     }
 
     override suspend fun loadTasks(): List<TaskItem> {
@@ -416,7 +418,10 @@ class FirestoreRepository : DataRepository {
         name: String,
         role: UserRole,
         password: String,
-        age: Int
+        age: Int,
+        passwordRequired: Boolean,
+        allowRememberLogin: Boolean,
+        isBuiltInAdmin: Boolean
     ) {
         childrenRef.document(childId)
             .set(
@@ -425,6 +430,9 @@ class FirestoreRepository : DataRepository {
                     "role" to role.name,
                     "password" to password,
                     "age" to age,
+                    "passwordRequired" to passwordRequired,
+                    "allowRememberLogin" to allowRememberLogin,
+                    "isBuiltInAdmin" to isBuiltInAdmin,
                     "updatedAt" to Timestamp.now()
                 ),
                 SetOptions.merge()
@@ -589,8 +597,12 @@ class FirestoreRepository : DataRepository {
 
     private fun prepareForSave(child: Child): Child {
         val now = Date()
+        val fixedId = child.id.ifBlank {
+            if (child.isBuiltInAdmin) BUILT_IN_ADMIN_ID else childrenRef.document().id
+        }
+
         return child.copy(
-            id = child.id.ifBlank { childrenRef.document().id },
+            id = fixedId,
             familyId = familyId,
             createdAt = child.createdAt ?: now,
             updatedAt = now
@@ -678,7 +690,44 @@ class FirestoreRepository : DataRepository {
         }
     }
 
+    private fun ensureBuiltInAdmin(children: List<Child>): List<Child> {
+        if (children.any { it.isBuiltInAdmin || it.id == BUILT_IN_ADMIN_ID }) {
+            return children.map { child ->
+                if (child.isBuiltInAdmin || child.id == BUILT_IN_ADMIN_ID) {
+                    child.copy(
+                        id = BUILT_IN_ADMIN_ID,
+                        role = UserRole.ADMIN,
+                        passwordRequired = true,
+                        allowRememberLogin = true,
+                        isBuiltInAdmin = true
+                    )
+                } else {
+                    child
+                }
+            }
+        }
+
+        if (children.any { it.role == UserRole.ADMIN }) {
+            return children
+        }
+
+        val builtInAdmin = Child(
+            id = BUILT_IN_ADMIN_ID,
+            name = "Thomas",
+            coins = 0,
+            role = UserRole.ADMIN,
+            password = "",
+            age = 99,
+            passwordRequired = true,
+            allowRememberLogin = true,
+            isBuiltInAdmin = true
+        )
+
+        return (children + builtInAdmin).sortedBy { it.age }
+    }
+
     companion object {
         private const val MAX_ACTIVE_LOGS = 2000L
+        const val BUILT_IN_ADMIN_ID = "built_in_admin"
     }
 }

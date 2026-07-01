@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -33,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -43,11 +43,10 @@ import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.components.dialogs.ConfirmationDialog
 import de.meson_labs.luna_coin.models.Child
-import de.meson_labs.luna_coin.models.GameHighscore
 import de.meson_labs.luna_coin.models.LunaGameLevel
 import de.meson_labs.luna_coin.models.LunaGameScoreType
 import de.meson_labs.luna_coin.models.LunaGameType
-import de.meson_labs.luna_coin.storage.LunaCoinStorage
+import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 import kotlinx.coroutines.delay
 import kotlin.math.min
 
@@ -55,24 +54,13 @@ import kotlin.math.min
 fun LunaMultiplicationGameScreen(
     modifier: Modifier = Modifier,
     selectedChild: Child?,
+    viewModel: LunaCoinViewModel,
     onLogout: () -> Unit,
     onBack: () -> Unit
 ) {
-    val context = LocalContext.current
-    val storage = remember { LunaCoinStorage(context) }
-    var highscores by remember {
-        mutableStateOf(storage.loadData()?.gameHighscores ?: emptyList())
-    }
-
-    var children by remember {
-        mutableStateOf(storage.loadData()?.children ?: emptyList())
-    }
-
-    LaunchedEffect(selectedChild?.id) {
-        val data = storage.loadData()
-        highscores = data?.gameHighscores ?: emptyList()
-        children = data?.children ?: emptyList()
-    }
+    val data by viewModel.data.collectAsState()
+    val highscores = data.gameHighscores
+    val children = data.children
 
     var missingFields by remember { mutableStateOf(setOf<Pair<Int, Int>>()) }
     val answers = remember { mutableStateMapOf<Pair<Int, Int>, String>() }
@@ -108,27 +96,14 @@ fun LunaMultiplicationGameScreen(
 
     fun saveHighscore() {
         val child = selectedChild ?: return
-        val data = storage.loadData() ?: return
 
-        val newHighscore = GameHighscore(
+        viewModel.saveGameHighscore(
             game = LunaGameType.MULTIPLICATION,
             childId = child.id,
             scoreType = LunaGameScoreType.TIME_SECONDS,
             level = LunaGameLevel.DEFAULT,
-            value = elapsedSeconds.toInt(),
-            timestamp = System.currentTimeMillis().toString()
+            value = elapsedSeconds.toInt()
         )
-
-        val updatedHighscores = data.gameHighscores.upsertHighscore(newHighscore)
-
-        storage.saveData(
-            data.copy(
-                gameHighscores = updatedHighscores
-            )
-        )
-
-        highscores = updatedHighscores
-        children = data.children
     }
 
     LaunchedEffect(Unit) {
@@ -290,8 +265,6 @@ fun LunaMultiplicationGameScreen(
         }
     }
 
-    // ==================== ZENTRALISIERTE DIALOGE ====================
-
     if (showRestartConfirmation) {
         ConfirmationDialog(
             title = "Neues Spiel starten?",
@@ -443,49 +416,6 @@ private fun MultiplicationCell(
             )
         }
     }
-}
-
-private fun List<GameHighscore>.upsertHighscore(
-    newHighscore: GameHighscore
-): List<GameHighscore> {
-    val existing = firstOrNull {
-        it.game == newHighscore.game &&
-                it.childId == newHighscore.childId &&
-                it.scoreType == newHighscore.scoreType &&
-                it.level == newHighscore.level
-    }
-
-    if (existing != null && existing.value <= newHighscore.value) {
-        return this
-    }
-
-    return filterNot {
-        it.game == newHighscore.game &&
-                it.childId == newHighscore.childId &&
-                it.scoreType == newHighscore.scoreType &&
-                it.level == newHighscore.level
-    } + newHighscore
-}
-
-private fun List<GameHighscore>.bestEntry(
-    childId: String?,
-    game: LunaGameType,
-    scoreType: LunaGameScoreType,
-    level: LunaGameLevel
-): GameHighscore? {
-    return filter {
-        it.game == game &&
-                it.scoreType == scoreType &&
-                it.level == level &&
-                (childId == null || it.childId == childId)
-    }.minByOrNull { it.value }
-}
-
-private fun childName(
-    childId: String,
-    children: List<Child>
-): String {
-    return children.firstOrNull { it.id == childId }?.name ?: "Unbekannt"
 }
 
 private fun formatMultiplicationTime(

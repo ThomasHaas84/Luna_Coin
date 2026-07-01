@@ -30,6 +30,9 @@ object DemoData {
             coins = 0,
             role = UserRole.CHILD,
             age = 2,
+            passwordRequired = false,
+            allowRememberLogin = false,
+            isBuiltInAdmin = false,
             createdAt = now,
             updatedAt = now
         )
@@ -41,6 +44,9 @@ object DemoData {
             coins = 3,
             role = UserRole.CHILD,
             age = 7,
+            passwordRequired = false,
+            allowRememberLogin = false,
+            isBuiltInAdmin = false,
             createdAt = now,
             updatedAt = now
         )
@@ -52,6 +58,9 @@ object DemoData {
             coins = 4,
             role = UserRole.CHILD,
             age = 8,
+            passwordRequired = false,
+            allowRememberLogin = false,
+            isBuiltInAdmin = false,
             createdAt = now,
             updatedAt = now
         )
@@ -63,6 +72,9 @@ object DemoData {
             coins = 5,
             role = UserRole.CHILD,
             age = 9,
+            passwordRequired = false,
+            allowRememberLogin = false,
+            isBuiltInAdmin = false,
             createdAt = now,
             updatedAt = now
         )
@@ -74,6 +86,9 @@ object DemoData {
             coins = 6,
             role = UserRole.CHILD,
             age = 10,
+            passwordRequired = false,
+            allowRememberLogin = false,
+            isBuiltInAdmin = false,
             createdAt = now,
             updatedAt = now
         )
@@ -85,6 +100,9 @@ object DemoData {
             coins = 7,
             role = UserRole.CHILD,
             age = 11,
+            passwordRequired = false,
+            allowRememberLogin = false,
+            isBuiltInAdmin = false,
             createdAt = now,
             updatedAt = now
         )
@@ -96,6 +114,9 @@ object DemoData {
             coins = 8,
             role = UserRole.CHILD,
             age = 12,
+            passwordRequired = false,
+            allowRememberLogin = false,
+            isBuiltInAdmin = false,
             createdAt = now,
             updatedAt = now
         )
@@ -108,18 +129,24 @@ object DemoData {
             role = UserRole.PARENT,
             password = "6511",
             age = 40,
+            passwordRequired = true,
+            allowRememberLogin = true,
+            isBuiltInAdmin = false,
             createdAt = now,
             updatedAt = now
         )
 
         val thomas = Child(
-            id = "admin_thomas",
+            id = "built_in_admin",
             familyId = FAMILY_ID,
             name = "Thomas",
             coins = 10,
             role = UserRole.ADMIN,
             password = "5761",
             age = 41,
+            passwordRequired = true,
+            allowRememberLogin = true,
+            isBuiltInAdmin = true,
             createdAt = now,
             updatedAt = now
         )

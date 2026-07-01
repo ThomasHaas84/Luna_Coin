@@ -55,7 +55,10 @@ interface DataRepository {
         name: String,
         role: UserRole,
         password: String,
-        age: Int
+        age: Int,
+        passwordRequired: Boolean,
+        allowRememberLogin: Boolean,
+        isBuiltInAdmin: Boolean
     )
 
     suspend fun deleteChild(childId: String)

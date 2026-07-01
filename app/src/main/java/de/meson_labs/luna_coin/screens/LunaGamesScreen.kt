@@ -35,6 +35,7 @@ import de.meson_labs.luna_coin.games.LunaMemoryGameScreen
 import de.meson_labs.luna_coin.games.LunaMultiplicationGameScreen
 import de.meson_labs.luna_coin.games.LunaNumberGuessGameScreen
 import de.meson_labs.luna_coin.models.Child
+import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 
 private enum class ActiveGame {
     NONE,
@@ -47,6 +48,7 @@ private enum class ActiveGame {
 fun LunaGamesScreen(
     modifier: Modifier = Modifier,
     selectedChild: Child?,
+    viewModel: LunaCoinViewModel,
     onLogout: () -> Unit
 ) {
     var activeGame by remember { mutableStateOf(ActiveGame.NONE) }
@@ -56,6 +58,7 @@ fun LunaGamesScreen(
             LunaMemoryGameScreen(
                 modifier = modifier,
                 selectedChild = selectedChild,
+                viewModel = viewModel,
                 onLogout = onLogout,
                 onBack = { activeGame = ActiveGame.NONE }
             )
@@ -65,6 +68,7 @@ fun LunaGamesScreen(
             LunaNumberGuessGameScreen(
                 modifier = modifier,
                 selectedChild = selectedChild,
+                viewModel = viewModel,
                 onLogout = onLogout,
                 onBack = { activeGame = ActiveGame.NONE }
             )
@@ -74,6 +78,7 @@ fun LunaGamesScreen(
             LunaMultiplicationGameScreen(
                 modifier = modifier,
                 selectedChild = selectedChild,
+                viewModel = viewModel,
                 onLogout = onLogout,
                 onBack = { activeGame = ActiveGame.NONE }
             )

@@ -3,6 +3,7 @@ package de.meson_labs.luna_coin.screens.settings
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,12 +15,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,6 +38,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.CoinDisplay
@@ -97,7 +104,6 @@ fun SettingsScreen(
         }
     }
 
-    // Dialog & Section States
     var showResetDialog by remember { mutableStateOf(false) }
     var showCreateBackupDialog by remember { mutableStateOf(false) }
     var showRestoreDialog by remember { mutableStateOf(false) }
@@ -111,24 +117,24 @@ fun SettingsScreen(
     var showDogScheduleEditor by remember { mutableStateOf(false) }
     var showTaskEditor by remember { mutableStateOf(false) }
 
-    // Language GIF
+    var showUserEditorDialog by remember { mutableStateOf(false) }
+    var userForEdit by remember { mutableStateOf<Child?>(null) }
+    var userForDelete by remember { mutableStateOf<Child?>(null) }
+
     var languageMessage by remember { mutableStateOf<String?>(null) }
     var showLanguageGif by remember { mutableStateOf(false) }
     var languageGifTitle by remember { mutableStateOf("") }
     var languageGifMessage by remember { mutableStateOf("") }
     var languageGifResId by remember { mutableIntStateOf(0) }
 
-    // Coin Edit
     var childForCoinEdit by remember { mutableStateOf<Child?>(null) }
     var coinEditText by remember { mutableStateOf("") }
     var coinEditCommentText by remember { mutableStateOf("") }
     var coinEditError by remember { mutableStateOf<String?>(null) }
 
-    // Sonstiges
     var logSearchText by remember { mutableStateOf("") }
     var mimiModeEnabled by remember { mutableStateOf(false) }
 
-    // Auto-hide language message
     LaunchedEffect(languageMessage) {
         if (languageMessage != null) {
             delay(3000)
@@ -169,7 +175,6 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // Nachricht anzeigen
             if (currentMessage != null) {
                 item {
                     Card(
@@ -187,7 +192,6 @@ fun SettingsScreen(
                 }
             }
 
-            // App-Einstellungen
             item {
                 Button(onClick = { showAppSettings = !showAppSettings }) {
                     Text(if (showAppSettings) "App-Einstellungen ausblenden" else "App-Einstellungen anzeigen")
@@ -229,7 +233,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Benutzer & Coins
             item {
                 if (canEdit) {
                     Button(onClick = { showUsersAndCoins = !showUsersAndCoins }) {
@@ -241,37 +244,43 @@ fun SettingsScreen(
             }
 
             if (!canEdit || showUsersAndCoins) {
-                items(visibleUsers) { child ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .combinedClickable(
-                                onClick = {},
-                                onLongClick = {
-                                    if (canEdit) {
-                                        childForCoinEdit = child
-                                        coinEditText = child.coins.toString()
-                                        coinEditCommentText = ""
-                                        coinEditError = null
-                                    }
-                                }
-                            ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                    ) {
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("${child.name}: ", style = MaterialTheme.typography.bodyLarge)
-                            CoinDisplay(amount = child.coins)
-                            Text(
-                                text = " · ${child.role.toDisplayText()}",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                if (isAdmin) {
+                    item {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = {
+                                userForEdit = null
+                                showUserEditorDialog = true
+                            }
+                        ) {
+                            Text("Benutzer hinzufügen")
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
+                }
+
+                items(visibleUsers) { child ->
+                    UserManagementCard(
+                        child = child,
+                        canEditCoins = canEdit,
+                        canManageUsers = isAdmin,
+                        onEditCoins = {
+                            childForCoinEdit = child
+                            coinEditText = child.coins.toString()
+                            coinEditCommentText = ""
+                            coinEditError = null
+                        },
+                        onEditUser = {
+                            userForEdit = child
+                            showUserEditorDialog = true
+                        },
+                        onDeleteUser = {
+                            userForDelete = child
+                        }
+                    )
                 }
             }
 
-            // Watchlist
             if (canEdit) {
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
@@ -298,7 +307,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Logs
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 if (canEdit) {
@@ -345,7 +353,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Verwaltung (Aufgaben, Shop, Hundeplan) → für PARENT + ADMIN
             if (canEdit) {
                 item {
                     Spacer(modifier = Modifier.height(32.dp))
@@ -370,7 +377,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Nur Admin: Datensicherung
             if (isAdmin) {
                 item {
                     Spacer(modifier = Modifier.height(32.dp))
@@ -402,8 +408,6 @@ fun SettingsScreen(
             }
         }
     }
-
-    // ==================== ZENTRALISIERTE DIALOGE ====================
 
     if (showResetDialog) {
         ConfirmationDialog(
@@ -461,7 +465,6 @@ fun SettingsScreen(
         )
     }
 
-    // Language GIF Dialog
     if (showLanguageGif) {
         LunaGifDialog(
             title = languageGifTitle,
@@ -472,7 +475,6 @@ fun SettingsScreen(
         )
     }
 
-    // Coin Edit Dialog
     childForCoinEdit?.let { child ->
         CoinEditDialog(
             child = child,
@@ -495,6 +497,50 @@ fun SettingsScreen(
                 coinEditText = ""
                 coinEditCommentText = ""
                 coinEditError = null
+            }
+        )
+    }
+
+    if (showUserEditorDialog) {
+        UserEditorDialog(
+            child = userForEdit,
+            onDismiss = {
+                showUserEditorDialog = false
+                userForEdit = null
+            },
+            onSaveNew = { name, role, password, age, coins, passwordRequired, allowRememberLogin ->
+                viewModel.addChild(
+                    name = name,
+                    role = role,
+                    password = password,
+                    age = age,
+                    coins = coins,
+                    passwordRequired = passwordRequired,
+                    allowRememberLogin = allowRememberLogin
+                )
+                showUserEditorDialog = false
+                userForEdit = null
+            },
+            onSaveExisting = { updatedChild ->
+                viewModel.updateChild(updatedChild)
+                showUserEditorDialog = false
+                userForEdit = null
+            }
+        )
+    }
+
+    userForDelete?.let { child ->
+        ConfirmationDialog(
+            title = "Benutzer löschen?",
+            message = "Soll ${child.name} wirklich gelöscht werden? Zugewiesene Aufgaben werden freigegeben, Hundeplan-Einträge und Spielstände dieses Benutzers werden entfernt.",
+            confirmText = "Löschen",
+            dismissText = "Abbrechen",
+            onConfirm = {
+                viewModel.deleteChild(child.id)
+                userForDelete = null
+            },
+            onDismiss = {
+                userForDelete = null
             }
         )
     }
@@ -528,6 +574,337 @@ fun SettingsScreen(
             onAddTask = onAddTask,
             onUpdateTask = onUpdateTask,
             onDeleteTask = onDeleteTask
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun UserManagementCard(
+    child: Child,
+    canEditCoins: Boolean,
+    canManageUsers: Boolean,
+    onEditCoins: () -> Unit,
+    onEditUser: () -> Unit,
+    onDeleteUser: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .combinedClickable(
+                onClick = {},
+                onLongClick = {
+                    if (canEditCoins) {
+                        onEditCoins()
+                    }
+                }
+            ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("${child.name}: ", style = MaterialTheme.typography.bodyLarge)
+                CoinDisplay(amount = child.coins)
+                Text(
+                    text = " · ${child.role.toDisplayText()}",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                if (child.isBuiltInAdmin) {
+                    Text(
+                        text = " · Standard-Admin",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Text(
+                text = buildString {
+                    append("Alter: ${child.age}")
+                    append(" · Passwort: ")
+                    append(
+                        if (!child.passwordRequired || child.password.isBlank()) {
+                            "nicht erforderlich"
+                        } else {
+                            "erforderlich"
+                        }
+                    )
+                    append(" · Merken: ")
+                    append(if (child.allowRememberLogin) "erlaubt" else "nicht erlaubt")
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+
+            if (canManageUsers) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row {
+                    OutlinedButton(onClick = onEditCoins) {
+                        Text("Coins")
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    OutlinedButton(onClick = onEditUser) {
+                        Text("Bearbeiten")
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    OutlinedButton(
+                        onClick = onDeleteUser,
+                        enabled = !child.isBuiltInAdmin
+                    ) {
+                        Text("Löschen")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserEditorDialog(
+    child: Child?,
+    onDismiss: () -> Unit,
+    onSaveNew: (String, UserRole, String, Int, Int, Boolean, Boolean) -> Unit,
+    onSaveExisting: (Child) -> Unit
+) {
+    val isEditMode = child != null
+    val isBuiltInAdmin = child?.isBuiltInAdmin == true
+
+    var nameText by remember(child?.id) { mutableStateOf(child?.name ?: "") }
+    var ageText by remember(child?.id) { mutableStateOf((child?.age ?: 0).toString()) }
+    var coinsText by remember(child?.id) { mutableStateOf((child?.coins ?: 0).toString()) }
+    var passwordText by remember(child?.id) { mutableStateOf(child?.password ?: "") }
+    var selectedRole by remember(child?.id) { mutableStateOf(child?.role ?: UserRole.CHILD) }
+    var passwordRequired by remember(child?.id) { mutableStateOf(child?.passwordRequired ?: true) }
+    var allowRememberLogin by remember(child?.id) { mutableStateOf(child?.allowRememberLogin ?: true) }
+    var errorText by remember(child?.id) { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(if (isEditMode) "Benutzer bearbeiten" else "Benutzer hinzufügen")
+        },
+        text = {
+            LazyColumn {
+                item {
+                    OutlinedTextField(
+                        value = nameText,
+                        onValueChange = {
+                            nameText = it
+                            errorText = null
+                        },
+                        label = { Text("Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = ageText,
+                        onValueChange = {
+                            ageText = it.filter { char -> char.isDigit() }
+                            errorText = null
+                        },
+                        label = { Text("Alter / Sortierung") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (!isEditMode) {
+                        OutlinedTextField(
+                            value = coinsText,
+                            onValueChange = {
+                                coinsText = it.filterIndexed { index, char ->
+                                    char.isDigit() || (char == '-' && index == 0)
+                                }
+                                errorText = null
+                            },
+                            label = { Text("Start-Coins") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    OutlinedTextField(
+                        value = passwordText,
+                        onValueChange = {
+                            passwordText = it
+                            errorText = null
+                        },
+                        label = { Text("Passwort") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text("Rolle", style = MaterialTheme.typography.titleMedium)
+
+                    RoleOption(
+                        text = "Kind",
+                        selected = selectedRole == UserRole.CHILD,
+                        enabled = !isBuiltInAdmin,
+                        onClick = { selectedRole = UserRole.CHILD }
+                    )
+
+                    RoleOption(
+                        text = "Eltern",
+                        selected = selectedRole == UserRole.PARENT,
+                        enabled = !isBuiltInAdmin,
+                        onClick = { selectedRole = UserRole.PARENT }
+                    )
+
+                    RoleOption(
+                        text = "Admin",
+                        selected = selectedRole == UserRole.ADMIN,
+                        enabled = true,
+                        onClick = { selectedRole = UserRole.ADMIN }
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable(enabled = !isBuiltInAdmin) {
+                            passwordRequired = !passwordRequired
+                        }
+                    ) {
+                        Checkbox(
+                            checked = passwordRequired,
+                            onCheckedChange = {
+                                if (!isBuiltInAdmin) {
+                                    passwordRequired = it
+                                }
+                            },
+                            enabled = !isBuiltInAdmin
+                        )
+                        Text("Passwort erforderlich")
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable {
+                            allowRememberLogin = !allowRememberLogin
+                        }
+                    ) {
+                        Checkbox(
+                            checked = allowRememberLogin,
+                            onCheckedChange = { allowRememberLogin = it }
+                        )
+                        Text("Passwort auf Gerät merken erlauben")
+                    }
+
+                    if (isBuiltInAdmin) {
+                        Text(
+                            text = "Der Standard-Admin bleibt immer Admin und benötigt ein Passwort, sobald eines gesetzt ist.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+
+                    if (errorText != null) {
+                        Text(
+                            text = errorText!!,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Abbrechen")
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val name = nameText.trim()
+                    val age = ageText.toIntOrNull()
+                    val coins = coinsText.toIntOrNull() ?: 0
+
+                    if (name.isBlank()) {
+                        errorText = "Bitte einen Namen eingeben."
+                        return@TextButton
+                    }
+
+                    if (age == null) {
+                        errorText = "Bitte ein gültiges Alter eingeben."
+                        return@TextButton
+                    }
+
+                    if (isEditMode && child != null) {
+                        val updatedChild = child.copy(
+                            name = name,
+                            age = age,
+                            role = if (isBuiltInAdmin) UserRole.ADMIN else selectedRole,
+                            password = passwordText,
+                            passwordRequired = if (isBuiltInAdmin) true else passwordRequired,
+                            allowRememberLogin = allowRememberLogin
+                        )
+
+                        onSaveExisting(updatedChild)
+                    } else {
+                        onSaveNew(
+                            name,
+                            selectedRole,
+                            passwordText,
+                            age,
+                            coins,
+                            passwordRequired,
+                            allowRememberLogin
+                        )
+                    }
+                }
+            ) {
+                Text("Speichern")
+            }
+        }
+    )
+}
+
+@Composable
+private fun RoleOption(
+    text: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clickable(enabled = enabled) {
+            onClick()
+        }
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onClick,
+            enabled = enabled
+        )
+
+        Text(
+            text = text,
+            color = if (enabled) {
+                MaterialTheme.colorScheme.onSurface
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
         )
     }
 }

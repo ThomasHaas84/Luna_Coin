@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -30,7 +31,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -41,7 +41,7 @@ import de.meson_labs.luna_coin.models.GameHighscore
 import de.meson_labs.luna_coin.models.LunaGameLevel
 import de.meson_labs.luna_coin.models.LunaGameScoreType
 import de.meson_labs.luna_coin.models.LunaGameType
-import de.meson_labs.luna_coin.storage.LunaCoinStorage
+import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 import kotlinx.coroutines.delay
 import kotlin.math.min
 
@@ -67,24 +67,13 @@ private data class MemoryCard(
 fun LunaMemoryGameScreen(
     modifier: Modifier = Modifier,
     selectedChild: Child?,
+    viewModel: LunaCoinViewModel,
     onLogout: () -> Unit,
     onBack: () -> Unit
 ) {
-    val context = LocalContext.current
-    val storage = remember { LunaCoinStorage(context) }
-    var highscores by remember {
-        mutableStateOf(storage.loadData()?.gameHighscores ?: emptyList())
-    }
-
-    var children by remember {
-        mutableStateOf(storage.loadData()?.children ?: emptyList())
-    }
-
-    LaunchedEffect(selectedChild?.id) {
-        val data = storage.loadData()
-        highscores = data?.gameHighscores ?: emptyList()
-        children = data?.children ?: emptyList()
-    }
+    val data by viewModel.data.collectAsState()
+    val highscores = data.gameHighscores
+    val children = data.children
 
     val cards = remember { mutableStateListOf<MemoryCard>() }
 
@@ -191,43 +180,23 @@ fun LunaMemoryGameScreen(
     fun saveMemoryHighscores() {
         val child = selectedChild ?: return
         val difficulty = selectedDifficulty ?: return
-
-        val data = storage.loadData() ?: return
         val level = difficulty.toLunaGameLevel()
-        val timestamp = System.currentTimeMillis().toString()
 
-        var updatedHighscores = data.gameHighscores
-
-        updatedHighscores = updatedHighscores.upsertHighscore(
-            GameHighscore(
-                game = LunaGameType.MEMORY,
-                childId = child.id,
-                scoreType = LunaGameScoreType.ATTEMPTS,
-                level = level,
-                value = moves,
-                timestamp = timestamp
-            )
+        viewModel.saveGameHighscore(
+            game = LunaGameType.MEMORY,
+            childId = child.id,
+            scoreType = LunaGameScoreType.ATTEMPTS,
+            level = level,
+            value = moves
         )
 
-        updatedHighscores = updatedHighscores.upsertHighscore(
-            GameHighscore(
-                game = LunaGameType.MEMORY,
-                childId = child.id,
-                scoreType = LunaGameScoreType.TIME_SECONDS,
-                level = level,
-                value = elapsedSeconds.toInt(),
-                timestamp = timestamp
-            )
+        viewModel.saveGameHighscore(
+            game = LunaGameType.MEMORY,
+            childId = child.id,
+            scoreType = LunaGameScoreType.TIME_SECONDS,
+            level = level,
+            value = elapsedSeconds.toInt()
         )
-
-        storage.saveData(
-            data.copy(
-                gameHighscores = updatedHighscores
-            )
-        )
-
-        highscores = updatedHighscores
-        children = data.children
     }
 
     val finished = cards.isNotEmpty() && cards.all { it.isMatched }
@@ -434,8 +403,6 @@ fun LunaMemoryGameScreen(
             }
         }
     }
-
-    // ==================== ZENTRALISIERTE DIALOGE ====================
 
     if (showRestartConfirmation) {
         ConfirmationDialog(
@@ -859,49 +826,6 @@ private fun MemoryScorePanel(
             }
         }
     }
-}
-
-private fun List<GameHighscore>.upsertHighscore(
-    newHighscore: GameHighscore
-): List<GameHighscore> {
-    val existing = firstOrNull {
-        it.game == newHighscore.game &&
-                it.childId == newHighscore.childId &&
-                it.scoreType == newHighscore.scoreType &&
-                it.level == newHighscore.level
-    }
-
-    if (existing != null && existing.value <= newHighscore.value) {
-        return this
-    }
-
-    return filterNot {
-        it.game == newHighscore.game &&
-                it.childId == newHighscore.childId &&
-                it.scoreType == newHighscore.scoreType &&
-                it.level == newHighscore.level
-    } + newHighscore
-}
-
-private fun List<GameHighscore>.bestEntry(
-    childId: String?,
-    game: LunaGameType,
-    scoreType: LunaGameScoreType,
-    level: LunaGameLevel
-): GameHighscore? {
-    return filter {
-        it.game == game &&
-                it.scoreType == scoreType &&
-                it.level == level &&
-                (childId == null || it.childId == childId)
-    }.minByOrNull { it.value }
-}
-
-private fun childName(
-    childId: String,
-    children: List<Child>
-): String {
-    return children.firstOrNull { it.id == childId }?.name ?: "Unbekannt"
 }
 
 private fun MemoryDifficulty.toLunaGameLevel(): LunaGameLevel {

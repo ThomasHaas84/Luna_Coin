@@ -8,10 +8,14 @@ import de.meson_labs.luna_coin.data.repository.DataRepository
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.DogScheduleItem
+import de.meson_labs.luna_coin.models.GameHighscore
 import de.meson_labs.luna_coin.models.LogEntry
 import de.meson_labs.luna_coin.models.LogType
 import de.meson_labs.luna_coin.models.LuckyWheelUsage
 import de.meson_labs.luna_coin.models.LunaCoinData
+import de.meson_labs.luna_coin.models.LunaGameLevel
+import de.meson_labs.luna_coin.models.LunaGameScoreType
+import de.meson_labs.luna_coin.models.LunaGameType
 import de.meson_labs.luna_coin.models.LunaInventoryItem
 import de.meson_labs.luna_coin.models.LunaItemCatalog
 import de.meson_labs.luna_coin.models.ShopItem
@@ -20,6 +24,7 @@ import de.meson_labs.luna_coin.models.TaskCompletion
 import de.meson_labs.luna_coin.models.TaskCompletionMode
 import de.meson_labs.luna_coin.models.TaskItem
 import de.meson_labs.luna_coin.models.TaskRepeatType
+import de.meson_labs.luna_coin.models.UserRole
 import de.meson_labs.luna_coin.screens.LuckyWheelResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,10 +35,14 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
+import de.meson_labs.luna_coin.games.bestEntry
+import de.meson_labs.luna_coin.games.childName
+import de.meson_labs.luna_coin.games.upsertHighscore
 
 class LunaCoinViewModel(
     private val repository: DataRepository
 ) : ViewModel() {
+
 
     private val _data = MutableStateFlow<LunaCoinData>(LunaCoinData())
     val data: StateFlow<LunaCoinData> = _data.asStateFlow()
@@ -75,21 +84,23 @@ class LunaCoinViewModel(
 
                 if (children.isEmpty()) {
                     println("⚠️ Keine Kinder in Firestore gefunden → Demo-Daten nur lokal anzeigen, NICHT speichern")
-                    val demoData = DemoData.create()
-                    _data.value = demoData
+                    val demoData = ensureBuiltInAdmin(DemoData.create())
+                    _data.value = sortChildrenInData(demoData)
                     showMessage("⚠️ Keine Cloud-Daten gefunden")
                 } else {
-                    val loadedData = LunaCoinData(
-                        children = children,
-                        tasks = repository.loadTasks(),
-                        shopItems = repository.loadShopItems(),
-                        dogSchedule = repository.loadDogSchedule(),
-                        logs = repository.loadLogs(),
-                        luckyWheelUsage = repository.loadLuckyWheelUsage(),
-                        gameHighscores = repository.loadGameHighscores()
+                    val loadedData = ensureBuiltInAdmin(
+                        LunaCoinData(
+                            children = children,
+                            tasks = repository.loadTasks(),
+                            shopItems = repository.loadShopItems(),
+                            dogSchedule = repository.loadDogSchedule(),
+                            logs = repository.loadLogs(),
+                            luckyWheelUsage = repository.loadLuckyWheelUsage(),
+                            gameHighscores = repository.loadGameHighscores()
+                        )
                     )
 
-                    _data.value = loadedData
+                    _data.value = sortChildrenInData(loadedData)
 
                     println(
                         "✅ Firestore Collections geladen: " +
@@ -125,12 +136,13 @@ class LunaCoinViewModel(
                     }
 
                     val currentSelectedChildId = _selectedChildId.value
+                    val safeData = sortChildrenInData(ensureBuiltInAdmin(realtimeData))
 
-                    _data.value = realtimeData
+                    _data.value = safeData
 
                     if (
                         currentSelectedChildId != null &&
-                        realtimeData.children.none { it.id == currentSelectedChildId }
+                        safeData.children.none { it.id == currentSelectedChildId }
                     ) {
                         _selectedChildId.value = null
                     }
@@ -186,12 +198,105 @@ class LunaCoinViewModel(
         _selectedDate.value = LocalDate.now()
     }
 
+    fun saveGameHighscore(
+        game: LunaGameType,
+        childId: String,
+        scoreType: LunaGameScoreType,
+        level: LunaGameLevel,
+        value: Int
+    ) {
+        if (childId.isBlank()) return
+        if (value < 0) return
+
+        val currentData = _data.value
+
+        val newHighscore = GameHighscore(
+            id = "${game}_${childId}_${level}_${scoreType}",
+            game = game,
+            childId = childId,
+            scoreType = scoreType,
+            level = level,
+            value = value,
+            timestamp = System.currentTimeMillis().toString()
+        )
+
+        val updatedHighscores = currentData.gameHighscores.upsertHighscore(newHighscore)
+
+        if (updatedHighscores == currentData.gameHighscores) {
+            return
+        }
+
+        _data.value = sortChildrenInData(
+            currentData.copy(
+                gameHighscores = updatedHighscores
+            )
+        )
+
+        viewModelScope.launch {
+            try {
+                repository.saveGameHighscore(newHighscore)
+            } catch (e: Exception) {
+                _data.value = currentData
+                println("❌ Fehler beim Speichern des Highscores: ${e.message}")
+                e.printStackTrace()
+                showMessage("❌ Highscore konnte nicht gespeichert werden")
+            }
+        }
+    }
+
     companion object {
         private const val MAX_ACTIVE_LOGS = 2000
+        private const val BUILT_IN_ADMIN_ID = "built_in_admin"
     }
 
     private fun addLogToList(log: LogEntry, currentLogs: List<LogEntry>): List<LogEntry> {
         return (listOf(log) + currentLogs).take(MAX_ACTIVE_LOGS)
+    }
+
+    private fun sortChildrenInData(data: LunaCoinData): LunaCoinData {
+        return data.copy(
+            children = data.children.sortedBy { it.age }
+        )
+    }
+
+    private fun ensureBuiltInAdmin(data: LunaCoinData): LunaCoinData {
+        val children = data.children
+
+        val fixedChildren = when {
+            children.any { it.isBuiltInAdmin || it.id == BUILT_IN_ADMIN_ID } -> {
+                children.map { child ->
+                    if (child.isBuiltInAdmin || child.id == BUILT_IN_ADMIN_ID) {
+                        child.copy(
+                            id = BUILT_IN_ADMIN_ID,
+                            role = UserRole.ADMIN,
+                            passwordRequired = true,
+                            allowRememberLogin = true,
+                            isBuiltInAdmin = true
+                        )
+                    } else {
+                        child
+                    }
+                }
+            }
+
+            children.any { it.role == UserRole.ADMIN } -> children
+
+            else -> {
+                children + Child(
+                    id = BUILT_IN_ADMIN_ID,
+                    name = "Thomas",
+                    coins = 0,
+                    role = UserRole.ADMIN,
+                    password = "",
+                    age = 99,
+                    passwordRequired = true,
+                    allowRememberLogin = true,
+                    isBuiltInAdmin = true
+                )
+            }
+        }
+
+        return data.copy(children = fixedChildren.sortedBy { it.age })
     }
 
     fun completeTask(taskId: String) {
@@ -231,14 +336,16 @@ class LunaCoinViewModel(
             coins = child.coins + task.rewardCoins
         )
 
-        _data.value = currentData.copy(
-            children = currentData.children.map { c ->
-                if (c.id == childId) optimisticChild else c
-            },
-            tasks = currentData.tasks.map { t ->
-                if (t.id == taskId) updatedTask else t
-            },
-            logs = addLogToList(log, currentData.logs)
+        _data.value = sortChildrenInData(
+            currentData.copy(
+                children = currentData.children.map { c ->
+                    if (c.id == childId) optimisticChild else c
+                },
+                tasks = currentData.tasks.map { t ->
+                    if (t.id == taskId) updatedTask else t
+                },
+                logs = addLogToList(log, currentData.logs)
+            )
         )
 
         viewModelScope.launch {
@@ -249,10 +356,12 @@ class LunaCoinViewModel(
                 )
 
                 val latestData = _data.value
-                _data.value = latestData.copy(
-                    children = latestData.children.map { c ->
-                        if (c.id == childId) c.copy(coins = realCoinValue) else c
-                    }
+                _data.value = sortChildrenInData(
+                    latestData.copy(
+                        children = latestData.children.map { c ->
+                            if (c.id == childId) c.copy(coins = realCoinValue) else c
+                        }
+                    )
                 )
 
                 repository.saveTask(updatedTask)
@@ -307,11 +416,13 @@ class LunaCoinViewModel(
             coins = child.coins + coinDelta
         )
 
-        _data.value = currentData.copy(
-            children = currentData.children.map { c ->
-                if (c.id == childId) optimisticChild else c
-            },
-            logs = addLogToList(log, currentData.logs)
+        _data.value = sortChildrenInData(
+            currentData.copy(
+                children = currentData.children.map { c ->
+                    if (c.id == childId) optimisticChild else c
+                },
+                logs = addLogToList(log, currentData.logs)
+            )
         )
 
         viewModelScope.launch {
@@ -322,10 +433,12 @@ class LunaCoinViewModel(
                 )
 
                 val latestData = _data.value
-                _data.value = latestData.copy(
-                    children = latestData.children.map { c ->
-                        if (c.id == childId) c.copy(coins = realCoinValue) else c
-                    }
+                _data.value = sortChildrenInData(
+                    latestData.copy(
+                        children = latestData.children.map { c ->
+                            if (c.id == childId) c.copy(coins = realCoinValue) else c
+                        }
+                    )
                 )
 
                 repository.saveLog(log)
@@ -389,11 +502,13 @@ class LunaCoinViewModel(
             coinChange = coinDelta
         )
 
-        _data.value = currentData.copy(
-            children = currentData.children.map { c ->
-                if (c.id == childId) optimisticChild else c
-            },
-            logs = addLogToList(log, currentData.logs)
+        _data.value = sortChildrenInData(
+            currentData.copy(
+                children = currentData.children.map { c ->
+                    if (c.id == childId) optimisticChild else c
+                },
+                logs = addLogToList(log, currentData.logs)
+            )
         )
 
         viewModelScope.launch {
@@ -408,10 +523,12 @@ class LunaCoinViewModel(
                 )
 
                 val latestData = _data.value
-                _data.value = latestData.copy(
-                    children = latestData.children.map { c ->
-                        if (c.id == childId) childWithRealCoins else c
-                    }
+                _data.value = sortChildrenInData(
+                    latestData.copy(
+                        children = latestData.children.map { c ->
+                            if (c.id == childId) childWithRealCoins else c
+                        }
+                    )
                 )
 
                 repository.updateChildInventory(
@@ -507,12 +624,14 @@ class LunaCoinViewModel(
             coinChange = coinDelta
         )
 
-        _data.value = currentData.copy(
-            children = currentData.children.map { c ->
-                if (c.id == childId) optimisticChild else c
-            },
-            luckyWheelUsage = updatedUsageList,
-            logs = addLogToList(log, currentData.logs)
+        _data.value = sortChildrenInData(
+            currentData.copy(
+                children = currentData.children.map { c ->
+                    if (c.id == childId) optimisticChild else c
+                },
+                luckyWheelUsage = updatedUsageList,
+                logs = addLogToList(log, currentData.logs)
+            )
         )
 
         viewModelScope.launch {
@@ -527,10 +646,12 @@ class LunaCoinViewModel(
                 )
 
                 val latestData = _data.value
-                _data.value = latestData.copy(
-                    children = latestData.children.map { c ->
-                        if (c.id == childId) childWithRealCoins else c
-                    }
+                _data.value = sortChildrenInData(
+                    latestData.copy(
+                        children = latestData.children.map { c ->
+                            if (c.id == childId) childWithRealCoins else c
+                        }
+                    )
                 )
 
                 repository.updateChildInventory(
@@ -581,11 +702,13 @@ class LunaCoinViewModel(
             coins = newCoins
         )
 
-        _data.value = currentData.copy(
-            children = currentData.children.map { c ->
-                if (c.id == childId) optimisticChild else c
-            },
-            logs = addLogToList(log, currentData.logs)
+        _data.value = sortChildrenInData(
+            currentData.copy(
+                children = currentData.children.map { c ->
+                    if (c.id == childId) optimisticChild else c
+                },
+                logs = addLogToList(log, currentData.logs)
+            )
         )
 
         viewModelScope.launch {
@@ -596,10 +719,12 @@ class LunaCoinViewModel(
                 )
 
                 val latestData = _data.value
-                _data.value = latestData.copy(
-                    children = latestData.children.map { c ->
-                        if (c.id == childId) c.copy(coins = realCoinValue) else c
-                    }
+                _data.value = sortChildrenInData(
+                    latestData.copy(
+                        children = latestData.children.map { c ->
+                            if (c.id == childId) c.copy(coins = realCoinValue) else c
+                        }
+                    )
                 )
 
                 repository.saveLog(log)
@@ -612,18 +737,100 @@ class LunaCoinViewModel(
         }
     }
 
+    fun addChild(
+        name: String,
+        role: UserRole,
+        password: String,
+        age: Int,
+        coins: Int,
+        passwordRequired: Boolean,
+        allowRememberLogin: Boolean
+    ) {
+        val trimmedName = name.trim()
+
+        if (trimmedName.isBlank()) {
+            showMessage("❌ Name darf nicht leer sein")
+            return
+        }
+
+        val safeCoins = coins.coerceAtLeast(0)
+
+        val newChild = Child(
+            id = uuid(),
+            name = trimmedName,
+            role = role,
+            password = password,
+            age = age,
+            coins = safeCoins,
+            passwordRequired = passwordRequired,
+            allowRememberLogin = allowRememberLogin,
+            isBuiltInAdmin = false
+        )
+
+        val currentData = _data.value
+        val log = LogEntry(
+            id = uuid(),
+            timestamp = nowText(),
+            childId = newChild.id,
+            type = LogType.SYSTEM,
+            text = "Benutzer angelegt: ${newChild.name} (${newChild.role})",
+            coinChange = 0
+        )
+
+        _data.value = sortChildrenInData(
+            currentData.copy(
+                children = currentData.children + newChild,
+                logs = addLogToList(log, currentData.logs)
+            )
+        )
+
+        viewModelScope.launch {
+            try {
+                repository.saveChild(newChild)
+                repository.saveLog(log)
+                showMessage("✅ Benutzer angelegt")
+            } catch (e: Exception) {
+                _data.value = currentData
+                println("❌ Fehler beim Anlegen des Benutzers: ${e.message}")
+                e.printStackTrace()
+                showMessage("❌ Benutzer konnte nicht angelegt werden")
+            }
+        }
+    }
+
     fun updateChild(updatedChild: Child) {
         val currentData = _data.value
         val existingChild = currentData.children.firstOrNull { it.id == updatedChild.id } ?: return
 
+        val adminCount = currentData.children.count { it.role == UserRole.ADMIN }
+
+        val safeRole = when {
+            existingChild.isBuiltInAdmin -> UserRole.ADMIN
+            existingChild.role == UserRole.ADMIN &&
+                    updatedChild.role != UserRole.ADMIN &&
+                    adminCount <= 1 -> {
+                showMessage("❌ Der letzte Admin darf seine Admin-Rechte nicht verlieren")
+                UserRole.ADMIN
+            }
+
+            else -> updatedChild.role
+        }
+
         val safeUpdatedChild = updatedChild.copy(
-            coins = existingChild.coins
+            id = existingChild.id,
+            coins = existingChild.coins,
+            role = safeRole,
+            isBuiltInAdmin = existingChild.isBuiltInAdmin,
+            passwordRequired = if (existingChild.isBuiltInAdmin) true else updatedChild.passwordRequired,
+            allowRememberLogin = updatedChild.allowRememberLogin
         )
 
-        _data.value = currentData.copy(
-            children = currentData.children.map { child ->
-                if (child.id == safeUpdatedChild.id) safeUpdatedChild else child
-            }
+        _data.value = sortChildrenInData(
+            currentData.copy(
+                children = currentData.children.map { child ->
+                    if (child.id == safeUpdatedChild.id) safeUpdatedChild else child
+                }
+            )
         )
 
         viewModelScope.launch {
@@ -633,7 +840,10 @@ class LunaCoinViewModel(
                     name = safeUpdatedChild.name,
                     role = safeUpdatedChild.role,
                     password = safeUpdatedChild.password,
-                    age = safeUpdatedChild.age
+                    age = safeUpdatedChild.age,
+                    passwordRequired = safeUpdatedChild.passwordRequired,
+                    allowRememberLogin = safeUpdatedChild.allowRememberLogin,
+                    isBuiltInAdmin = safeUpdatedChild.isBuiltInAdmin
                 )
 
                 repository.updateChildInventory(
@@ -643,10 +853,108 @@ class LunaCoinViewModel(
                     profileImageItem = safeUpdatedChild.profileImageItem,
                     hasProfileImage = safeUpdatedChild.hasProfileImage
                 )
+
+                showMessage("✅ Benutzer gespeichert")
             } catch (e: Exception) {
-                println("❌ Fehler beim Speichern des Kindes: ${e.message}")
+                _data.value = currentData
+                println("❌ Fehler beim Speichern des Benutzers: ${e.message}")
                 e.printStackTrace()
-                showMessage("❌ Kind konnte nicht gespeichert werden")
+                showMessage("❌ Benutzer konnte nicht gespeichert werden")
+            }
+        }
+    }
+
+    fun deleteChild(childId: String) {
+        val currentData = _data.value
+        val child = currentData.children.firstOrNull { it.id == childId } ?: return
+
+        if (child.isBuiltInAdmin) {
+            showMessage("❌ Der Standard-Admin kann nicht gelöscht werden")
+            return
+        }
+
+        if (child.role == UserRole.ADMIN) {
+            val adminCount = currentData.children.count { it.role == UserRole.ADMIN }
+
+            if (adminCount <= 1) {
+                showMessage("❌ Der letzte Admin kann nicht gelöscht werden")
+                return
+            }
+        }
+
+        if (_selectedChildId.value == childId) {
+            _selectedChildId.value = null
+        }
+
+        val log = LogEntry(
+            id = uuid(),
+            timestamp = nowText(),
+            childId = childId,
+            type = LogType.SYSTEM,
+            text = "Benutzer gelöscht: ${child.name}",
+            coinChange = 0
+        )
+
+        _data.value = sortChildrenInData(
+            currentData.copy(
+                children = currentData.children.filterNot { it.id == childId },
+                tasks = currentData.tasks.map { task ->
+                    if (task.assignedChildId == childId) {
+                        task.copy(
+                            assignmentType = TaskAssignmentType.FREE_FOR_ALL,
+                            assignedChildId = null
+                        )
+                    } else {
+                        task
+                    }
+                },
+                dogSchedule = currentData.dogSchedule.filterNot { it.childId == childId },
+                luckyWheelUsage = currentData.luckyWheelUsage.filterNot { it.childId == childId },
+                gameHighscores = currentData.gameHighscores.filterNot { it.childId == childId },
+                logs = addLogToList(log, currentData.logs)
+            )
+        )
+
+        viewModelScope.launch {
+            try {
+                repository.deleteChild(childId)
+
+                currentData.tasks
+                    .filter { it.assignedChildId == childId }
+                    .forEach { task ->
+                        repository.saveTask(
+                            task.copy(
+                                assignmentType = TaskAssignmentType.FREE_FOR_ALL,
+                                assignedChildId = null
+                            )
+                        )
+                    }
+
+                currentData.dogSchedule
+                    .filter { it.childId == childId }
+                    .forEach { item ->
+                        repository.deleteDogScheduleItem(item.id)
+                    }
+
+                currentData.luckyWheelUsage
+                    .filter { it.childId == childId }
+                    .forEach { usage ->
+                        repository.deleteLuckyWheelUsage(usage.id)
+                    }
+
+                currentData.gameHighscores
+                    .filter { it.childId == childId }
+                    .forEach { highscore ->
+                        repository.deleteGameHighscore(highscore.id)
+                    }
+
+                repository.saveLog(log)
+                showMessage("✅ Benutzer gelöscht")
+            } catch (e: Exception) {
+                _data.value = currentData
+                println("❌ Fehler beim Löschen des Benutzers: ${e.message}")
+                e.printStackTrace()
+                showMessage("❌ Benutzer konnte nicht gelöscht werden")
             }
         }
     }
@@ -894,11 +1202,13 @@ class LunaCoinViewModel(
             coins = child.coins + coinDelta
         )
 
-        _data.value = current.copy(
-            children = current.children.map { c ->
-                if (c.id == log.childId) optimisticChild else c
-            },
-            logs = current.logs.filterNot { it.id == logId }
+        _data.value = sortChildrenInData(
+            current.copy(
+                children = current.children.map { c ->
+                    if (c.id == log.childId) optimisticChild else c
+                },
+                logs = current.logs.filterNot { it.id == logId }
+            )
         )
 
         viewModelScope.launch {
@@ -909,10 +1219,12 @@ class LunaCoinViewModel(
                 )
 
                 val latestData = _data.value
-                _data.value = latestData.copy(
-                    children = latestData.children.map { c ->
-                        if (c.id == log.childId) c.copy(coins = realCoinValue) else c
-                    }
+                _data.value = sortChildrenInData(
+                    latestData.copy(
+                        children = latestData.children.map { c ->
+                            if (c.id == log.childId) c.copy(coins = realCoinValue) else c
+                        }
+                    )
                 )
 
                 repository.deleteLog(logId)
@@ -926,15 +1238,15 @@ class LunaCoinViewModel(
     }
 
     fun resetDemoData() {
-        val demoData = DemoData.create()
+        val demoData = ensureBuiltInAdmin(DemoData.create())
 
-        _data.value = demoData
+        _data.value = sortChildrenInData(demoData)
         _selectedChildId.value = null
         _selectedDate.value = LocalDate.now()
 
         viewModelScope.launch {
             try {
-                repository.saveData(demoData)
+                repository.saveData(sortChildrenInData(demoData))
                 showMessage("Demo-Daten wurden zurückgesetzt")
             } catch (e: Exception) {
                 println("❌ Fehler beim Zurücksetzen der Demo-Daten: ${e.message}")
@@ -970,8 +1282,10 @@ class LunaCoinViewModel(
                 val backup = repository.loadCloudBackup()
 
                 if (backup != null && backup.children.isNotEmpty()) {
-                    repository.saveData(backup)
-                    _data.value = backup
+                    val safeBackup = sortChildrenInData(ensureBuiltInAdmin(backup))
+
+                    repository.saveData(safeBackup)
+                    _data.value = safeBackup
 
                     showMessage("✅ Cloud-Backup erfolgreich wiederhergestellt")
                 } else {
@@ -1040,24 +1354,19 @@ class LunaCoinViewModel(
 
         return when (task.repeatType) {
             TaskRepeatType.ONCE -> date == start
-
             TaskRepeatType.DAILY -> true
-
             TaskRepeatType.WEEKDAYS -> {
                 date.dayOfWeek != DayOfWeek.SATURDAY &&
                         date.dayOfWeek != DayOfWeek.SUNDAY
             }
-
             TaskRepeatType.WEEKEND -> {
                 date.dayOfWeek == DayOfWeek.SATURDAY ||
                         date.dayOfWeek == DayOfWeek.SUNDAY
             }
-
             TaskRepeatType.WEEKLY -> {
                 val weeklyDay = task.weeklyDay ?: return true
                 dayOfWeekNameToJavaDayOfWeek(weeklyDay) == date.dayOfWeek
             }
-
             TaskRepeatType.BIWEEKLY -> {
                 val weeklyDay = task.weeklyDay ?: return true
                 if (dayOfWeekNameToJavaDayOfWeek(weeklyDay) != date.dayOfWeek) return false
@@ -1065,16 +1374,11 @@ class LunaCoinViewModel(
                 val weeksBetween = java.time.temporal.ChronoUnit.WEEKS.between(start, date)
                 weeksBetween % 2L == 0L
             }
-
-            TaskRepeatType.MONTHLY -> {
-                date.dayOfMonth == start.dayOfMonth
-            }
-
+            TaskRepeatType.MONTHLY -> date.dayOfMonth == start.dayOfMonth
             TaskRepeatType.YEARLY -> {
                 date.dayOfMonth == start.dayOfMonth &&
                         date.monthValue == start.monthValue
             }
-
             TaskRepeatType.EVERY_TWO_YEARS -> {
                 date.dayOfMonth == start.dayOfMonth &&
                         date.monthValue == start.monthValue &&

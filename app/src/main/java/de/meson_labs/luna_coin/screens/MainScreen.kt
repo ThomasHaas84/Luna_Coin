@@ -24,7 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import de.meson_labs.luna_coin.models.Child
-import de.meson_labs.luna_coin.screens.settings.SettingsScreen   // ← Dieser Import fehlte!
+import de.meson_labs.luna_coin.screens.settings.SettingsScreen
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 
 @Composable
@@ -66,24 +66,28 @@ fun MainScreen(
                             icon = { Icon(Icons.Default.CheckCircle, contentDescription = "Aufgaben") },
                             label = { Text("Aufgaben") }
                         )
+
                         NavigationBarItem(
                             selected = selectedTab == 1,
                             onClick = { selectTab(1) },
                             icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Shop") },
                             label = { Text("Shop") }
                         )
+
                         NavigationBarItem(
                             selected = selectedTab == 2,
                             onClick = { selectTab(2) },
                             icon = { Icon(Icons.Default.SportsEsports, contentDescription = "Luna-Games") },
                             label = { Text("Luna-Games") }
                         )
+
                         NavigationBarItem(
                             selected = selectedTab == 3,
                             onClick = { selectTab(3) },
                             icon = { Icon(Icons.Default.Pets, contentDescription = "LunaME") },
                             label = { Text("LunaME") }
                         )
+
                         NavigationBarItem(
                             selected = selectedTab == 4,
                             onClick = { selectTab(4) },
@@ -114,7 +118,11 @@ fun MainScreen(
                         selectedChild = selectedChild,
                         onBuyItem = viewModel::buyShopItem,
                         onLuckyWheelResult = { childId, costCoins, result ->
-                            viewModel.applyLuckyWheelResult(childId, costCoins, result)
+                            viewModel.applyLuckyWheelResult(
+                                childId = childId,
+                                costCoins = costCoins,
+                                result = result
+                            )
                         },
                         onLogout = viewModel::logout
                     )
@@ -122,6 +130,7 @@ fun MainScreen(
                     2 -> LunaGamesScreen(
                         modifier = Modifier.padding(innerPadding),
                         selectedChild = selectedChild,
+                        viewModel = viewModel,
                         onLogout = viewModel::logout
                     )
 
@@ -155,7 +164,11 @@ fun MainScreen(
                         onDeleteDogSchedule = viewModel::deleteDogSchedule,
 
                         onUpdateChildCoins = { childId, newCoins, comment ->
-                            viewModel.updateChildCoins(childId, newCoins, comment)
+                            viewModel.updateChildCoins(
+                                childId = childId,
+                                newCoins = newCoins,
+                                comment = comment
+                            )
                         },
 
                         onUndoLogEntry = viewModel::undoLogEntry,

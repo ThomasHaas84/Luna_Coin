@@ -142,7 +142,7 @@ fun SettingsScreenAdminPreview() {
     val viewModel = LunaCoinViewModel(repository = fakeRepository)
 
     val admin = demoData.children.firstOrNull { child ->
-        child.name.equals("Thomas", ignoreCase = true)
+        child.isBuiltInAdmin || child.role == UserRole.ADMIN
     }
 
     SettingsScreen(
@@ -179,12 +179,14 @@ fun SettingsScreenAdminPreview() {
 
 // ====================== FAKE REPOSITORY FÜR PREVIEWS ======================
 class FakeDataRepository(
-    private val demoData: LunaCoinData
+    private var demoData: LunaCoinData
 ) : DataRepository {
 
     override suspend fun loadData(): LunaCoinData? = demoData
 
-    override suspend fun saveData(data: LunaCoinData) {}
+    override suspend fun saveData(data: LunaCoinData) {
+        demoData = data
+    }
 
     override suspend fun createCloudBackup(data: LunaCoinData) {}
 
@@ -229,19 +231,83 @@ class FakeDataRepository(
         return demoData.gameHighscores
     }
 
-    override suspend fun saveChild(child: Child) {}
+    override suspend fun saveChild(child: Child) {
+        demoData = demoData.copy(
+            children = if (demoData.children.any { it.id == child.id }) {
+                demoData.children.map {
+                    if (it.id == child.id) child else it
+                }
+            } else {
+                demoData.children + child
+            }
+        )
+    }
 
-    override suspend fun saveTask(task: TaskItem) {}
+    override suspend fun saveTask(task: TaskItem) {
+        demoData = demoData.copy(
+            tasks = if (demoData.tasks.any { it.id == task.id }) {
+                demoData.tasks.map {
+                    if (it.id == task.id) task else it
+                }
+            } else {
+                demoData.tasks + task
+            }
+        )
+    }
 
-    override suspend fun saveShopItem(shopItem: ShopItem) {}
+    override suspend fun saveShopItem(shopItem: ShopItem) {
+        demoData = demoData.copy(
+            shopItems = if (demoData.shopItems.any { it.id == shopItem.id }) {
+                demoData.shopItems.map {
+                    if (it.id == shopItem.id) shopItem else it
+                }
+            } else {
+                demoData.shopItems + shopItem
+            }
+        )
+    }
 
-    override suspend fun saveDogScheduleItem(item: DogScheduleItem) {}
+    override suspend fun saveDogScheduleItem(item: DogScheduleItem) {
+        demoData = demoData.copy(
+            dogSchedule = if (demoData.dogSchedule.any { it.id == item.id }) {
+                demoData.dogSchedule.map {
+                    if (it.id == item.id) item else it
+                }
+            } else {
+                demoData.dogSchedule + item
+            }
+        )
+    }
 
-    override suspend fun saveLog(log: LogEntry) {}
+    override suspend fun saveLog(log: LogEntry) {
+        demoData = demoData.copy(
+            logs = listOf(log) + demoData.logs
+        )
+    }
 
-    override suspend fun saveLuckyWheelUsage(usage: LuckyWheelUsage) {}
+    override suspend fun saveLuckyWheelUsage(usage: LuckyWheelUsage) {
+        demoData = demoData.copy(
+            luckyWheelUsage = if (demoData.luckyWheelUsage.any { it.id == usage.id }) {
+                demoData.luckyWheelUsage.map {
+                    if (it.id == usage.id) usage else it
+                }
+            } else {
+                demoData.luckyWheelUsage + usage
+            }
+        )
+    }
 
-    override suspend fun saveGameHighscore(highscore: GameHighscore) {}
+    override suspend fun saveGameHighscore(highscore: GameHighscore) {
+        demoData = demoData.copy(
+            gameHighscores = if (demoData.gameHighscores.any { it.id == highscore.id }) {
+                demoData.gameHighscores.map {
+                    if (it.id == highscore.id) highscore else it
+                }
+            } else {
+                demoData.gameHighscores + highscore
+            }
+        )
+    }
 
     override suspend fun updateChildInventory(
         childId: String,
@@ -249,34 +315,108 @@ class FakeDataRepository(
         equippedItem: LunaInventoryItem?,
         profileImageItem: LunaInventoryItem?,
         hasProfileImage: Boolean
-    ) {}
+    ) {
+        demoData = demoData.copy(
+            children = demoData.children.map { child ->
+                if (child.id == childId) {
+                    child.copy(
+                        inventory = inventory,
+                        equippedItem = equippedItem,
+                        profileImageItem = profileImageItem,
+                        hasProfileImage = hasProfileImage
+                    )
+                } else {
+                    child
+                }
+            }
+        )
+    }
 
     override suspend fun updateChildProfile(
         childId: String,
         name: String,
         role: UserRole,
         password: String,
-        age: Int
-    ) {}
+        age: Int,
+        passwordRequired: Boolean,
+        allowRememberLogin: Boolean,
+        isBuiltInAdmin: Boolean
+    ) {
+        demoData = demoData.copy(
+            children = demoData.children.map { child ->
+                if (child.id == childId) {
+                    child.copy(
+                        name = name,
+                        role = role,
+                        password = password,
+                        age = age,
+                        passwordRequired = passwordRequired,
+                        allowRememberLogin = allowRememberLogin,
+                        isBuiltInAdmin = isBuiltInAdmin
+                    )
+                } else {
+                    child
+                }
+            }
+        )
+    }
 
-    override suspend fun deleteChild(childId: String) {}
+    override suspend fun deleteChild(childId: String) {
+        demoData = demoData.copy(
+            children = demoData.children.filterNot { it.id == childId }
+        )
+    }
 
-    override suspend fun deleteTask(taskId: String) {}
+    override suspend fun deleteTask(taskId: String) {
+        demoData = demoData.copy(
+            tasks = demoData.tasks.filterNot { it.id == taskId }
+        )
+    }
 
-    override suspend fun deleteShopItem(shopItemId: String) {}
+    override suspend fun deleteShopItem(shopItemId: String) {
+        demoData = demoData.copy(
+            shopItems = demoData.shopItems.filterNot { it.id == shopItemId }
+        )
+    }
 
-    override suspend fun deleteDogScheduleItem(itemId: String) {}
+    override suspend fun deleteDogScheduleItem(itemId: String) {
+        demoData = demoData.copy(
+            dogSchedule = demoData.dogSchedule.filterNot { it.id == itemId }
+        )
+    }
 
-    override suspend fun deleteLog(logId: String) {}
+    override suspend fun deleteLog(logId: String) {
+        demoData = demoData.copy(
+            logs = demoData.logs.filterNot { it.id == logId }
+        )
+    }
 
-    override suspend fun deleteLuckyWheelUsage(usageId: String) {}
+    override suspend fun deleteLuckyWheelUsage(usageId: String) {
+        demoData = demoData.copy(
+            luckyWheelUsage = demoData.luckyWheelUsage.filterNot { it.id == usageId }
+        )
+    }
 
-    override suspend fun deleteGameHighscore(highscoreId: String) {}
+    override suspend fun deleteGameHighscore(highscoreId: String) {
+        demoData = demoData.copy(
+            gameHighscores = demoData.gameHighscores.filterNot { it.id == highscoreId }
+        )
+    }
 
     override suspend fun setChildCoins(
         childId: String,
         coins: Int
     ): Int {
+        demoData = demoData.copy(
+            children = demoData.children.map { child ->
+                if (child.id == childId) {
+                    child.copy(coins = coins)
+                } else {
+                    child
+                }
+            }
+        )
+
         return coins
     }
 
@@ -285,6 +425,18 @@ class FakeDataRepository(
         coinDelta: Int
     ): Int {
         val child = demoData.children.firstOrNull { it.id == childId }
-        return (child?.coins ?: 0) + coinDelta
+        val newCoins = (child?.coins ?: 0) + coinDelta
+
+        demoData = demoData.copy(
+            children = demoData.children.map {
+                if (it.id == childId) {
+                    it.copy(coins = newCoins)
+                } else {
+                    it
+                }
+            }
+        )
+
+        return newCoins
     }
 }
