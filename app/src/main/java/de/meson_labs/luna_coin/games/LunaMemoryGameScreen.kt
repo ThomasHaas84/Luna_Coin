@@ -8,11 +8,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -30,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -226,36 +230,44 @@ fun LunaMemoryGameScreen(
         }
     }
 
+    val configuration = LocalConfiguration.current
+    val isTabletLayout = configuration.smallestScreenWidthDp >= 600
+    val isPhone = !isTabletLayout
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .padding(24.dp)
+            .padding(if (isPhone) 14.dp else 24.dp)
     ) {
         val difficulty = selectedDifficulty
         val playerMode = selectedPlayerMode
 
         val columns = when (difficulty) {
-            MemoryDifficulty.EASY -> 4
-            MemoryDifficulty.HARD -> 6
+            MemoryDifficulty.EASY -> if (isPhone) 3 else 4
+            MemoryDifficulty.HARD -> if (isPhone) 4 else 6
             null -> 1
         }
 
         val rows = when (difficulty) {
-            MemoryDifficulty.EASY -> 3
-            MemoryDifficulty.HARD -> 4
+            MemoryDifficulty.EASY -> if (isPhone) 4 else 3
+            MemoryDifficulty.HARD -> if (isPhone) 6 else 4
             null -> 1
         }
 
-        val spacing = 8.dp
+        val spacing = if (isPhone) 6.dp else 8.dp
         val sidePanelWidth = 220.dp
 
-        val gameAreaWidth = if (difficulty != null) {
+        val gameAreaWidth = if (difficulty != null && !isPhone) {
             maxWidth - sidePanelWidth - 24.dp
         } else {
             maxWidth
         }
 
-        val availableHeight = maxHeight - 170.dp
+        val availableHeight = if (isPhone) {
+            maxHeight - 230.dp
+        } else {
+            maxHeight - 170.dp
+        }
 
         val cardSizeByWidth = (gameAreaWidth - spacing * (columns - 1)) / columns
         val cardSizeByHeight = (availableHeight - spacing * (rows - 1)) / rows
@@ -300,6 +312,7 @@ fun LunaMemoryGameScreen(
                     highscores = highscores,
                     children = children,
                     selectedChild = selectedChild,
+                    isPhone = isPhone,
                     onStart = { selectedDifficultyValue, selectedPlayerModeValue ->
                         startGame(
                             difficulty = selectedDifficultyValue,
@@ -308,11 +321,27 @@ fun LunaMemoryGameScreen(
                     }
                 )
             } else {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp)
-                ) {
-                    Column {
+                if (isPhone) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        MemoryCompactScorePanel(
+                            playerMode = playerMode,
+                            currentPlayer = currentPlayer,
+                            playerOneScore = playerOneScore,
+                            playerTwoScore = playerTwoScore,
+                            moves = moves,
+                            elapsedSeconds = elapsedSeconds,
+                            finished = finished,
+                            onRestart = { showRestartConfirmation = true },
+                            onExit = { showExitConfirmation = true }
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
                         cards.chunked(columns).forEach { rowCards ->
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(spacing)
@@ -322,6 +351,7 @@ fun LunaMemoryGameScreen(
 
                                     MemoryCardView(
                                         card = card,
+                                        isCompact = true,
                                         modifier = Modifier.size(cardSize),
                                         onClick = {
                                             if (finished || index == -1 || cards[index].isMatched) {
@@ -383,22 +413,99 @@ fun LunaMemoryGameScreen(
                             Spacer(modifier = Modifier.height(spacing))
                         }
                     }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.spacedBy(24.dp)
+                    ) {
+                        Column {
+                            cards.chunked(columns).forEach { rowCards ->
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(spacing)
+                                ) {
+                                    rowCards.forEach { card ->
+                                        val index = cards.indexOfFirst { it.id == card.id }
 
-                    MemoryScorePanel(
-                        playerMode = playerMode,
-                        difficulty = difficulty,
-                        highscores = highscores,
-                        children = children,
-                        selectedChild = selectedChild,
-                        currentPlayer = currentPlayer,
-                        playerOneScore = playerOneScore,
-                        playerTwoScore = playerTwoScore,
-                        moves = moves,
-                        elapsedSeconds = elapsedSeconds,
-                        finished = finished,
-                        onRestart = { showRestartConfirmation = true },
-                        onExit = { showExitConfirmation = true }
-                    )
+                                        MemoryCardView(
+                                            card = card,
+                                            modifier = Modifier.size(cardSize),
+                                            onClick = {
+                                                if (finished || index == -1 || cards[index].isMatched) {
+                                                    return@MemoryCardView
+                                                }
+
+                                                val mismatch = pendingMismatch
+
+                                                if (mismatch != null) {
+                                                    if (selectedPlayerMode == PlayerMode.TWO_PLAYERS) {
+                                                        return@MemoryCardView
+                                                    }
+
+                                                    closeMismatchAndSwitchPlayerIfNeeded()
+
+                                                    if (index == mismatch.first || index == mismatch.second) {
+                                                        return@MemoryCardView
+                                                    }
+                                                }
+
+                                                if (cards[index].isOpen || cards[index].isMatched) {
+                                                    return@MemoryCardView
+                                                }
+
+                                                if (!timerStarted) {
+                                                    timerStarted = true
+                                                }
+
+                                                cards[index] = cards[index].copy(isOpen = true)
+
+                                                val openCards = cards
+                                                    .withIndex()
+                                                    .filter { it.value.isOpen && !it.value.isMatched }
+
+                                                if (openCards.size == 2) {
+                                                    moves++
+
+                                                    val first = openCards[0]
+                                                    val second = openCards[1]
+
+                                                    if (first.value.pairId == second.value.pairId) {
+                                                        cards[first.index] = first.value.copy(isMatched = true)
+                                                        cards[second.index] = second.value.copy(isMatched = true)
+
+                                                        if (currentPlayer == 1) {
+                                                            playerOneScore++
+                                                        } else {
+                                                            playerTwoScore++
+                                                        }
+                                                    } else {
+                                                        pendingMismatch = Pair(first.index, second.index)
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(spacing))
+                            }
+                        }
+
+                        MemoryScorePanel(
+                            playerMode = playerMode,
+                            difficulty = difficulty,
+                            highscores = highscores,
+                            children = children,
+                            selectedChild = selectedChild,
+                            currentPlayer = currentPlayer,
+                            playerOneScore = playerOneScore,
+                            playerTwoScore = playerTwoScore,
+                            moves = moves,
+                            elapsedSeconds = elapsedSeconds,
+                            finished = finished,
+                            onRestart = { showRestartConfirmation = true },
+                            onExit = { showExitConfirmation = true }
+                        )
+                    }
                 }
             }
         }
@@ -438,28 +545,30 @@ private fun MemoryStartSelection(
     highscores: List<GameHighscore>,
     children: List<Child>,
     selectedChild: Child?,
+    isPhone: Boolean,
     onStart: (MemoryDifficulty, PlayerMode) -> Unit
 ) {
     var selectedDifficulty by remember { mutableStateOf(MemoryDifficulty.EASY) }
     var selectedPlayerMode by remember { mutableStateOf(PlayerMode.ONE_PLAYER) }
 
-    Row(
-        modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(24.dp)
-    ) {
+    if (isPhone) {
         Column(
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "Schwierigkeit auswählen",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Button(
                     onClick = {
@@ -467,7 +576,8 @@ private fun MemoryStartSelection(
                     },
                     colors = memorySelectionButtonColors(
                         selected = selectedDifficulty == MemoryDifficulty.EASY
-                    )
+                    ),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(text = "Stufe 1")
                 }
@@ -478,24 +588,26 @@ private fun MemoryStartSelection(
                     },
                     colors = memorySelectionButtonColors(
                         selected = selectedDifficulty == MemoryDifficulty.HARD
-                    )
+                    ),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(text = "Stufe 2")
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Text(
                 text = "Spieler auswählen",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Button(
                     onClick = {
@@ -503,7 +615,8 @@ private fun MemoryStartSelection(
                     },
                     colors = memorySelectionButtonColors(
                         selected = selectedPlayerMode == PlayerMode.ONE_PLAYER
-                    )
+                    ),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(text = "1 Spieler")
                 }
@@ -514,22 +627,24 @@ private fun MemoryStartSelection(
                     },
                     colors = memorySelectionButtonColors(
                         selected = selectedPlayerMode == PlayerMode.TWO_PLAYERS
-                    )
+                    ),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(text = "2 Spieler")
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                text = "Auswahl: ${difficultyText(selectedDifficulty)}, ${playerModeText(selectedPlayerMode)}",
+                text = "${difficultyText(selectedDifficulty)}, ${playerModeText(selectedPlayerMode)}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Button(
                 onClick = {
@@ -537,19 +652,132 @@ private fun MemoryStartSelection(
                         selectedDifficulty,
                         selectedPlayerMode
                     )
-                }
+                },
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text(text = "Spiel starten")
             }
-        }
 
-        MemoryHighscoreOverview(
-            difficulty = selectedDifficulty,
-            highscores = highscores,
-            children = children,
-            selectedChild = selectedChild,
-            modifier = Modifier.width(260.dp)
-        )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            MemoryHighscoreOverview(
+                difficulty = selectedDifficulty,
+                highscores = highscores,
+                children = children,
+                selectedChild = selectedChild,
+                compact = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    } else {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "Schwierigkeit auswählen",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            selectedDifficulty = MemoryDifficulty.EASY
+                        },
+                        colors = memorySelectionButtonColors(
+                            selected = selectedDifficulty == MemoryDifficulty.EASY
+                        )
+                    ) {
+                        Text(text = "Stufe 1")
+                    }
+
+                    Button(
+                        onClick = {
+                            selectedDifficulty = MemoryDifficulty.HARD
+                        },
+                        colors = memorySelectionButtonColors(
+                            selected = selectedDifficulty == MemoryDifficulty.HARD
+                        )
+                    ) {
+                        Text(text = "Stufe 2")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Spieler auswählen",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            selectedPlayerMode = PlayerMode.ONE_PLAYER
+                        },
+                        colors = memorySelectionButtonColors(
+                            selected = selectedPlayerMode == PlayerMode.ONE_PLAYER
+                        )
+                    ) {
+                        Text(text = "1 Spieler")
+                    }
+
+                    Button(
+                        onClick = {
+                            selectedPlayerMode = PlayerMode.TWO_PLAYERS
+                        },
+                        colors = memorySelectionButtonColors(
+                            selected = selectedPlayerMode == PlayerMode.TWO_PLAYERS
+                        )
+                    ) {
+                        Text(text = "2 Spieler")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                Text(
+                    text = "Auswahl: ${difficultyText(selectedDifficulty)}, ${playerModeText(selectedPlayerMode)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = {
+                        onStart(
+                            selectedDifficulty,
+                            selectedPlayerMode
+                        )
+                    }
+                ) {
+                    Text(text = "Spiel starten")
+                }
+            }
+
+            MemoryHighscoreOverview(
+                difficulty = selectedDifficulty,
+                highscores = highscores,
+                children = children,
+                selectedChild = selectedChild,
+                modifier = Modifier.width(260.dp)
+            )
+        }
     }
 }
 
@@ -559,7 +787,8 @@ private fun MemoryHighscoreOverview(
     highscores: List<GameHighscore>,
     children: List<Child>,
     selectedChild: Child?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
 ) {
     val level = difficulty.toLunaGameLevel()
 
@@ -604,7 +833,11 @@ private fun MemoryHighscoreOverview(
         ) {
             Text(
                 text = "Highscores",
-                style = MaterialTheme.typography.titleLarge,
+                style = if (compact) {
+                    MaterialTheme.typography.titleMedium
+                } else {
+                    MaterialTheme.typography.titleLarge
+                },
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
@@ -667,6 +900,91 @@ private fun memorySelectionButtonColors(
         MaterialTheme.colorScheme.onSurface
     }
 )
+
+@Composable
+private fun MemoryCompactScorePanel(
+    playerMode: PlayerMode,
+    currentPlayer: Int,
+    playerOneScore: Int,
+    playerTwoScore: Int,
+    moves: Int,
+    elapsedSeconds: Long,
+    finished: Boolean,
+    onRestart: () -> Unit,
+    onExit: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = if (!finished) {
+                    if (playerMode == PlayerMode.ONE_PLAYER) {
+                        "Züge: $moves · Zeit: ${formatMemoryTime(elapsedSeconds)}"
+                    } else {
+                        "Spieler $currentPlayer ist dran"
+                    }
+                } else {
+                    "Gewonnen: ${winnerText(playerMode, playerOneScore, playerTwoScore)}"
+                },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (finished) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            if (playerMode == PlayerMode.TWO_PLAYERS) {
+                Text(
+                    text = "Spieler 1: $playerOneScore · Spieler 2: $playerTwoScore",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            } else {
+                Text(
+                    text = "Paare: $playerOneScore",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            if (finished) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = onRestart,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(text = "Neu")
+                    }
+
+                    Button(
+                        onClick = onExit,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(text = "Verlassen")
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun MemoryScorePanel(
@@ -882,6 +1200,7 @@ private fun formatMemoryTime(
 private fun MemoryCardView(
     card: MemoryCard,
     modifier: Modifier = Modifier,
+    isCompact: Boolean = false,
     onClick: () -> Unit
 ) {
     Card(
@@ -906,7 +1225,11 @@ private fun MemoryCardView(
         ) {
             Text(
                 text = if (card.isOpen || card.isMatched) card.symbol else "?",
-                style = MaterialTheme.typography.displaySmall,
+                style = if (isCompact) {
+                    MaterialTheme.typography.headlineMedium
+                } else {
+                    MaterialTheme.typography.displaySmall
+                },
                 fontWeight = FontWeight.Bold
             )
         }
