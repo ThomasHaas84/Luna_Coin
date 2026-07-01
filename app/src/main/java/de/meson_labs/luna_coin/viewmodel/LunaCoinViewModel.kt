@@ -21,16 +21,12 @@ import de.meson_labs.luna_coin.manager.ensureBuiltInAdmin
 import de.meson_labs.luna_coin.manager.sortChildrenInData
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
-import de.meson_labs.luna_coin.models.LogEntry
-import de.meson_labs.luna_coin.models.LogType
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.LunaGameLevel
 import de.meson_labs.luna_coin.models.LunaGameScoreType
 import de.meson_labs.luna_coin.models.LunaGameType
-import de.meson_labs.luna_coin.models.ShopItem
 import de.meson_labs.luna_coin.models.TaskAssignmentType
 import de.meson_labs.luna_coin.models.TaskCompletionMode
-import de.meson_labs.luna_coin.models.TaskItem
 import de.meson_labs.luna_coin.models.TaskRepeatType
 import de.meson_labs.luna_coin.models.UserRole
 import de.meson_labs.luna_coin.screens.LuckyWheelResult
@@ -39,9 +35,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import de.meson_labs.luna_coin.games.bestEntry
-import de.meson_labs.luna_coin.games.childName
-import java.time.format.DateTimeFormatter
 
 class LunaCoinViewModel(
     private val repository: DataRepository
@@ -784,15 +777,15 @@ class LunaCoinViewModel(
     }
 
     fun resetDemoData() {
-        val demoData = ensureBuiltInAdmin(DemoData.create())
+        val demoData = backupManager.prepareResetDemoData()
 
-        _data.value = sortChildrenInData(demoData)
+        _data.value = demoData
         _selectedChildId.value = null
         _selectedDate.value = LocalDate.now()
 
         viewModelScope.launch {
             try {
-                repository.saveData(sortChildrenInData(demoData))
+                backupManager.persistResetDemoData(demoData)
                 showMessage("Demo-Daten wurden zurückgesetzt")
             } catch (e: Exception) {
                 println("❌ Fehler beim Zurücksetzen der Demo-Daten: ${e.message}")
@@ -848,26 +841,6 @@ class LunaCoinViewModel(
     fun importFromJson() {
         showMessage(backupManager.getImportFromJsonMessage())
     }
-
-    private fun countShopItemPurchasesToday(
-        logs: List<LogEntry>,
-        childId: String,
-        itemTitle: String
-    ): Int {
-        val todayPrefix = LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-        val expectedText = "hat gekauft: $itemTitle"
-
-        return logs.count { log ->
-            log.childId == childId &&
-                    log.type == LogType.SHOP_BUY &&
-                    log.timestamp.startsWith(todayPrefix) &&
-                    log.text.contains(expectedText)
-        }
-    }
-
-
-
-
 
 }
 

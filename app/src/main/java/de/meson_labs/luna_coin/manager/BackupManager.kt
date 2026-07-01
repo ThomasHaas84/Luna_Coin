@@ -1,11 +1,20 @@
 package de.meson_labs.luna_coin.manager
 
+import de.meson_labs.luna_coin.data.DemoData
 import de.meson_labs.luna_coin.data.repository.DataRepository
 import de.meson_labs.luna_coin.models.LunaCoinData
 
 class BackupManager(
     private val repository: DataRepository
 ) {
+
+    fun prepareResetDemoData(): LunaCoinData {
+        return sortChildrenInData(ensureBuiltInAdmin(DemoData.create()))
+    }
+
+    suspend fun persistResetDemoData(data: LunaCoinData) {
+        repository.saveData(sortChildrenInData(data))
+    }
 
     suspend fun createCloudBackup(data: LunaCoinData) {
         repository.createCloudBackup(data)
