@@ -71,7 +71,7 @@ fun TasksScreen(
     canGoToNextDay: Boolean
 ) {
     val configuration = LocalConfiguration.current
-    val isTabletLayout = configuration.screenWidthDp >= 900
+    val isTabletLayout = configuration.smallestScreenWidthDp >= 600
     val isPhone = !isTabletLayout
 
     val screenPadding = if (isPhone) {
@@ -242,8 +242,7 @@ private fun DateSelector(
     canGoToNextDay: Boolean
 ) {
     val configuration = LocalConfiguration.current
-    val screenWidthDp = configuration.screenWidthDp
-    val isTabletLayout = screenWidthDp >= 900
+    val isTabletLayout = configuration.smallestScreenWidthDp >= 600
     val isPhone = !isTabletLayout
 
     val isToday = selectedDate == LocalDate.now()
@@ -487,6 +486,40 @@ private fun TaskCard(
     selectedDate: LocalDate,
     onCompleteTask: () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isTabletLayout = configuration.smallestScreenWidthDp >= 600
+    val isPhone = !isTabletLayout
+
+    val cardVerticalPadding = if (isPhone) {
+        4.dp
+    } else {
+        6.dp
+    }
+
+    val cardInnerPadding = if (isPhone) {
+        12.dp
+    } else {
+        16.dp
+    }
+
+    val contentStartPadding = if (isPhone) {
+        8.dp
+    } else {
+        12.dp
+    }
+
+    val rewardCoinSize = if (isPhone) {
+        26.dp
+    } else {
+        32.dp
+    }
+
+    val titleStyle = if (isPhone) {
+        MaterialTheme.typography.titleSmall
+    } else {
+        MaterialTheme.typography.titleMedium
+    }
+
     val childId = selectedChild?.id
     val dateText = selectedDate.toString()
 
@@ -494,6 +527,20 @@ private fun TaskCard(
         children.firstOrNull { child ->
             child.id == assignedChildId
         }?.name
+    }
+
+    val assignmentText = when (task.assignmentType) {
+        TaskAssignmentType.FREE_FOR_ALL -> {
+            if (task.completionMode == TaskCompletionMode.ONCE_TOTAL) {
+                "Für alle · einmal insgesamt"
+            } else {
+                "Für alle"
+            }
+        }
+
+        TaskAssignmentType.ASSIGNED -> {
+            "Für ${assignedName ?: "Unbekannt"}"
+        }
     }
 
     val isDone = when (task.completionMode) {
@@ -532,7 +579,7 @@ private fun TaskCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .padding(vertical = cardVerticalPadding),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp
         )
@@ -540,7 +587,7 @@ private fun TaskCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(cardInnerPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
@@ -556,12 +603,12 @@ private fun TaskCard(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 12.dp)
+                    .padding(start = contentStartPadding)
             ) {
                 AnimatedStrikeThroughText(
                     text = task.title,
                     strikeThrough = isDone,
-                    style = MaterialTheme.typography.titleMedium
+                    style = titleStyle
                 )
 
                 if (task.description.isNotBlank()) {
@@ -580,40 +627,58 @@ private fun TaskCard(
                     )
                 }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CoinDisplay(
-                        amount = task.rewardCoins,
-                        showPlus = true,
-                        coinSize = 32.dp
-                    )
+                if (isPhone) {
+                    Column(
+                        modifier = Modifier.padding(top = 2.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CoinDisplay(
+                                amount = task.rewardCoins,
+                                showPlus = true,
+                                coinSize = rewardCoinSize
+                            )
 
-                    Text(
-                        text = " · ${repeatTypeText(task.repeatType)}",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-
-                    when (task.assignmentType) {
-                        TaskAssignmentType.FREE_FOR_ALL -> {
                             Text(
-                                text = if (task.completionMode == TaskCompletionMode.ONCE_TOTAL) {
-                                    " · Für alle · einmal insgesamt"
-                                } else {
-                                    " · Für alle"
-                                },
+                                text = " · ${repeatTypeText(task.repeatType)}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
-                        TaskAssignmentType.ASSIGNED -> {
-                            Text(
-                                text = " · Für ${assignedName ?: "Unbekannt"}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Text(
+                            text = assignmentText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CoinDisplay(
+                            amount = task.rewardCoins,
+                            showPlus = true,
+                            coinSize = rewardCoinSize
+                        )
+
+                        Text(
+                            text = " · ${repeatTypeText(task.repeatType)}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+
+                        Text(
+                            text = " · $assignmentText",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 
@@ -714,35 +779,76 @@ private fun DogScheduleCard(
     dogTask: DogScheduleItem,
     childName: String
 ) {
+    val configuration = LocalConfiguration.current
+    val isTabletLayout = configuration.smallestScreenWidthDp >= 600
+    val isPhone = !isTabletLayout
+
+    val cardPadding = if (isPhone) {
+        12.dp
+    } else {
+        16.dp
+    }
+
+    val verticalPadding = if (isPhone) {
+        4.dp
+    } else {
+        6.dp
+    }
+
+    val childNameStyle = if (isPhone) {
+        MaterialTheme.typography.titleSmall
+    } else {
+        MaterialTheme.typography.titleMedium
+    }
+
+    val timeTextStyle = if (isPhone) {
+        MaterialTheme.typography.bodyMedium
+    } else {
+        MaterialTheme.typography.bodyLarge
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .padding(vertical = verticalPadding),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(cardPadding),
+            verticalArrangement = Arrangement.spacedBy(if (isPhone) 3.dp else 4.dp)
         ) {
             Text(
                 text = childName,
-                style = MaterialTheme.typography.titleMedium
+                style = childNameStyle,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
 
             Text(
                 text = "Betreuung: ${dogTask.careStartTime} - ${dogTask.careEndTime} Uhr",
-                style = MaterialTheme.typography.bodyLarge
+                style = timeTextStyle,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
 
             Text(
                 text = "Füttern: ${dogTask.feedingTime} Uhr",
-                style = MaterialTheme.typography.bodyLarge
+                style = timeTextStyle,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
 
             Text(
                 text = "Gassi: ${dogTask.walkTime} Uhr",
-                style = MaterialTheme.typography.bodyLarge
+                style = timeTextStyle,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -752,14 +858,41 @@ private fun DogScheduleCard(
 private fun EmptyCard(
     text: String
 ) {
+    val configuration = LocalConfiguration.current
+    val isTabletLayout = configuration.smallestScreenWidthDp >= 600
+    val isPhone = !isTabletLayout
+
+    val verticalPadding = if (isPhone) {
+        4.dp
+    } else {
+        6.dp
+    }
+
+    val innerPadding = if (isPhone) {
+        12.dp
+    } else {
+        16.dp
+    }
+
+    val textStyle = if (isPhone) {
+        MaterialTheme.typography.bodyMedium
+    } else {
+        MaterialTheme.typography.bodyLarge
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
+            .padding(vertical = verticalPadding),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 1.dp
+        )
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(16.dp)
+            style = textStyle,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(innerPadding)
         )
     }
 }
