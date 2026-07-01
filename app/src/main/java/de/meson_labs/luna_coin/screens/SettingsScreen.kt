@@ -2,6 +2,7 @@
 package de.meson_labs.luna_coin.screens.settings
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -37,7 +39,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -97,6 +102,40 @@ fun SettingsScreen(
     onLogout: () -> Unit,
 ) {
     val currentMessage by viewModel.message.collectAsState()
+
+    val configuration = LocalConfiguration.current
+    val isTabletLayout = configuration.smallestScreenWidthDp >= 600
+    val isPhone = !isTabletLayout
+
+    val screenPadding = if (isPhone) {
+        14.dp
+    } else {
+        24.dp
+    }
+
+    val smallSpacerHeight = if (isPhone) {
+        6.dp
+    } else {
+        8.dp
+    }
+
+    val sectionSpacerHeight = if (isPhone) {
+        18.dp
+    } else {
+        24.dp
+    }
+
+    val largeSectionSpacerHeight = if (isPhone) {
+        24.dp
+    } else {
+        32.dp
+    }
+
+    val sectionTitleStyle = if (isPhone) {
+        MaterialTheme.typography.titleLarge
+    } else {
+        MaterialTheme.typography.headlineSmall
+    }
 
     LaunchedEffect(currentMessage) {
         if (currentMessage != null) {
@@ -164,7 +203,7 @@ fun SettingsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
+                .padding(screenPadding)
         ) {
             item {
                 LunaScreenHeader(
@@ -172,7 +211,7 @@ fun SettingsScreen(
                     selectedChild = selectedChild,
                     onLogout = onLogout
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(sectionSpacerHeight))
             }
 
             if (currentMessage != null) {
@@ -185,8 +224,8 @@ fun SettingsScreen(
                     ) {
                         Text(
                             text = currentMessage!!,
-                            modifier = Modifier.padding(16.dp),
-                            style = MaterialTheme.typography.bodyLarge
+                            modifier = Modifier.padding(if (isPhone) 12.dp else 16.dp),
+                            style = if (isPhone) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge
                         )
                     }
                 }
@@ -196,16 +235,16 @@ fun SettingsScreen(
                 Button(onClick = { showAppSettings = !showAppSettings }) {
                     Text(if (showAppSettings) "App-Einstellungen ausblenden" else "App-Einstellungen anzeigen")
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(smallSpacerHeight))
             }
 
             if (showAppSettings) {
                 item {
                     Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text("App-Einstellungen", style = MaterialTheme.typography.headlineSmall)
+                            Text("App-Einstellungen", style = sectionTitleStyle)
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
 
                             Text("Sprache:", style = MaterialTheme.typography.titleMedium)
 
@@ -221,7 +260,7 @@ fun SettingsScreen(
                                 TextButton(onClick = { languageMessage = "Qapla'!" }) { Text("Klingonisch") }
                             }
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Switch(checked = mimiModeEnabled, onCheckedChange = { mimiModeEnabled = it })
@@ -229,7 +268,7 @@ fun SettingsScreen(
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(sectionSpacerHeight))
                 }
             }
 
@@ -239,14 +278,14 @@ fun SettingsScreen(
                         Text(if (showUsersAndCoins) "Benutzer & Coins ausblenden" else "Benutzer & Coins anzeigen")
                     }
                 } else {
-                    Text("Meine Coins", style = MaterialTheme.typography.headlineSmall)
+                    Text("Meine Coins", style = sectionTitleStyle)
                 }
             }
 
             if (!canEdit || showUsersAndCoins) {
                 if (isAdmin) {
                     item {
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(if (isPhone) 10.dp else 12.dp))
                         Button(
                             onClick = {
                                 userForEdit = null
@@ -255,37 +294,43 @@ fun SettingsScreen(
                         ) {
                             Text("Benutzer hinzufügen")
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(smallSpacerHeight))
                     }
                 }
 
                 items(visibleUsers) { child ->
-                    UserManagementCard(
-                        child = child,
-                        canEditCoins = canEdit,
-                        canManageUsers = isAdmin,
-                        onEditCoins = {
-                            childForCoinEdit = child
-                            coinEditText = child.coins.toString()
-                            coinEditCommentText = ""
-                            coinEditError = null
-                        },
-                        onEditUser = {
-                            userForEdit = child
-                            showUserEditorDialog = true
-                        },
-                        onDeleteUser = {
-                            userForDelete = child
-                        }
-                    )
+                    if (!canEdit && child.role == UserRole.CHILD) {
+                        ChildCoinCard(
+                            coins = child.coins
+                        )
+                    } else {
+                        UserManagementCard(
+                            child = child,
+                            canEditCoins = canEdit,
+                            canManageUsers = isAdmin,
+                            onEditCoins = {
+                                childForCoinEdit = child
+                                coinEditText = child.coins.toString()
+                                coinEditCommentText = ""
+                                coinEditError = null
+                            },
+                            onEditUser = {
+                                userForEdit = child
+                                showUserEditorDialog = true
+                            },
+                            onDeleteUser = {
+                                userForDelete = child
+                            }
+                        )
+                    }
                 }
             }
 
             if (canEdit) {
                 item {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Text("Watchlist", style = MaterialTheme.typography.headlineSmall)
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(sectionSpacerHeight))
+                    Text("Watchlist", style = sectionTitleStyle)
+                    Spacer(modifier = Modifier.height(smallSpacerHeight))
 
                     Button(onClick = { showWatchlist = !showWatchlist }) {
                         Text(if (showWatchlist) "Watchlist ausblenden" else "Watchlist anzeigen")
@@ -308,7 +353,7 @@ fun SettingsScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(sectionSpacerHeight))
                 if (canEdit) {
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Button(onClick = { showLogs = !showLogs }) {
@@ -324,14 +369,14 @@ fun SettingsScreen(
                             enabled = showLogs
                         )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(smallSpacerHeight))
                 } else {
-                    Text("Mein Log", style = MaterialTheme.typography.headlineSmall)
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Mein Log", style = sectionTitleStyle)
+                    Spacer(modifier = Modifier.height(smallSpacerHeight))
                     Button(onClick = { showLogs = !showLogs }) {
                         Text(if (showLogs) "Mein Log ausblenden" else "Mein Log anzeigen")
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(smallSpacerHeight))
                 }
             }
 
@@ -355,9 +400,9 @@ fun SettingsScreen(
 
             if (canEdit) {
                 item {
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Text("Verwaltung", style = MaterialTheme.typography.headlineSmall)
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(largeSectionSpacerHeight))
+                    Text("Verwaltung", style = sectionTitleStyle)
+                    Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
 
                     Button(onClick = { showTaskEditor = true }) {
                         Text("Aufgaben bearbeiten")
@@ -379,9 +424,9 @@ fun SettingsScreen(
 
             if (isAdmin) {
                 item {
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Text("Admin - Datensicherung", style = MaterialTheme.typography.headlineSmall)
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(largeSectionSpacerHeight))
+                    Text("Admin - Datensicherung", style = sectionTitleStyle)
+                    Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
 
                     Row {
                         OutlinedButton(onClick = { showResetDialog = true }) {
@@ -578,6 +623,25 @@ fun SettingsScreen(
     }
 }
 
+@Composable
+private fun ChildCoinCard(
+    coins: Int
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        LargeCoinAmountDisplay(
+            amount = coins,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        )
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun UserManagementCard(
@@ -605,11 +669,14 @@ private fun UserManagementCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("${child.name}: ", style = MaterialTheme.typography.bodyLarge)
+
                 CoinDisplay(amount = child.coins)
+
                 Text(
                     text = " · ${child.role.toDisplayText()}",
                     style = MaterialTheme.typography.bodyLarge
                 )
+
                 if (child.isBuiltInAdmin) {
                     Text(
                         text = " · Standard-Admin",
@@ -619,24 +686,26 @@ private fun UserManagementCard(
                 }
             }
 
-            Text(
-                text = buildString {
-                    append("Alter: ${child.age}")
-                    append(" · Passwort: ")
-                    append(
-                        if (!child.passwordRequired || child.password.isBlank()) {
-                            "nicht erforderlich"
-                        } else {
-                            "erforderlich"
-                        }
-                    )
-                    append(" · Merken: ")
-                    append(if (child.allowRememberLogin) "erlaubt" else "nicht erlaubt")
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp)
-            )
+            if (canManageUsers) {
+                Text(
+                    text = buildString {
+                        append("Alter: ${child.age}")
+                        append(" · Passwort: ")
+                        append(
+                            if (!child.passwordRequired || child.password.isBlank()) {
+                                "nicht erforderlich"
+                            } else {
+                                "erforderlich"
+                            }
+                        )
+                        append(" · Merken: ")
+                        append(if (child.allowRememberLogin) "erlaubt" else "nicht erlaubt")
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
 
             if (canManageUsers) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -663,6 +732,31 @@ private fun UserManagementCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LargeCoinAmountDisplay(
+    amount: Int,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.luna_coin_small),
+            contentDescription = "Luna Coin",
+            modifier = Modifier.size(200.dp)
+        )
+
+        Text(
+            text = amount.toString(),
+            style = MaterialTheme.typography.displayMedium,
+            color = MaterialTheme.colorScheme.tertiary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
