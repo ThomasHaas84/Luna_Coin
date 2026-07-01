@@ -1,6 +1,7 @@
 // screens/MainScreen.kt
 package de.meson_labs.luna_coin.screens
 
+import android.content.res.Configuration
 import android.view.SoundEffectConstants
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -22,10 +23,21 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.screens.settings.SettingsScreen
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
+
+private data class LunaBottomNavItem(
+    val title: String,
+    val compactTitle: String,
+    val icon: ImageVector
+)
 
 @Composable
 fun MainScreen(
@@ -36,6 +48,20 @@ fun MainScreen(
     val selectedDate by viewModel.selectedDate.collectAsState()
 
     val view = LocalView.current
+    val configuration = LocalConfiguration.current
+
+    val screenWidthDp = configuration.screenWidthDp
+    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+    val isPhone = screenWidthDp < 600
+    val isCompactPhone = screenWidthDp < 420
+
+    val bottomNavFontSize: TextUnit = when {
+        isPhone && isPortrait && screenWidthDp < 360 -> 7.sp
+        isPhone && isPortrait && screenWidthDp < 390 -> 8.sp
+        isPhone && isPortrait -> 9.sp
+        isPhone -> 10.sp
+        else -> 12.sp
+    }
 
     Surface {
         if (selectedChildId == null) {
@@ -48,7 +74,9 @@ fun MainScreen(
                 child.id == selectedChildId
             }
 
-            var selectedTab by remember { mutableIntStateOf(0) }
+            var selectedTab by remember {
+                mutableIntStateOf(0)
+            }
 
             fun selectTab(newTab: Int) {
                 if (selectedTab != newTab) {
@@ -57,43 +85,65 @@ fun MainScreen(
                 }
             }
 
+            val navItems = listOf(
+                LunaBottomNavItem(
+                    title = "Aufgaben",
+                    compactTitle = "Aufgaben",
+                    icon = Icons.Default.CheckCircle
+                ),
+                LunaBottomNavItem(
+                    title = "Shop",
+                    compactTitle = "Shop",
+                    icon = Icons.Default.ShoppingCart
+                ),
+                LunaBottomNavItem(
+                    title = "Luna-Games",
+                    compactTitle = "Games",
+                    icon = Icons.Default.SportsEsports
+                ),
+                LunaBottomNavItem(
+                    title = "LunaME",
+                    compactTitle = "LunaME",
+                    icon = Icons.Default.Pets
+                ),
+                LunaBottomNavItem(
+                    title = "Einstellungen",
+                    compactTitle = "Einstellung",
+                    icon = Icons.Default.Settings
+                )
+            )
+
             Scaffold(
                 bottomBar = {
                     NavigationBar {
-                        NavigationBarItem(
-                            selected = selectedTab == 0,
-                            onClick = { selectTab(0) },
-                            icon = { Icon(Icons.Default.CheckCircle, contentDescription = "Aufgaben") },
-                            label = { Text("Aufgaben") }
-                        )
-
-                        NavigationBarItem(
-                            selected = selectedTab == 1,
-                            onClick = { selectTab(1) },
-                            icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Shop") },
-                            label = { Text("Shop") }
-                        )
-
-                        NavigationBarItem(
-                            selected = selectedTab == 2,
-                            onClick = { selectTab(2) },
-                            icon = { Icon(Icons.Default.SportsEsports, contentDescription = "Luna-Games") },
-                            label = { Text("Luna-Games") }
-                        )
-
-                        NavigationBarItem(
-                            selected = selectedTab == 3,
-                            onClick = { selectTab(3) },
-                            icon = { Icon(Icons.Default.Pets, contentDescription = "LunaME") },
-                            label = { Text("LunaME") }
-                        )
-
-                        NavigationBarItem(
-                            selected = selectedTab == 4,
-                            onClick = { selectTab(4) },
-                            icon = { Icon(Icons.Default.Settings, contentDescription = "Einstellungen") },
-                            label = { Text("Einstellungen") }
-                        )
+                        navItems.forEachIndexed { index, item ->
+                            NavigationBarItem(
+                                selected = selectedTab == index,
+                                onClick = {
+                                    selectTab(index)
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = item.icon,
+                                        contentDescription = item.title
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = if (isCompactPhone) {
+                                            item.compactTitle
+                                        } else {
+                                            item.title
+                                        },
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Visible,
+                                        fontSize = bottomNavFontSize
+                                    )
+                                },
+                                alwaysShowLabel = true
+                            )
+                        }
                     }
                 }
             ) { innerPadding ->
@@ -150,19 +200,15 @@ fun MainScreen(
                         selectedDate = selectedDate,
                         jsonText = "",
                         viewModel = viewModel,
-
                         onAddTask = viewModel::addTask,
                         onUpdateTask = viewModel::updateTask,
                         onDeleteTask = viewModel::deleteTask,
-
                         onAddShopItem = viewModel::addShopItem,
                         onUpdateShopItem = viewModel::updateShopItem,
                         onDeleteShopItem = viewModel::deleteShopItem,
-
                         onAddDogSchedule = viewModel::addDogSchedule,
                         onUpdateDogSchedule = viewModel::updateDogSchedule,
                         onDeleteDogSchedule = viewModel::deleteDogSchedule,
-
                         onUpdateChildCoins = { childId, newCoins, comment ->
                             viewModel.updateChildCoins(
                                 childId = childId,
@@ -170,14 +216,11 @@ fun MainScreen(
                                 comment = comment
                             )
                         },
-
                         onUndoLogEntry = viewModel::undoLogEntry,
-
                         onResetDemoData = viewModel::resetDemoData,
                         onCreateCloudBackup = viewModel::createCloudBackup,
                         onRestoreFromBackup = viewModel::restoreFromBackup,
                         onImportFromJson = viewModel::importFromJson,
-
                         onLogout = viewModel::logout
                     )
                 }
