@@ -25,8 +25,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.meson_labs.luna_coin.R
@@ -85,11 +87,19 @@ fun LunaGamesScreen(
         }
 
         ActiveGame.NONE -> {
+            val configuration = LocalConfiguration.current
+            val isTabletLayout = configuration.smallestScreenWidthDp >= 600
+            val isPhone = !isTabletLayout
+
+            val screenPadding = if (isPhone) 14.dp else 24.dp
+            val sectionSpacing = if (isPhone) 18.dp else 32.dp
+            val cardSpacing = if (isPhone) 10.dp else 12.dp
+
             Column(
                 modifier = modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(24.dp)
+                    .padding(screenPadding)
             ) {
                 LunaScreenHeader(
                     title = "Luna-Games",
@@ -97,11 +107,15 @@ fun LunaGamesScreen(
                     onLogout = onLogout
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(if (isPhone) 16.dp else 24.dp))
 
                 Text(
                     text = "Minispiele:",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = if (isPhone) {
+                        MaterialTheme.typography.titleLarge
+                    } else {
+                        MaterialTheme.typography.titleLarge
+                    },
                     fontWeight = FontWeight.Bold
                 )
 
@@ -127,10 +141,13 @@ fun LunaGamesScreen(
                             symbol = "✖️",
                             onClick = { activeGame = ActiveGame.MULTIPLICATION }
                         )
-                    )
+                    ),
+                    columns = if (isPhone) 1 else 3,
+                    spacing = cardSpacing,
+                    isPhone = isPhone
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(sectionSpacing))
 
                 Text(
                     text = "Coming soon:",
@@ -140,7 +157,11 @@ fun LunaGamesScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                ComingSoonGrid()
+                ComingSoonGrid(
+                    columns = if (isPhone) 2 else 3,
+                    spacing = cardSpacing,
+                    isPhone = isPhone
+                )
             }
         }
     }
@@ -155,15 +176,18 @@ private data class MiniGameItem(
 
 @Composable
 private fun MiniGameGrid(
-    games: List<MiniGameItem>
+    games: List<MiniGameItem>,
+    columns: Int,
+    spacing: androidx.compose.ui.unit.Dp,
+    isPhone: Boolean
 ) {
     Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(spacing)
     ) {
-        games.chunked(3).forEach { rowGames ->
+        games.chunked(columns).forEach { rowGames ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing)
             ) {
                 rowGames.forEach { game ->
                     MiniGameCard(
@@ -171,11 +195,12 @@ private fun MiniGameGrid(
                         description = game.description,
                         symbol = game.symbol,
                         onClick = game.onClick,
+                        isPhone = isPhone,
                         modifier = Modifier.weight(1f)
                     )
                 }
 
-                repeat(3 - rowGames.size) {
+                repeat(columns - rowGames.size) {
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }
@@ -189,11 +214,12 @@ private fun MiniGameCard(
     description: String,
     symbol: String,
     onClick: () -> Unit,
+    isPhone: Boolean,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(160.dp),
-        shape = RoundedCornerShape(18.dp),
+        modifier = modifier.height(if (isPhone) 118.dp else 160.dp),
+        shape = RoundedCornerShape(if (isPhone) 16.dp else 18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
@@ -201,34 +227,44 @@ private fun MiniGameCard(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(10.dp),
+                .padding(if (isPhone) 10.dp else 10.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        style = if (isPhone) {
+                            MaterialTheme.typography.titleMedium
+                        } else {
+                            MaterialTheme.typography.titleLarge
+                        },
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
                     )
 
-                    Spacer(modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = symbol,
-                        fontSize = 42.sp
+                        text = description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
-
                 Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = symbol,
+                    fontSize = if (isPhone) 34.sp else 42.sp
                 )
             }
 
@@ -243,7 +279,11 @@ private fun MiniGameCard(
 }
 
 @Composable
-private fun ComingSoonGrid() {
+private fun ComingSoonGrid(
+    columns: Int,
+    spacing: androidx.compose.ui.unit.Dp,
+    isPhone: Boolean
+) {
     val images = listOf(
         R.drawable.cyberluna,
         R.drawable.gtl,
@@ -253,19 +293,19 @@ private fun ComingSoonGrid() {
     )
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(spacing)
     ) {
-        images.chunked(3).forEach { rowImages ->
+        images.chunked(columns).forEach { rowImages ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing)
             ) {
                 rowImages.forEach { imageRes ->
                     Card(
                         modifier = Modifier
                             .weight(1f)
-                            .height(350.dp),
-                        shape = RoundedCornerShape(18.dp),
+                            .height(if (isPhone) 190.dp else 350.dp),
+                        shape = RoundedCornerShape(if (isPhone) 14.dp else 18.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                         )
@@ -275,13 +315,13 @@ private fun ComingSoonGrid() {
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(6.dp),
+                                .padding(if (isPhone) 4.dp else 6.dp),
                             contentScale = ContentScale.Fit
                         )
                     }
                 }
 
-                repeat(3 - rowImages.size) {
+                repeat(columns - rowImages.size) {
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }
