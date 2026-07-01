@@ -12,10 +12,12 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -50,11 +52,13 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -78,6 +82,37 @@ fun UserSelectionScreen(
     onChildSelected: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+
+    val screenWidthDp = configuration.screenWidthDp
+    val isPhone = screenWidthDp < 600
+
+    val screenPadding: Dp = when {
+        screenWidthDp < 360 -> 14.dp
+        screenWidthDp < 420 -> 18.dp
+        isPhone -> 22.dp
+        else -> 32.dp
+    }
+
+    val gridMinSize: Dp = when {
+        screenWidthDp < 360 -> 104.dp
+        screenWidthDp < 420 -> 118.dp
+        isPhone -> 130.dp
+        else -> 150.dp
+    }
+
+    val gridSpacing: Dp = when {
+        screenWidthDp < 420 -> 14.dp
+        isPhone -> 18.dp
+        else -> 24.dp
+    }
+
+    val gridBottomPadding: Dp = if (isPhone) {
+        112.dp
+    } else {
+        96.dp
+    }
+
     val isLoading by viewModel.isLoading.collectAsState()
     val data by viewModel.data.collectAsState()
     val children = data.children
@@ -171,12 +206,16 @@ fun UserSelectionScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(32.dp),
+                    .padding(screenPadding),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     text = "Luna Coin",
-                    style = MaterialTheme.typography.displayMedium,
+                    style = if (isPhone) {
+                        MaterialTheme.typography.displaySmall
+                    } else {
+                        MaterialTheme.typography.displayMedium
+                    },
                     color = MaterialTheme.colorScheme.primary
                 )
 
@@ -186,19 +225,21 @@ fun UserSelectionScreen(
                     color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(
                         top = 8.dp,
-                        bottom = 32.dp
+                        bottom = if (isPhone) 20.dp else 32.dp
                     )
                 )
 
                 LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 150.dp),
+                    columns = GridCells.Adaptive(minSize = gridMinSize),
                     modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                    contentPadding = PaddingValues(bottom = gridBottomPadding),
+                    horizontalArrangement = Arrangement.spacedBy(gridSpacing),
+                    verticalArrangement = Arrangement.spacedBy(gridSpacing)
                 ) {
                     items(children) { child ->
                         UserProfileCard(
                             child = child,
+                            isCompact = isPhone,
                             onClick = {
                                 idleResetKey = System.currentTimeMillis()
 
@@ -226,7 +267,12 @@ fun UserSelectionScreen(
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(24.dp),
+                    .navigationBarsPadding()
+                    .padding(
+                        start = 16.dp,
+                        end = if (isPhone) 16.dp else 24.dp,
+                        bottom = if (isPhone) 16.dp else 24.dp
+                    ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Button(
@@ -483,6 +529,7 @@ private fun LunaImageModeScreen(
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
                     .padding(bottom = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -743,6 +790,7 @@ private fun ImageModeSettingsDialog(
 @Composable
 private fun UserProfileCard(
     child: Child,
+    isCompact: Boolean,
     onClick: () -> Unit
 ) {
     val cardColor = when (child.role) {
@@ -778,7 +826,9 @@ private fun UserProfileCard(
             elevation = CardDefaults.cardElevation(
                 defaultElevation = 8.dp
             ),
-            shape = RoundedCornerShape(24.dp)
+            shape = RoundedCornerShape(
+                if (isCompact) 18.dp else 24.dp
+            )
         ) {
             Box(
                 modifier = Modifier
@@ -800,7 +850,11 @@ private fun UserProfileCard(
                 } else {
                     Text(
                         text = child.name.firstOrNull()?.uppercase() ?: "?",
-                        style = MaterialTheme.typography.displayLarge,
+                        style = if (isCompact) {
+                            MaterialTheme.typography.displayMedium
+                        } else {
+                            MaterialTheme.typography.displayLarge
+                        },
                         color = textColor
                     )
                 }
@@ -809,17 +863,21 @@ private fun UserProfileCard(
 
         Text(
             text = child.name,
-            style = MaterialTheme.typography.titleLarge,
+            style = if (isCompact) {
+                MaterialTheme.typography.titleMedium
+            } else {
+                MaterialTheme.typography.titleLarge
+            },
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 10.dp)
+            modifier = Modifier.padding(top = if (isCompact) 8.dp else 10.dp)
         )
 
         when (child.role) {
             UserRole.CHILD -> {
                 CoinDisplay(
                     amount = child.coins,
-                    coinSize = 48.dp
+                    coinSize = if (isCompact) 36.dp else 48.dp
                 )
             }
 
