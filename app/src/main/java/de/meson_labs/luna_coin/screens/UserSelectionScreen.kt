@@ -65,6 +65,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import coil.compose.AsyncImage
 import de.meson_labs.luna_coin.R
+import de.meson_labs.luna_coin.BuildConfig
 import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.LunaItemCatalog
@@ -209,15 +210,28 @@ fun UserSelectionScreen(
                     .padding(screenPadding),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = "Luna Coin",
-                    style = if (isPhone) {
-                        MaterialTheme.typography.displaySmall
-                    } else {
-                        MaterialTheme.typography.displayMedium
-                    },
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "Luna Coin",
+                        style = if (isPhone) {
+                            MaterialTheme.typography.displaySmall
+                        } else {
+                            MaterialTheme.typography.displayMedium
+                        },
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    Text(
+                        text = "v${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 Text(
                     text = "Wer bist du?",
