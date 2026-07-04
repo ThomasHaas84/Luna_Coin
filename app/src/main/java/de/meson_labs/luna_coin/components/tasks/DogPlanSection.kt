@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -32,6 +31,7 @@ import de.meson_labs.luna_coin.models.DogPlanShift
 import de.meson_labs.luna_coin.models.DogPlanTaskCompletion
 import de.meson_labs.luna_coin.models.DogPlanTaskTemplate
 import de.meson_labs.luna_coin.models.DogPlanTaskType
+import de.meson_labs.luna_coin.models.UserRole
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -58,6 +58,8 @@ fun DogPlanSection(
     val selectedDateText = selectedDate.toString()
     val isToday = selectedDate == LocalDate.now()
     val canPlanShift = selectedChild != null && !selectedDate.isBefore(LocalDate.now())
+    val canManageAllShifts = selectedChild?.role == UserRole.PARENT ||
+            selectedChild?.role == UserRole.ADMIN
 
     val activeTemplates = dogPlan.templates
         .filter { it.isActive }
@@ -72,13 +74,8 @@ fun DogPlanSection(
                 it.type == DogPlanTaskType.FEEDING_LATE
     }
 
-    val walkTemplates = activeTemplates.filter {
-        it.type == DogPlanTaskType.WALK
-    }
-
-    val otherTemplates = activeTemplates.filter {
-        it.type == DogPlanTaskType.OTHER
-    }
+    val walkTemplates = activeTemplates.filter { it.type == DogPlanTaskType.WALK }
+    val otherTemplates = activeTemplates.filter { it.type == DogPlanTaskType.OTHER }
 
     val shift = dogPlan.shifts.firstOrNull { it.date == selectedDateText }
 
@@ -86,7 +83,7 @@ fun DogPlanSection(
     var shiftDialogMode by remember { mutableStateOf<DogPlanShiftMode?>(null) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        DogPlanGroupTitle(text = "👤 Schichten")
+        DogPlanGroupTitle(text = "Schichten")
 
         DogPlanShiftRow(
             title = "Frühschicht",
@@ -117,11 +114,15 @@ fun DogPlanSection(
             EmptyCard(text = "Es sind noch keine Hundeplan-Aufgaben eingerichtet.")
         } else {
             if (feedingTemplates.isNotEmpty()) {
-                DogPlanGroupTitle(text = "🍖 Füttern")
+                DogPlanGroupTitle(text = "Füttern")
+
                 feedingTemplates.forEach { template ->
                     DogPlanTaskRow(
                         template = template,
-                        completion = dogPlan.completions.findCompletion(template.id, selectedDateText),
+                        completion = dogPlan.completions.findCompletion(
+                            template.id,
+                            selectedDateText
+                        ),
                         children = children,
                         canComplete = selectedChild != null && isToday,
                         onClick = { templateForCompletion = template }
@@ -132,11 +133,15 @@ fun DogPlanSection(
             }
 
             if (walkTemplates.isNotEmpty()) {
-                DogPlanGroupTitle(text = "🚶 Gassi")
+                DogPlanGroupTitle(text = "Gassi")
+
                 walkTemplates.forEach { template ->
                     DogPlanTaskRow(
                         template = template,
-                        completion = dogPlan.completions.findCompletion(template.id, selectedDateText),
+                        completion = dogPlan.completions.findCompletion(
+                            template.id,
+                            selectedDateText
+                        ),
                         children = children,
                         canComplete = selectedChild != null && isToday,
                         onClick = { templateForCompletion = template }
@@ -147,11 +152,15 @@ fun DogPlanSection(
             }
 
             if (otherTemplates.isNotEmpty()) {
-                DogPlanGroupTitle(text = "🐾 Sonstiges")
+                DogPlanGroupTitle(text = "Sonstiges")
+
                 otherTemplates.forEach { template ->
                     DogPlanTaskRow(
                         template = template,
-                        completion = dogPlan.completions.findCompletion(template.id, selectedDateText),
+                        completion = dogPlan.completions.findCompletion(
+                            template.id,
+                            selectedDateText
+                        ),
                         children = children,
                         canComplete = selectedChild != null && isToday,
                         onClick = { templateForCompletion = template }
@@ -183,7 +192,9 @@ fun DogPlanSection(
         DogPlanShiftSelectionDialog(
             mode = mode,
             children = children,
+            selectedChild = selectedChild,
             currentShift = shift,
+            canManageAllShifts = canManageAllShifts,
             onDismiss = { shiftDialogMode = null },
             onSelectChild = { childId ->
                 when (mode) {
@@ -238,7 +249,7 @@ private fun DogPlanShiftRow(
                     .padding(start = 8.dp)
             ) {
                 Text(
-                    text = title,
+                    text = "$title:",
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -246,12 +257,18 @@ private fun DogPlanShiftRow(
 
                 Text(
                     text = assignedName ?: "Noch nicht eingetragen",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = if (assignedName == null) {
+                        MaterialTheme.typography.bodySmall
+                    } else {
+                        MaterialTheme.typography.titleLarge
+                    },
                     color = if (assignedName == null) {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     } else {
                         MaterialTheme.colorScheme.primary
-                    }
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
@@ -408,7 +425,9 @@ private fun DogPlanCompletionInfo(
 private fun DogPlanShiftSelectionDialog(
     mode: DogPlanShiftMode,
     children: List<Child>,
+    selectedChild: Child?,
     currentShift: DogPlanShift?,
+    canManageAllShifts: Boolean,
     onDismiss: () -> Unit,
     onSelectChild: (String) -> Unit,
     onClear: () -> Unit
@@ -423,6 +442,9 @@ private fun DogPlanShiftSelectionDialog(
         DogPlanShiftMode.LATE -> currentShift?.lateShiftChildId
     }
 
+    val currentChildName = currentChildId.toChildName(children)
+    val selectedChildIsAssigned = currentChildId == selectedChild?.id
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
@@ -430,29 +452,74 @@ private fun DogPlanShiftSelectionDialog(
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                children.forEach { child ->
-                    OutlinedButton(
-                        onClick = { onSelectChild(child.id) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = if (child.id == currentChildId) {
-                                "✓ ${child.name}"
-                            } else {
-                                child.name
-                            }
-                        )
+                if (canManageAllShifts) {
+                    children.forEach { child ->
+                        OutlinedButton(
+                            onClick = { onSelectChild(child.id) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = if (child.id == currentChildId) {
+                                    "✓ ${child.name}"
+                                } else {
+                                    child.name
+                                }
+                            )
+                        }
                     }
-                }
 
-                if (currentChildId != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    if (currentChildId != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
 
-                    OutlinedButton(
-                        onClick = onClear,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Eintragung entfernen")
+                        OutlinedButton(
+                            onClick = onClear,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Eintragung entfernen")
+                        }
+                    }
+                } else {
+                    Text(
+                        text = if (currentChildName == null) {
+                            "Aktuell ist niemand eingetragen."
+                        } else {
+                            "Aktuell eingetragen: $currentChildName"
+                        },
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    if (selectedChild != null) {
+                        OutlinedButton(
+                            onClick = { onSelectChild(selectedChild.id) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = if (selectedChildIsAssigned) {
+                                    "✓ Ich bin eingetragen"
+                                } else {
+                                    "Mich eintragen"
+                                }
+                            )
+                        }
+
+                        if (selectedChildIsAssigned) {
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            OutlinedButton(
+                                onClick = onClear,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Meine Eintragung entfernen")
+                            }
+                        }
+
+                        if (!selectedChildIsAssigned && currentChildId != null) {
+                            Text(
+                                text = "Wenn du dich einträgst, wird die aktuelle Eintragung überschrieben.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
