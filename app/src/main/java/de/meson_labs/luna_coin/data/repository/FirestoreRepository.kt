@@ -7,6 +7,10 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import de.meson_labs.luna_coin.models.Child
+import de.meson_labs.luna_coin.models.DogPlanData
+import de.meson_labs.luna_coin.models.DogPlanShift
+import de.meson_labs.luna_coin.models.DogPlanTaskCompletion
+import de.meson_labs.luna_coin.models.DogPlanTaskTemplate
 import de.meson_labs.luna_coin.models.DogScheduleItem
 import de.meson_labs.luna_coin.models.GameHighscore
 import de.meson_labs.luna_coin.models.LogEntry
@@ -31,6 +35,9 @@ class FirestoreRepository : DataRepository {
     private val tasksRef = familyRef.collection("tasks")
     private val shopItemsRef = familyRef.collection("shopItems")
     private val dogScheduleRef = familyRef.collection("dogSchedule")
+    private val dogPlanTemplatesRef = familyRef.collection("dogPlanTemplates")
+    private val dogPlanCompletionsRef = familyRef.collection("dogPlanCompletions")
+    private val dogPlanShiftsRef = familyRef.collection("dogPlanShifts")
     private val logsRef = familyRef.collection("logs")
     private val luckyWheelUsageRef = familyRef.collection("luckyWheelUsage")
     private val gameHighscoresRef = familyRef.collection("gameHighscores")
@@ -40,6 +47,9 @@ class FirestoreRepository : DataRepository {
     private val backupTasksRef = backupDocumentRef.collection("tasks")
     private val backupShopItemsRef = backupDocumentRef.collection("shopItems")
     private val backupDogScheduleRef = backupDocumentRef.collection("dogSchedule")
+    private val backupDogPlanTemplatesRef = backupDocumentRef.collection("dogPlanTemplates")
+    private val backupDogPlanCompletionsRef = backupDocumentRef.collection("dogPlanCompletions")
+    private val backupDogPlanShiftsRef = backupDocumentRef.collection("dogPlanShifts")
     private val backupLogsRef = backupDocumentRef.collection("logs")
     private val backupLuckyWheelUsageRef = backupDocumentRef.collection("luckyWheelUsage")
     private val backupGameHighscoresRef = backupDocumentRef.collection("gameHighscores")
@@ -50,6 +60,9 @@ class FirestoreRepository : DataRepository {
     private var realtimeTasks: List<TaskItem>? = null
     private var realtimeShopItems: List<ShopItem>? = null
     private var realtimeDogSchedule: List<DogScheduleItem>? = null
+    private var realtimeDogPlanTemplates: List<DogPlanTaskTemplate>? = null
+    private var realtimeDogPlanCompletions: List<DogPlanTaskCompletion>? = null
+    private var realtimeDogPlanShifts: List<DogPlanShift>? = null
     private var realtimeLogs: List<LogEntry>? = null
     private var realtimeLuckyWheelUsage: List<LuckyWheelUsage>? = null
     private var realtimeGameHighscores: List<GameHighscore>? = null
@@ -68,6 +81,7 @@ class FirestoreRepository : DataRepository {
                 tasks = loadTasks(),
                 shopItems = loadShopItems(),
                 dogSchedule = loadDogSchedule(),
+                dogPlan = loadDogPlan(),
                 logs = loadLogs(),
                 luckyWheelUsage = loadLuckyWheelUsage(),
                 gameHighscores = loadGameHighscores()
@@ -87,6 +101,9 @@ class FirestoreRepository : DataRepository {
             replaceCollection(tasksRef, data.tasks.map { prepareForSave(it) })
             replaceCollection(shopItemsRef, data.shopItems.map { prepareForSave(it) })
             replaceCollection(dogScheduleRef, data.dogSchedule.map { prepareForSave(it) })
+            replaceCollection(dogPlanTemplatesRef, data.dogPlan.templates.map { prepareForSave(it) })
+            replaceCollection(dogPlanCompletionsRef, data.dogPlan.completions.map { prepareForSave(it) })
+            replaceCollection(dogPlanShiftsRef, data.dogPlan.shifts.map { prepareForSave(it) })
             replaceCollection(logsRef, data.logs.map { prepareForSave(it) })
             replaceCollection(luckyWheelUsageRef, data.luckyWheelUsage.map { prepareForSave(it) })
             replaceCollection(gameHighscoresRef, data.gameHighscores.map { prepareForSave(it) })
@@ -109,6 +126,9 @@ class FirestoreRepository : DataRepository {
                     "tasksCount" to data.tasks.size,
                     "shopItemsCount" to data.shopItems.size,
                     "dogScheduleCount" to data.dogSchedule.size,
+                    "dogPlanTemplateCount" to data.dogPlan.templates.size,
+                    "dogPlanCompletionCount" to data.dogPlan.completions.size,
+                    "dogPlanShiftCount" to data.dogPlan.shifts.size,
                     "logsCount" to data.logs.size,
                     "luckyWheelUsageCount" to data.luckyWheelUsage.size,
                     "gameHighscoresCount" to data.gameHighscores.size
@@ -120,6 +140,9 @@ class FirestoreRepository : DataRepository {
             replaceCollection(backupTasksRef, data.tasks.map { prepareForSave(it) })
             replaceCollection(backupShopItemsRef, data.shopItems.map { prepareForSave(it) })
             replaceCollection(backupDogScheduleRef, data.dogSchedule.map { prepareForSave(it) })
+            replaceCollection(backupDogPlanTemplatesRef, data.dogPlan.templates.map { prepareForSave(it) })
+            replaceCollection(backupDogPlanCompletionsRef, data.dogPlan.completions.map { prepareForSave(it) })
+            replaceCollection(backupDogPlanShiftsRef, data.dogPlan.shifts.map { prepareForSave(it) })
             replaceCollection(backupLogsRef, data.logs.map { prepareForSave(it) })
             replaceCollection(backupLuckyWheelUsageRef, data.luckyWheelUsage.map { prepareForSave(it) })
             replaceCollection(backupGameHighscoresRef, data.gameHighscores.map { prepareForSave(it) })
@@ -157,6 +180,15 @@ class FirestoreRepository : DataRepository {
                 tasks = backupTasksRef.get().await().toObjects(TaskItem::class.java),
                 shopItems = backupShopItemsRef.get().await().toObjects(ShopItem::class.java),
                 dogSchedule = backupDogScheduleRef.get().await().toObjects(DogScheduleItem::class.java),
+                dogPlan = DogPlanData(
+                    templates = backupDogPlanTemplatesRef
+                        .orderBy("sortOrder", Query.Direction.ASCENDING)
+                        .get()
+                        .await()
+                        .toObjects(DogPlanTaskTemplate::class.java),
+                    completions = backupDogPlanCompletionsRef.get().await().toObjects(DogPlanTaskCompletion::class.java),
+                    shifts = backupDogPlanShiftsRef.get().await().toObjects(DogPlanShift::class.java)
+                ),
                 logs = backupLogsRef
                     .orderBy("createdAt", Query.Direction.DESCENDING)
                     .limit(MAX_ACTIVE_LOGS)
@@ -186,6 +218,9 @@ class FirestoreRepository : DataRepository {
         realtimeTasks = null
         realtimeShopItems = null
         realtimeDogSchedule = null
+        realtimeDogPlanTemplates = null
+        realtimeDogPlanCompletions = null
+        realtimeDogPlanShifts = null
         realtimeLogs = null
         realtimeLuckyWheelUsage = null
         realtimeGameHighscores = null
@@ -233,6 +268,41 @@ class FirestoreRepository : DataRepository {
             }
 
             realtimeDogSchedule = snapshot?.toObjects(DogScheduleItem::class.java).orEmpty()
+            emitRealtimeDataIfReady(onDataChanged)
+        }
+
+        listenerRegistrations += dogPlanTemplatesRef
+            .orderBy("sortOrder", Query.Direction.ASCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    println("❌ Realtime dogPlanTemplates Fehler: ${error.message}")
+                    onError(error)
+                    return@addSnapshotListener
+                }
+
+                realtimeDogPlanTemplates = snapshot?.toObjects(DogPlanTaskTemplate::class.java).orEmpty()
+                emitRealtimeDataIfReady(onDataChanged)
+            }
+
+        listenerRegistrations += dogPlanCompletionsRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                println("❌ Realtime dogPlanCompletions Fehler: ${error.message}")
+                onError(error)
+                return@addSnapshotListener
+            }
+
+            realtimeDogPlanCompletions = snapshot?.toObjects(DogPlanTaskCompletion::class.java).orEmpty()
+            emitRealtimeDataIfReady(onDataChanged)
+        }
+
+        listenerRegistrations += dogPlanShiftsRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                println("❌ Realtime dogPlanShifts Fehler: ${error.message}")
+                onError(error)
+                return@addSnapshotListener
+            }
+
+            realtimeDogPlanShifts = snapshot?.toObjects(DogPlanShift::class.java).orEmpty()
             emitRealtimeDataIfReady(onDataChanged)
         }
 
@@ -292,6 +362,9 @@ class FirestoreRepository : DataRepository {
         val tasks = realtimeTasks ?: return
         val shopItems = realtimeShopItems ?: return
         val dogSchedule = realtimeDogSchedule ?: return
+        val dogPlanTemplates = realtimeDogPlanTemplates ?: return
+        val dogPlanCompletions = realtimeDogPlanCompletions ?: return
+        val dogPlanShifts = realtimeDogPlanShifts ?: return
         val logs = realtimeLogs ?: return
         val luckyWheelUsage = realtimeLuckyWheelUsage ?: return
         val gameHighscores = realtimeGameHighscores ?: return
@@ -301,6 +374,11 @@ class FirestoreRepository : DataRepository {
             tasks = tasks,
             shopItems = shopItems,
             dogSchedule = dogSchedule,
+            dogPlan = DogPlanData(
+                templates = dogPlanTemplates,
+                completions = dogPlanCompletions,
+                shifts = dogPlanShifts
+            ),
             logs = logs,
             luckyWheelUsage = luckyWheelUsage,
             gameHighscores = gameHighscores
@@ -329,6 +407,36 @@ class FirestoreRepository : DataRepository {
 
     override suspend fun loadDogSchedule(): List<DogScheduleItem> {
         return dogScheduleRef.get().await().toObjects(DogScheduleItem::class.java)
+    }
+
+    override suspend fun loadDogPlan(): DogPlanData {
+        return DogPlanData(
+            templates = loadDogPlanTemplates(),
+            completions = loadDogPlanCompletions(),
+            shifts = loadDogPlanShifts()
+        )
+    }
+
+    override suspend fun loadDogPlanTemplates(): List<DogPlanTaskTemplate> {
+        return dogPlanTemplatesRef
+            .orderBy("sortOrder", Query.Direction.ASCENDING)
+            .get()
+            .await()
+            .toObjects(DogPlanTaskTemplate::class.java)
+    }
+
+    override suspend fun loadDogPlanCompletions(): List<DogPlanTaskCompletion> {
+        return dogPlanCompletionsRef
+            .get()
+            .await()
+            .toObjects(DogPlanTaskCompletion::class.java)
+    }
+
+    override suspend fun loadDogPlanShifts(): List<DogPlanShift> {
+        return dogPlanShiftsRef
+            .get()
+            .await()
+            .toObjects(DogPlanShift::class.java)
     }
 
     override suspend fun loadLogs(limit: Long): List<LogEntry> {
@@ -369,6 +477,31 @@ class FirestoreRepository : DataRepository {
     override suspend fun saveDogScheduleItem(item: DogScheduleItem) {
         val prepared = prepareForSave(item)
         dogScheduleRef.document(prepared.id).set(prepared).await()
+        updateFamilyTimestamp()
+    }
+
+    override suspend fun saveDogPlan(data: DogPlanData) {
+        replaceCollection(dogPlanTemplatesRef, data.templates.map { prepareForSave(it) })
+        replaceCollection(dogPlanCompletionsRef, data.completions.map { prepareForSave(it) })
+        replaceCollection(dogPlanShiftsRef, data.shifts.map { prepareForSave(it) })
+        updateFamilyTimestamp()
+    }
+
+    override suspend fun saveDogPlanTemplate(template: DogPlanTaskTemplate) {
+        val prepared = prepareForSave(template)
+        dogPlanTemplatesRef.document(prepared.id).set(prepared).await()
+        updateFamilyTimestamp()
+    }
+
+    override suspend fun saveDogPlanCompletion(completion: DogPlanTaskCompletion) {
+        val prepared = prepareForSave(completion)
+        dogPlanCompletionsRef.document(prepared.id).set(prepared).await()
+        updateFamilyTimestamp()
+    }
+
+    override suspend fun saveDogPlanShift(shift: DogPlanShift) {
+        val prepared = prepareForSave(shift)
+        dogPlanShiftsRef.document(prepared.id).set(prepared).await()
         updateFamilyTimestamp()
     }
 
@@ -459,6 +592,21 @@ class FirestoreRepository : DataRepository {
 
     override suspend fun deleteDogScheduleItem(itemId: String) {
         dogScheduleRef.document(itemId).delete().await()
+        updateFamilyTimestamp()
+    }
+
+    override suspend fun deleteDogPlanTemplate(templateId: String) {
+        dogPlanTemplatesRef.document(templateId).delete().await()
+        updateFamilyTimestamp()
+    }
+
+    override suspend fun deleteDogPlanCompletion(completionId: String) {
+        dogPlanCompletionsRef.document(completionId).delete().await()
+        updateFamilyTimestamp()
+    }
+
+    override suspend fun deleteDogPlanShift(shiftId: String) {
+        dogPlanShiftsRef.document(shiftId).delete().await()
         updateFamilyTimestamp()
     }
 
@@ -639,6 +787,51 @@ class FirestoreRepository : DataRepository {
         )
     }
 
+    private fun prepareForSave(template: DogPlanTaskTemplate): DogPlanTaskTemplate {
+        val now = Date()
+        return template.copy(
+            id = template.id.ifBlank { dogPlanTemplatesRef.document().id },
+            familyId = familyId,
+            createdAt = template.createdAt ?: now,
+            updatedAt = now
+        )
+    }
+
+    private fun prepareForSave(completion: DogPlanTaskCompletion): DogPlanTaskCompletion {
+        val now = Date()
+        val completionId = completion.id.ifBlank {
+            "${completion.date}_${completion.templateId}"
+                .replace(":", "")
+                .replace(".", "")
+                .replace("/", "_")
+                .replace(" ", "_")
+        }
+
+        return completion.copy(
+            id = completionId,
+            familyId = familyId,
+            createdAt = completion.createdAt ?: now,
+            updatedAt = now
+        )
+    }
+
+    private fun prepareForSave(shift: DogPlanShift): DogPlanShift {
+        val now = Date()
+        val shiftId = shift.id.ifBlank {
+            "dog_shift_${shift.date}"
+                .replace(".", "")
+                .replace("/", "_")
+                .replace(" ", "_")
+        }
+
+        return shift.copy(
+            id = shiftId,
+            familyId = familyId,
+            createdAt = shift.createdAt ?: now,
+            updatedAt = now
+        )
+    }
+
     private fun prepareForSave(log: LogEntry): LogEntry {
         val now = Date()
         return log.copy(
@@ -683,6 +876,20 @@ class FirestoreRepository : DataRepository {
             is TaskItem -> item.id
             is ShopItem -> item.id
             is DogScheduleItem -> item.id
+            is DogPlanTaskTemplate -> item.id
+            is DogPlanTaskCompletion -> item.id.ifBlank {
+                "${item.date}_${item.templateId}"
+                    .replace(":", "")
+                    .replace(".", "")
+                    .replace("/", "_")
+                    .replace(" ", "_")
+            }
+            is DogPlanShift -> item.id.ifBlank {
+                "dog_shift_${item.date}"
+                    .replace(".", "")
+                    .replace("/", "_")
+                    .replace(" ", "_")
+            }
             is LogEntry -> item.id
             is LuckyWheelUsage -> item.id.ifBlank { "${item.childId}_${item.date}" }
             is GameHighscore -> item.id.ifBlank { "${item.game}_${item.childId}_${item.level}_${item.scoreType}" }

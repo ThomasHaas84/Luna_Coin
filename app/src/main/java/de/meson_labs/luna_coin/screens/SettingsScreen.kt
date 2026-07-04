@@ -54,6 +54,7 @@ import de.meson_labs.luna_coin.components.common.toDisplayText
 import de.meson_labs.luna_coin.components.dialogs.CoinEditDialog
 import de.meson_labs.luna_coin.components.dialogs.ConfirmationDialog
 import de.meson_labs.luna_coin.components.dialogs.DogScheduleEditorDialog
+import de.meson_labs.luna_coin.components.dialogs.DogPlanEditorDialog
 import de.meson_labs.luna_coin.components.dialogs.LunaGifDialog
 import de.meson_labs.luna_coin.components.dialogs.ShopEditorDialog
 import de.meson_labs.luna_coin.components.dialogs.TaskEditorDialog
@@ -154,6 +155,7 @@ fun SettingsScreen(
     var showAppSettings by remember { mutableStateOf(false) }
     var showShopEditor by remember { mutableStateOf(false) }
     var showDogScheduleEditor by remember { mutableStateOf(false) }
+    var showDogPlanEditor by remember { mutableStateOf(false) }
     var showTaskEditor by remember { mutableStateOf(false) }
 
     var showUserEditorDialog by remember { mutableStateOf(false) }
@@ -417,7 +419,13 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Button(onClick = { showDogScheduleEditor = true }) {
-                        Text("Hundeplan bearbeiten")
+                        Text("Hundeplan bearbeiten (alt)")
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(onClick = { showDogPlanEditor = true }) {
+                        Text("🐶 Neuer Hundeplan (Beta)")
                     }
                 }
             }
@@ -608,6 +616,19 @@ fun SettingsScreen(
             onAddDogSchedule = onAddDogSchedule,
             onUpdateDogSchedule = onUpdateDogSchedule,
             onDeleteDogSchedule = onDeleteDogSchedule
+        )
+    }
+
+    if (showDogPlanEditor) {
+        DogPlanEditorDialog(
+            templates = data.dogPlan.templates,
+            onDismiss = { showDogPlanEditor = false },
+            onSaveTemplate = { template ->
+                viewModel.saveDogPlanTaskTemplate(template)
+            },
+            onDeleteTemplate = { templateId ->
+                viewModel.deleteDogPlanTaskTemplate(templateId)
+            }
         )
     }
 

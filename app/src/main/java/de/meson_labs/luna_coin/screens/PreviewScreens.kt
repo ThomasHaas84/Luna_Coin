@@ -8,6 +8,10 @@ import de.meson_labs.luna_coin.data.DemoData
 import de.meson_labs.luna_coin.data.repository.DataRepository
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DogScheduleItem
+import de.meson_labs.luna_coin.models.DogPlanData
+import de.meson_labs.luna_coin.models.DogPlanShift
+import de.meson_labs.luna_coin.models.DogPlanTaskCompletion
+import de.meson_labs.luna_coin.models.DogPlanTaskTemplate
 import de.meson_labs.luna_coin.models.GameHighscore
 import de.meson_labs.luna_coin.models.LogEntry
 import de.meson_labs.luna_coin.models.LuckyWheelUsage
@@ -219,6 +223,22 @@ class FakeDataRepository(
         return demoData.dogSchedule
     }
 
+    override suspend fun loadDogPlan(): DogPlanData {
+        return demoData.dogPlan
+    }
+
+    override suspend fun loadDogPlanTemplates(): List<DogPlanTaskTemplate> {
+        return demoData.dogPlan.templates
+    }
+
+    override suspend fun loadDogPlanCompletions(): List<DogPlanTaskCompletion> {
+        return demoData.dogPlan.completions
+    }
+
+    override suspend fun loadDogPlanShifts(): List<DogPlanShift> {
+        return demoData.dogPlan.shifts
+    }
+
     override suspend fun loadLogs(limit: Long): List<LogEntry> {
         return demoData.logs
     }
@@ -276,6 +296,60 @@ class FakeDataRepository(
             } else {
                 demoData.dogSchedule + item
             }
+        )
+    }
+
+    override suspend fun saveDogPlan(data: DogPlanData) {
+        demoData = demoData.copy(
+            dogPlan = data
+        )
+    }
+
+    override suspend fun saveDogPlanTemplate(template: DogPlanTaskTemplate) {
+        val currentDogPlan = demoData.dogPlan
+
+        demoData = demoData.copy(
+            dogPlan = currentDogPlan.copy(
+                templates = if (currentDogPlan.templates.any { it.id == template.id }) {
+                    currentDogPlan.templates.map {
+                        if (it.id == template.id) template else it
+                    }
+                } else {
+                    currentDogPlan.templates + template
+                }
+            )
+        )
+    }
+
+    override suspend fun saveDogPlanCompletion(completion: DogPlanTaskCompletion) {
+        val currentDogPlan = demoData.dogPlan
+
+        demoData = demoData.copy(
+            dogPlan = currentDogPlan.copy(
+                completions = if (currentDogPlan.completions.any { it.id == completion.id }) {
+                    currentDogPlan.completions.map {
+                        if (it.id == completion.id) completion else it
+                    }
+                } else {
+                    currentDogPlan.completions + completion
+                }
+            )
+        )
+    }
+
+    override suspend fun saveDogPlanShift(shift: DogPlanShift) {
+        val currentDogPlan = demoData.dogPlan
+
+        demoData = demoData.copy(
+            dogPlan = currentDogPlan.copy(
+                shifts = if (currentDogPlan.shifts.any { it.id == shift.id }) {
+                    currentDogPlan.shifts.map {
+                        if (it.id == shift.id) shift else it
+                    }
+                } else {
+                    currentDogPlan.shifts + shift
+                }
+            )
         )
     }
 
@@ -382,6 +456,36 @@ class FakeDataRepository(
     override suspend fun deleteDogScheduleItem(itemId: String) {
         demoData = demoData.copy(
             dogSchedule = demoData.dogSchedule.filterNot { it.id == itemId }
+        )
+    }
+
+    override suspend fun deleteDogPlanTemplate(templateId: String) {
+        val currentDogPlan = demoData.dogPlan
+
+        demoData = demoData.copy(
+            dogPlan = currentDogPlan.copy(
+                templates = currentDogPlan.templates.filterNot { it.id == templateId }
+            )
+        )
+    }
+
+    override suspend fun deleteDogPlanCompletion(completionId: String) {
+        val currentDogPlan = demoData.dogPlan
+
+        demoData = demoData.copy(
+            dogPlan = currentDogPlan.copy(
+                completions = currentDogPlan.completions.filterNot { it.id == completionId }
+            )
+        )
+    }
+
+    override suspend fun deleteDogPlanShift(shiftId: String) {
+        val currentDogPlan = demoData.dogPlan
+
+        demoData = demoData.copy(
+            dogPlan = currentDogPlan.copy(
+                shifts = currentDogPlan.shifts.filterNot { it.id == shiftId }
+            )
         )
     }
 

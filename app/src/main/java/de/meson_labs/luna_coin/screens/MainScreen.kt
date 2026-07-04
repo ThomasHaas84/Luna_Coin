@@ -157,6 +157,11 @@ fun MainScreen(
                         onNextDay = viewModel::nextDay,
                         onToday = viewModel::today,
                         onCompleteTask = viewModel::completeTask,
+                        onCompleteDogPlanTask = viewModel::completeDogPlanTask,
+                        onAssignDogPlanEarlyShift = viewModel::assignDogPlanEarlyShift,
+                        onAssignDogPlanLateShift = viewModel::assignDogPlanLateShift,
+                        onClearDogPlanEarlyShift = viewModel::clearDogPlanEarlyShift,
+                        onClearDogPlanLateShift = viewModel::clearDogPlanLateShift,
                         onLogout = viewModel::logout,
                         canGoToPreviousDay = viewModel.canGoToPreviousDay,
                         canGoToNextDay = viewModel.canGoToNextDay

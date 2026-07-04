@@ -10,6 +10,7 @@ data class LunaCoinData(
     val children: List<Child> = emptyList(),
     val tasks: List<TaskItem> = emptyList(),
     val shopItems: List<ShopItem> = emptyList(),
+    val dogPlan: DogPlanData = DogPlanData(),
     val dogSchedule: List<DogScheduleItem> = emptyList(),
     val logs: List<LogEntry> = emptyList(),
     val luckyWheelUsage: List<LuckyWheelUsage> = emptyList(),
@@ -178,7 +179,7 @@ enum class DayOfWeekName {
 }
 
 @Serializable
-enum class LogType { TASK_DONE, SHOP_BUY, SYSTEM }
+enum class LogType { TASK_DONE, SHOP_BUY,DOG_PLAN, SYSTEM }
 
 @Serializable
 enum class LunaGameType { MEMORY, NUMBER_GUESS, MULTIPLICATION }

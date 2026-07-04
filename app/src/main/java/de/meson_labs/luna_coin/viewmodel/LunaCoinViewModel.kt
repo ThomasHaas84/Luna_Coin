@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import de.meson_labs.luna_coin.data.DemoData
+import de.meson_labs.luna_coin.data.DogPlanDefaultData
 import de.meson_labs.luna_coin.data.repository.DataRepository
 import de.meson_labs.luna_coin.manager.GameHighscoreManager
 import de.meson_labs.luna_coin.manager.DogScheduleManager
+import de.meson_labs.luna_coin.manager.DogPlanManager
 import de.meson_labs.luna_coin.manager.BackupManager
 import de.meson_labs.luna_coin.manager.ShopManager
 import de.meson_labs.luna_coin.manager.BuyShopItemPreparation
@@ -21,6 +23,10 @@ import de.meson_labs.luna_coin.manager.ensureBuiltInAdmin
 import de.meson_labs.luna_coin.manager.sortChildrenInData
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
+import de.meson_labs.luna_coin.models.DogPlanTaskTemplate
+import de.meson_labs.luna_coin.models.DogPlanTaskType
+import de.meson_labs.luna_coin.models.LogEntry
+import de.meson_labs.luna_coin.models.LogType
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.LunaGameLevel
 import de.meson_labs.luna_coin.models.LunaGameScoreType
@@ -35,6 +41,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.util.UUID
 
 class LunaCoinViewModel(
     private val repository: DataRepository
@@ -42,6 +50,7 @@ class LunaCoinViewModel(
 
     private val gameHighscoreManager = GameHighscoreManager(repository)
     private val dogScheduleManager = DogScheduleManager(repository)
+    private val dogPlanManager = DogPlanManager()
     private val backupManager = BackupManager(repository)
     private val shopManager = ShopManager(repository)
     private val userManager = UserManager(repository)
@@ -92,15 +101,32 @@ class LunaCoinViewModel(
                 if (children.isEmpty()) {
                     println("⚠️ Keine Kinder in Firestore gefunden → Demo-Daten nur lokal anzeigen, NICHT speichern")
                     val demoData = ensureBuiltInAdmin(DemoData.create())
-                    _data.value = sortChildrenInData(demoData)
+                    val safeDemoData = demoData.copy(
+                        dogPlan = if (demoData.dogPlan.templates.isEmpty()) {
+                            DogPlanDefaultData.create()
+                        } else {
+                            demoData.dogPlan
+                        }
+                    )
+                    _data.value = sortChildrenInData(safeDemoData)
                     showMessage("⚠️ Keine Cloud-Daten gefunden")
                 } else {
+                    val loadedDogPlan = repository.loadDogPlan()
+                    val safeDogPlan = if (loadedDogPlan.templates.isEmpty()) {
+                        DogPlanDefaultData.create().also { defaultDogPlan ->
+                            repository.saveDogPlan(defaultDogPlan)
+                        }
+                    } else {
+                        loadedDogPlan
+                    }
+
                     val loadedData = ensureBuiltInAdmin(
                         LunaCoinData(
                             children = children,
                             tasks = repository.loadTasks(),
                             shopItems = repository.loadShopItems(),
                             dogSchedule = repository.loadDogSchedule(),
+                            dogPlan = safeDogPlan,
                             logs = repository.loadLogs(),
                             luckyWheelUsage = repository.loadLuckyWheelUsage(),
                             gameHighscores = repository.loadGameHighscores()
@@ -143,7 +169,14 @@ class LunaCoinViewModel(
                     }
 
                     val currentSelectedChildId = _selectedChildId.value
-                    val safeData = sortChildrenInData(ensureBuiltInAdmin(realtimeData))
+                    val realtimeDataWithDogPlan = if (realtimeData.dogPlan.templates.isEmpty()) {
+                        realtimeData.copy(
+                            dogPlan = DogPlanDefaultData.create()
+                        )
+                    } else {
+                        realtimeData
+                    }
+                    val safeData = sortChildrenInData(ensureBuiltInAdmin(realtimeDataWithDogPlan))
 
                     _data.value = safeData
 
@@ -750,6 +783,267 @@ class LunaCoinViewModel(
         }
     }
 
+
+    fun saveDogPlanTaskTemplate(template: DogPlanTaskTemplate) {
+        val currentUser = getSelectedChild() ?: return
+
+        val operation = dogPlanManager.prepareSaveTemplate(
+            currentDogPlanData = _data.value.dogPlan,
+            template = template,
+            currentUser = currentUser
+        ) ?: run {
+            showMessage("❌ Hundeplan-Aufgabe konnte nicht gespeichert werden")
+            return
+        }
+
+        val originalData = _data.value
+        _data.value = originalData.copy(
+            dogPlan = operation.dogPlanData
+        )
+
+        viewModelScope.launch {
+            try {
+                repository.saveDogPlanTemplate(operation.template)
+                showMessage("✅ Hundeplan-Aufgabe gespeichert")
+            } catch (e: Exception) {
+                _data.value = originalData
+                println("❌ Fehler beim Speichern der Hundeplan-Aufgabe: ${e.message}")
+                e.printStackTrace()
+                showMessage("❌ Hundeplan-Aufgabe konnte nicht gespeichert werden")
+            }
+        }
+    }
+
+    fun deleteDogPlanTaskTemplate(templateId: String) {
+        val currentUser = getSelectedChild() ?: return
+
+        val updatedDogPlan = dogPlanManager.prepareDeleteTemplate(
+            currentDogPlanData = _data.value.dogPlan,
+            templateId = templateId,
+            currentUser = currentUser
+        ) ?: run {
+            showMessage("❌ Hundeplan-Aufgabe konnte nicht gelöscht werden")
+            return
+        }
+
+        val originalData = _data.value
+        _data.value = originalData.copy(
+            dogPlan = updatedDogPlan
+        )
+
+        viewModelScope.launch {
+            try {
+                repository.saveDogPlan(updatedDogPlan)
+                showMessage("✅ Hundeplan-Aufgabe gelöscht")
+            } catch (e: Exception) {
+                _data.value = originalData
+                println("❌ Fehler beim Löschen der Hundeplan-Aufgabe: ${e.message}")
+                e.printStackTrace()
+                showMessage("❌ Hundeplan-Aufgabe konnte nicht gelöscht werden")
+            }
+        }
+    }
+
+    fun completeDogPlanTask(
+        templateId: String,
+        date: String,
+        peed: Boolean,
+        pooped: Boolean,
+        diarrhea: Boolean,
+        comment: String
+    ) {
+        val currentUser = getSelectedChild() ?: return
+
+        val operation = dogPlanManager.prepareCompleteTask(
+            currentDogPlanData = _data.value.dogPlan,
+            templateId = templateId,
+            date = date,
+            completedByChild = currentUser,
+            peed = peed,
+            pooped = pooped,
+            diarrhea = diarrhea,
+            comment = comment
+        ) ?: run {
+            showMessage("❌ Hundeplan-Aufgabe konnte nicht erledigt werden")
+            return
+        }
+
+        val originalData = _data.value
+        _data.value = originalData.copy(
+            dogPlan = operation.dogPlanData,
+            children = originalData.children.map { child ->
+                if (child.id == currentUser.id) {
+                    child.copy(coins = child.coins + operation.rewardCoins)
+                } else {
+                    child
+                }
+            }
+        )
+
+        viewModelScope.launch {
+            try {
+                repository.saveDogPlanCompletion(operation.completion)
+
+                if (operation.rewardCoins > 0) {
+                    val realCoinValue = repository.changeChildCoins(
+                        childId = currentUser.id,
+                        coinDelta = operation.rewardCoins
+                    )
+
+                    _data.value = _data.value.copy(
+                        children = _data.value.children.map { child ->
+                            if (child.id == currentUser.id) {
+                                child.copy(coins = realCoinValue)
+                            } else {
+                                child
+                            }
+                        }
+                    )
+                }
+
+                val template = _data.value.dogPlan.templates.firstOrNull { dogTemplate ->
+                    dogTemplate.id == operation.completion.templateId
+                }
+
+                val log = LogEntry(
+                    id = UUID.randomUUID().toString(),
+                    timestamp = LocalDateTime.now().toString(),
+                    childId = currentUser.id,
+                    type = LogType.DOG_PLAN,
+                    text = createDogPlanLogText(
+                        childName = currentUser.name,
+                        templateTitle = template?.title ?: "Hundeplan-Aufgabe",
+                        templateType = template?.type ?: DogPlanTaskType.OTHER,
+                        rewardCoins = operation.completion.rewardCoins,
+                        peed = operation.completion.peed,
+                        pooped = operation.completion.pooped,
+                        diarrhea = operation.completion.diarrhea,
+                        comment = operation.completion.comment
+                    ),
+                    coinChange = operation.completion.rewardCoins
+                )
+
+                repository.saveLog(log)
+
+                _data.value = _data.value.copy(
+                    logs = listOf(log) + _data.value.logs
+                )
+
+                showMessage("✅ Hundeplan-Aufgabe erledigt")
+            } catch (e: Exception) {
+                _data.value = originalData
+                println("❌ Fehler beim Erledigen der Hundeplan-Aufgabe: ${e.message}")
+                e.printStackTrace()
+                showMessage("❌ Hundeplan-Aufgabe konnte nicht gespeichert werden")
+            }
+        }
+    }
+
+    fun assignDogPlanEarlyShift(
+        date: String,
+        childId: String
+    ) {
+        val currentUser = getSelectedChild() ?: return
+
+        val operation = dogPlanManager.prepareAssignEarlyShift(
+            currentDogPlanData = _data.value.dogPlan,
+            date = date,
+            childId = childId,
+            currentUser = currentUser
+        ) ?: return
+
+        saveDogPlanShiftOperation(
+            updatedDogPlan = operation.dogPlanData,
+            shift = operation.shift,
+            successMessage = "✅ Frühschicht eingetragen",
+            errorMessage = "❌ Frühschicht konnte nicht gespeichert werden"
+        )
+    }
+
+    fun assignDogPlanLateShift(
+        date: String,
+        childId: String
+    ) {
+        val currentUser = getSelectedChild() ?: return
+
+        val operation = dogPlanManager.prepareAssignLateShift(
+            currentDogPlanData = _data.value.dogPlan,
+            date = date,
+            childId = childId,
+            currentUser = currentUser
+        ) ?: return
+
+        saveDogPlanShiftOperation(
+            updatedDogPlan = operation.dogPlanData,
+            shift = operation.shift,
+            successMessage = "✅ Spätschicht eingetragen",
+            errorMessage = "❌ Spätschicht konnte nicht gespeichert werden"
+        )
+    }
+
+    fun clearDogPlanEarlyShift(date: String) {
+        val currentUser = getSelectedChild() ?: return
+
+        val operation = dogPlanManager.prepareClearEarlyShift(
+            currentDogPlanData = _data.value.dogPlan,
+            date = date,
+            currentUser = currentUser
+        ) ?: return
+
+        saveDogPlanShiftOperation(
+            updatedDogPlan = operation.dogPlanData,
+            shift = operation.shift,
+            successMessage = "✅ Frühschicht entfernt",
+            errorMessage = "❌ Frühschicht konnte nicht entfernt werden"
+        )
+    }
+
+    fun clearDogPlanLateShift(date: String) {
+        val currentUser = getSelectedChild() ?: return
+
+        val operation = dogPlanManager.prepareClearLateShift(
+            currentDogPlanData = _data.value.dogPlan,
+            date = date,
+            currentUser = currentUser
+        ) ?: return
+
+        saveDogPlanShiftOperation(
+            updatedDogPlan = operation.dogPlanData,
+            shift = operation.shift,
+            successMessage = "✅ Spätschicht entfernt",
+            errorMessage = "❌ Spätschicht konnte nicht entfernt werden"
+        )
+    }
+
+    private fun saveDogPlanShiftOperation(
+        updatedDogPlan: de.meson_labs.luna_coin.models.DogPlanData,
+        shift: de.meson_labs.luna_coin.models.DogPlanShift,
+        successMessage: String,
+        errorMessage: String
+    ) {
+        val originalData = _data.value
+        _data.value = originalData.copy(
+            dogPlan = updatedDogPlan
+        )
+
+        viewModelScope.launch {
+            try {
+                repository.saveDogPlanShift(shift)
+                showMessage(successMessage)
+            } catch (e: Exception) {
+                _data.value = originalData
+                println("❌ Fehler beim Speichern der Hundeplan-Schicht: ${e.message}")
+                e.printStackTrace()
+                showMessage(errorMessage)
+            }
+        }
+    }
+
+    private fun getSelectedChild(): Child? {
+        val childId = _selectedChildId.value ?: return null
+        return _data.value.children.firstOrNull { it.id == childId }
+    }
+
     fun undoLogEntry(logId: String) {
         val operation = logManager.prepareUndoLog(
             currentData = _data.value,
@@ -778,14 +1072,21 @@ class LunaCoinViewModel(
 
     fun resetDemoData() {
         val demoData = backupManager.prepareResetDemoData()
+        val safeDemoData = if (demoData.dogPlan.templates.isEmpty()) {
+            demoData.copy(
+                dogPlan = DogPlanDefaultData.create()
+            )
+        } else {
+            demoData
+        }
 
-        _data.value = demoData
+        _data.value = safeDemoData
         _selectedChildId.value = null
         _selectedDate.value = LocalDate.now()
 
         viewModelScope.launch {
             try {
-                backupManager.persistResetDemoData(demoData)
+                backupManager.persistResetDemoData(safeDemoData)
                 showMessage("Demo-Daten wurden zurückgesetzt")
             } catch (e: Exception) {
                 println("❌ Fehler beim Zurücksetzen der Demo-Daten: ${e.message}")
@@ -840,6 +1141,51 @@ class LunaCoinViewModel(
 
     fun importFromJson() {
         showMessage(backupManager.getImportFromJsonMessage())
+    }
+
+
+    private fun createDogPlanLogText(
+        childName: String,
+        templateTitle: String,
+        templateType: DogPlanTaskType,
+        rewardCoins: Int,
+        peed: Boolean,
+        pooped: Boolean,
+        diarrhea: Boolean,
+        comment: String
+    ): String {
+        val icon = when (templateType) {
+            DogPlanTaskType.WALK -> "🐶"
+            DogPlanTaskType.FEEDING_EARLY -> "🍖"
+            DogPlanTaskType.FEEDING_LATE -> "🍖"
+            DogPlanTaskType.OTHER -> "🐾"
+        }
+
+        val detailLines = mutableListOf<String>()
+
+        if (templateType == DogPlanTaskType.WALK) {
+            if (peed) detailLines += "✔ Gepinkelt"
+            if (pooped) detailLines += "✔ Gekackt"
+            if (diarrhea) detailLines += "⚠ Durchfall"
+        }
+
+        if (comment.isNotBlank()) {
+            detailLines += "Kommentar: ${comment.trim()}"
+        }
+
+        val coinText = if (rewardCoins > 0) {
+            "\n+${rewardCoins} Luna Coin${if (rewardCoins == 1) "" else "s"}"
+        } else {
+            ""
+        }
+
+        val detailsText = if (detailLines.isNotEmpty()) {
+            "\n" + detailLines.joinToString("\n")
+        } else {
+            ""
+        }
+
+        return "$icon $childName hat $templateTitle erledigt.$coinText$detailsText"
     }
 
 }

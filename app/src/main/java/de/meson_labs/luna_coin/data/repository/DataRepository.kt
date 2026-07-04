@@ -1,6 +1,10 @@
 package de.meson_labs.luna_coin.data.repository
 
 import de.meson_labs.luna_coin.models.Child
+import de.meson_labs.luna_coin.models.DogPlanData
+import de.meson_labs.luna_coin.models.DogPlanShift
+import de.meson_labs.luna_coin.models.DogPlanTaskCompletion
+import de.meson_labs.luna_coin.models.DogPlanTaskTemplate
 import de.meson_labs.luna_coin.models.DogScheduleItem
 import de.meson_labs.luna_coin.models.GameHighscore
 import de.meson_labs.luna_coin.models.LogEntry
@@ -30,6 +34,10 @@ interface DataRepository {
     suspend fun loadTasks(): List<TaskItem>
     suspend fun loadShopItems(): List<ShopItem>
     suspend fun loadDogSchedule(): List<DogScheduleItem>
+    suspend fun loadDogPlan(): DogPlanData
+    suspend fun loadDogPlanTemplates(): List<DogPlanTaskTemplate>
+    suspend fun loadDogPlanCompletions(): List<DogPlanTaskCompletion>
+    suspend fun loadDogPlanShifts(): List<DogPlanShift>
     suspend fun loadLogs(limit: Long = 2000): List<LogEntry>
     suspend fun loadLuckyWheelUsage(): List<LuckyWheelUsage>
     suspend fun loadGameHighscores(): List<GameHighscore>
@@ -38,6 +46,10 @@ interface DataRepository {
     suspend fun saveTask(task: TaskItem)
     suspend fun saveShopItem(shopItem: ShopItem)
     suspend fun saveDogScheduleItem(item: DogScheduleItem)
+    suspend fun saveDogPlan(data: DogPlanData)
+    suspend fun saveDogPlanTemplate(template: DogPlanTaskTemplate)
+    suspend fun saveDogPlanCompletion(completion: DogPlanTaskCompletion)
+    suspend fun saveDogPlanShift(shift: DogPlanShift)
     suspend fun saveLog(log: LogEntry)
     suspend fun saveLuckyWheelUsage(usage: LuckyWheelUsage)
     suspend fun saveGameHighscore(highscore: GameHighscore)
@@ -65,6 +77,9 @@ interface DataRepository {
     suspend fun deleteTask(taskId: String)
     suspend fun deleteShopItem(shopItemId: String)
     suspend fun deleteDogScheduleItem(itemId: String)
+    suspend fun deleteDogPlanTemplate(templateId: String)
+    suspend fun deleteDogPlanCompletion(completionId: String)
+    suspend fun deleteDogPlanShift(shiftId: String)
     suspend fun deleteLog(logId: String)
     suspend fun deleteLuckyWheelUsage(usageId: String)
     suspend fun deleteGameHighscore(highscoreId: String)
