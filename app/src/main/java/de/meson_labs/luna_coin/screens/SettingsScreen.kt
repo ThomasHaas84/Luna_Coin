@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -51,7 +52,6 @@ import de.meson_labs.luna_coin.components.CoinDisplay
 import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.components.common.LogCard
 import de.meson_labs.luna_coin.components.common.toDisplayText
-import de.meson_labs.luna_coin.components.dialogs.CoinEditDialog
 import de.meson_labs.luna_coin.components.dialogs.ConfirmationDialog
 import de.meson_labs.luna_coin.components.dialogs.DogScheduleEditorDialog
 import de.meson_labs.luna_coin.components.dialogs.DogPlanEditorDialog
@@ -66,6 +66,7 @@ import de.meson_labs.luna_coin.models.TaskCompletionMode
 import de.meson_labs.luna_coin.models.TaskItem
 import de.meson_labs.luna_coin.models.TaskRepeatType
 import de.meson_labs.luna_coin.models.UserRole
+import de.meson_labs.luna_coin.manager.ProgressManager
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 import kotlinx.coroutines.delay
 import java.time.LocalDate
@@ -168,10 +169,7 @@ fun SettingsScreen(
     var languageGifMessage by remember { mutableStateOf("") }
     var languageGifResId by remember { mutableIntStateOf(0) }
 
-    var childForCoinEdit by remember { mutableStateOf<Child?>(null) }
-    var coinEditText by remember { mutableStateOf("") }
-    var coinEditCommentText by remember { mutableStateOf("") }
-    var coinEditError by remember { mutableStateOf<String?>(null) }
+    var childForProgressEdit by remember { mutableStateOf<Child?>(null) }
 
     var logSearchText by remember { mutableStateOf("") }
     var mimiModeEnabled by remember { mutableStateOf(false) }
@@ -311,10 +309,7 @@ fun SettingsScreen(
                             canEditCoins = canEdit,
                             canManageUsers = isAdmin,
                             onEditCoins = {
-                                childForCoinEdit = child
-                                coinEditText = child.coins.toString()
-                                coinEditCommentText = ""
-                                coinEditError = null
+                                childForProgressEdit = child
                             },
                             onEditUser = {
                                 userForEdit = child
@@ -528,28 +523,25 @@ fun SettingsScreen(
         )
     }
 
-    childForCoinEdit?.let { child ->
-        CoinEditDialog(
+    childForProgressEdit?.let { child ->
+        ProgressEditDialog(
             child = child,
-            coinText = coinEditText,
-            commentText = coinEditCommentText,
-            errorMessage = coinEditError,
-            onCoinTextChange = {
-                coinEditText = it.filterIndexed { index, char ->
-                    char.isDigit() || (char == '-' && index == 0)
-                }
-                coinEditError = null
-            },
-            onCommentTextChange = { coinEditCommentText = it },
-            onSave = { newCoins ->
-                onUpdateChildCoins(child.id, newCoins, coinEditCommentText.trim().ifBlank { null })
-                childForCoinEdit = null
-            },
             onDismiss = {
-                childForCoinEdit = null
-                coinEditText = ""
-                coinEditCommentText = ""
-                coinEditError = null
+                childForProgressEdit = null
+            },
+            onSave = { coins, experience, availableSkillPoints, intelligence, strength, agility, comment ->
+                viewModel.updateChildProgressAsAdmin(
+                    childId = child.id,
+                    coins = coins,
+                    experience = experience,
+                    availableSkillPoints = availableSkillPoints,
+                    intelligence = intelligence,
+                    strength = strength,
+                    agility = agility,
+                    comment = comment
+                )
+
+                childForProgressEdit = null
             }
         )
     }
@@ -709,6 +701,13 @@ private fun UserManagementCard(
 
             if (canManageUsers) {
                 Text(
+                    text = "Level ${child.level} · EP ${child.experience} · Skillpunkte ${child.availableSkillPoints} · 🧠 ${child.intelligence} · 💪 ${child.strength} · ⚡ ${child.agility}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+
+                Text(
                     text = buildString {
                         append("Alter: ${child.age}")
                         append(" · Passwort: ")
@@ -733,7 +732,7 @@ private fun UserManagementCard(
 
                 Row {
                     OutlinedButton(onClick = onEditCoins) {
-                        Text("Coins")
+                        Text("🎮 Fortschritt")
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -780,6 +779,340 @@ private fun LargeCoinAmountDisplay(
         )
     }
 }
+
+
+@Composable
+private fun ProgressEditDialog(
+    child: Child,
+    onDismiss: () -> Unit,
+    onSave: (
+        coins: Int,
+        experience: Int,
+        availableSkillPoints: Int,
+        intelligence: Int,
+        strength: Int,
+        agility: Int,
+        comment: String?
+    ) -> Unit
+) {
+    var coinsText by remember(child.id) { mutableStateOf(child.coins.toString()) }
+    var experienceText by remember(child.id) { mutableStateOf(child.experience.toString()) }
+    var skillPointsText by remember(child.id) { mutableStateOf(child.availableSkillPoints.toString()) }
+
+    var intelligence by remember(child.id) { mutableIntStateOf(child.intelligence.coerceIn(1, 100)) }
+    var strength by remember(child.id) { mutableIntStateOf(child.strength.coerceIn(1, 100)) }
+    var agility by remember(child.id) { mutableIntStateOf(child.agility.coerceIn(1, 100)) }
+
+    var commentText by remember(child.id) { mutableStateOf("") }
+    var errorText by remember(child.id) { mutableStateOf<String?>(null) }
+
+    val coins = coinsText.toIntOrNull() ?: 0
+    val experience = experienceText.toIntOrNull() ?: 0
+    val availableSkillPoints = skillPointsText.toIntOrNull() ?: 0
+
+    val calculatedLevel = ProgressManager.levelForExperience(experience)
+    val currentLevelStartExperience = ProgressManager.experienceNeededForCurrentLevel(calculatedLevel)
+    val nextLevelStartExperience = ProgressManager.experienceNeededForCurrentLevel(
+        (calculatedLevel + 1).coerceAtMost(ProgressManager.MAX_LEVEL)
+    )
+
+    val experienceInCurrentLevel = (experience - currentLevelStartExperience).coerceAtLeast(0)
+    val experienceNeededForCurrentLevel = (nextLevelStartExperience - currentLevelStartExperience).coerceAtLeast(1)
+    val experienceUntilNextLevel = if (calculatedLevel >= ProgressManager.MAX_LEVEL) {
+        0
+    } else {
+        (experienceNeededForCurrentLevel - experienceInCurrentLevel).coerceAtLeast(0)
+    }
+
+    fun setExperienceForLevel(level: Int) {
+        val safeLevel = level.coerceIn(ProgressManager.MIN_LEVEL, ProgressManager.MAX_LEVEL)
+        experienceText = ProgressManager.experienceNeededForCurrentLevel(safeLevel).toString()
+    }
+
+    fun changeSkillPoints(delta: Int) {
+        val currentValue = skillPointsText.toIntOrNull() ?: 0
+        skillPointsText = (currentValue + delta).coerceAtLeast(0).toString()
+    }
+
+    fun changeSkill(
+        currentValue: Int,
+        delta: Int,
+        onValueChanged: (Int) -> Unit
+    ) {
+        onValueChanged((currentValue + delta).coerceIn(1, 100))
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Spielfortschritt bearbeiten")
+        },
+        text = {
+            LazyColumn {
+                item {
+                    Text(
+                        text = child.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text("💰 Währung", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = coinsText,
+                        onValueChange = {
+                            coinsText = it.filter { char -> char.isDigit() }
+                            errorText = null
+                        },
+                        label = { Text("Coins") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            coinsText = ((coinsText.toIntOrNull() ?: 0) + 100).toString()
+                        }
+                    ) {
+                        Text("🎁 +100 Coins")
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    Text("⭐ Fortschritt", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = experienceText,
+                        onValueChange = {
+                            experienceText = it.filter { char -> char.isDigit() }
+                            errorText = null
+                        },
+                        label = { Text("EP") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = if (calculatedLevel >= ProgressManager.MAX_LEVEL) {
+                            "Level $calculatedLevel · Maximallevel erreicht"
+                        } else {
+                            "Level $calculatedLevel · nächstes Level in $experienceUntilNextLevel EP"
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row {
+                        OutlinedButton(
+                            enabled = calculatedLevel > ProgressManager.MIN_LEVEL,
+                            onClick = {
+                                setExperienceForLevel(calculatedLevel - 1)
+                                changeSkillPoints(-1)
+                            }
+                        ) {
+                            Text("➖ Level")
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        OutlinedButton(
+                            enabled = calculatedLevel < ProgressManager.MAX_LEVEL,
+                            onClick = {
+                                setExperienceForLevel(calculatedLevel + 1)
+                                changeSkillPoints(1)
+                            }
+                        ) {
+                            Text("➕ Level")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            experienceText = ((experienceText.toIntOrNull() ?: 0) + 100).toString()
+                        }
+                    ) {
+                        Text("🎁 +100 EP")
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    Text("🎯 Skillpunkte", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = skillPointsText,
+                        onValueChange = {
+                            skillPointsText = it.filter { char -> char.isDigit() }
+                            errorText = null
+                        },
+                        label = { Text("Verfügbare Skillpunkte") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    Text("Skills", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    SkillAdminRow(
+                        label = "🧠 Intelligenz",
+                        value = intelligence,
+                        onMinus = {
+                            changeSkill(intelligence, -1) { intelligence = it }
+                        },
+                        onPlus = {
+                            changeSkill(intelligence, 1) { intelligence = it }
+                        }
+                    )
+
+                    SkillAdminRow(
+                        label = "💪 Stärke",
+                        value = strength,
+                        onMinus = {
+                            changeSkill(strength, -1) { strength = it }
+                        },
+                        onPlus = {
+                            changeSkill(strength, 1) { strength = it }
+                        }
+                    )
+
+                    SkillAdminRow(
+                        label = "⚡ Geschicklichkeit",
+                        value = agility,
+                        onMinus = {
+                            changeSkill(agility, -1) { agility = it }
+                        },
+                        onPlus = {
+                            changeSkill(agility, 1) { agility = it }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    OutlinedTextField(
+                        value = commentText,
+                        onValueChange = { commentText = it },
+                        label = { Text("Kommentar fürs Log (optional)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2
+                    )
+
+                    if (errorText != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = errorText!!,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Abbrechen")
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (coinsText.isBlank()) {
+                        errorText = "Bitte Coins eingeben."
+                        return@TextButton
+                    }
+
+                    if (experienceText.isBlank()) {
+                        errorText = "Bitte EP eingeben."
+                        return@TextButton
+                    }
+
+                    if (skillPointsText.isBlank()) {
+                        errorText = "Bitte Skillpunkte eingeben."
+                        return@TextButton
+                    }
+
+                    onSave(
+                        coins.coerceAtLeast(0),
+                        experience.coerceAtLeast(0),
+                        availableSkillPoints.coerceAtLeast(0),
+                        intelligence.coerceIn(1, 100),
+                        strength.coerceIn(1, 100),
+                        agility.coerceIn(1, 100),
+                        commentText.trim().ifBlank { null }
+                    )
+                }
+            ) {
+                Text("Speichern")
+            }
+        }
+    )
+}
+
+@Composable
+private fun SkillAdminRow(
+    label: String,
+    value: Int,
+    onMinus: () -> Unit,
+    onPlus: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold
+        )
+
+        OutlinedButton(
+            onClick = onMinus,
+            enabled = value > 1
+        ) {
+            Text("−")
+        }
+
+        Text(
+            text = value.toString(),
+            modifier = Modifier.width(48.dp),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        OutlinedButton(
+            onClick = onPlus,
+            enabled = value < 100
+        ) {
+            Text("+")
+        }
+    }
+}
+
 
 @Composable
 private fun UserEditorDialog(

@@ -64,6 +64,47 @@ object ProgressManager {
             .coerceIn(0f, 1f)
     }
 
+
+    fun levelForExperience(
+        experience: Int
+    ): Int {
+        val safeExperience = experience.coerceAtLeast(0)
+        var level = MIN_LEVEL
+
+        while (
+            level < MAX_LEVEL &&
+            safeExperience >= experienceNeededForCurrentLevel(level + 1)
+        ) {
+            level += 1
+        }
+
+        return level.coerceIn(MIN_LEVEL, MAX_LEVEL)
+    }
+
+    fun setAdminProgress(
+        child: Child,
+        coins: Int,
+        experience: Int,
+        availableSkillPoints: Int,
+        intelligence: Int,
+        strength: Int,
+        agility: Int
+    ): Child {
+        val safeExperience = experience.coerceAtLeast(0)
+
+        return sanitizeProgress(
+            child.copy(
+                coins = coins.coerceAtLeast(0),
+                level = levelForExperience(safeExperience),
+                experience = safeExperience,
+                availableSkillPoints = availableSkillPoints.coerceAtLeast(0),
+                intelligence = intelligence,
+                strength = strength,
+                agility = agility
+            )
+        )
+    }
+
     fun addExperience(
         child: Child,
         experienceDelta: Int

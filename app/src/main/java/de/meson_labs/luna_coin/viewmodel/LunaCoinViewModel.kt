@@ -266,6 +266,11 @@ class LunaCoinViewModel(
                     currentData = _data.value,
                     persistedChild = persistedChild
                 )
+
+                showLevelUpIfNeeded(
+                    originalData = operation.originalData,
+                    persistedChild = persistedChild
+                )
             } catch (e: Exception) {
                 _data.value = operation.originalData
                 println("❌ Fehler beim Speichern des Spielabschlusses: ${e.message}")
@@ -358,6 +363,11 @@ class LunaCoinViewModel(
                     currentData = _data.value,
                     persistedChild = persistedChild
                 )
+
+                showLevelUpIfNeeded(
+                    originalData = operation.originalData,
+                    persistedChild = persistedChild
+                )
             } catch (e: Exception) {
                 _data.value = operation.originalData
                 println("❌ Fehler beim Speichern des Highscores: ${e.message}")
@@ -385,6 +395,11 @@ class LunaCoinViewModel(
 
                 _data.value = taskManager.applyPersistedChildProgress(
                     currentData = _data.value,
+                    persistedChild = persistedChild
+                )
+
+                showLevelUpIfNeeded(
+                    originalData = operation.originalData,
                     persistedChild = persistedChild
                 )
             } catch (e: Exception) {
@@ -1015,6 +1030,11 @@ class LunaCoinViewModel(
                             }
                         )
                     )
+
+                    showLevelUpIfNeeded(
+                        originalData = originalData,
+                        persistedChild = persistedChild
+                    )
                 }
 
                 val template = _data.value.dogPlan.templates.firstOrNull { dogTemplate ->
@@ -1156,6 +1176,94 @@ class LunaCoinViewModel(
     }
 
 
+
+    fun updateChildProgressAsAdmin(
+        childId: String,
+        coins: Int,
+        experience: Int,
+        availableSkillPoints: Int,
+        intelligence: Int,
+        strength: Int,
+        agility: Int,
+        comment: String?
+    ) {
+        val currentChild = _data.value.children.firstOrNull { child ->
+            child.id == childId
+        } ?: return
+
+        val updatedChild = ProgressManager.setAdminProgress(
+            child = currentChild,
+            coins = coins,
+            experience = experience,
+            availableSkillPoints = availableSkillPoints,
+            intelligence = intelligence,
+            strength = strength,
+            agility = agility
+        )
+
+        val originalData = _data.value
+
+        val log = LogEntry(
+            id = UUID.randomUUID().toString(),
+            timestamp = LocalDateTime.now().toString(),
+            childId = childId,
+            type = LogType.SYSTEM,
+            text = buildString {
+                append("Admin hat den Fortschritt von ${currentChild.name} angepasst.")
+                append("\nCoins: ${currentChild.coins} → ${updatedChild.coins}")
+                append("\nEP: ${currentChild.experience} → ${updatedChild.experience}")
+                append("\nLevel: ${currentChild.level} → ${updatedChild.level}")
+                append("\nSkillpunkte: ${currentChild.availableSkillPoints} → ${updatedChild.availableSkillPoints}")
+                append("\nIntelligenz: ${currentChild.intelligence} → ${updatedChild.intelligence}")
+                append("\nStärke: ${currentChild.strength} → ${updatedChild.strength}")
+                append("\nGeschicklichkeit: ${currentChild.agility} → ${updatedChild.agility}")
+
+                val safeComment = comment?.trim().orEmpty()
+                if (safeComment.isNotBlank()) {
+                    append("\nKommentar: $safeComment")
+                }
+            },
+            coinChange = updatedChild.coins - currentChild.coins
+        )
+
+        _data.value = sortChildrenInData(
+            originalData.copy(
+                children = originalData.children.map { child ->
+                    if (child.id == childId) updatedChild else child
+                },
+                logs = listOf(log) + originalData.logs
+            )
+        )
+
+        viewModelScope.launch {
+            try {
+                repository.setChildCoins(
+                    childId = updatedChild.id,
+                    coins = updatedChild.coins
+                )
+
+                repository.updateChildProgress(
+                    childId = updatedChild.id,
+                    level = updatedChild.level,
+                    experience = updatedChild.experience,
+                    availableSkillPoints = updatedChild.availableSkillPoints,
+                    intelligence = updatedChild.intelligence,
+                    strength = updatedChild.strength,
+                    agility = updatedChild.agility
+                )
+
+                repository.saveLog(log)
+
+                showMessage("✅ Fortschritt gespeichert")
+            } catch (e: Exception) {
+                _data.value = originalData
+                println("❌ Fehler beim Speichern des Fortschritts: ${e.message}")
+                e.printStackTrace()
+                showMessage("❌ Fortschritt konnte nicht gespeichert werden")
+            }
+        }
+    }
+
     fun increaseIntelligence() {
         increaseSkill(ProgressSkill.INTELLIGENCE)
     }
@@ -1206,6 +1314,35 @@ class LunaCoinViewModel(
                 showMessage("❌ Skill konnte nicht gespeichert werden")
             }
         }
+    }
+
+
+    private fun showLevelUpIfNeeded(
+        originalData: LunaCoinData,
+        persistedChild: Child
+    ) {
+        val previousChild = originalData.children.firstOrNull { child ->
+            child.id == persistedChild.id
+        } ?: return
+
+        if (persistedChild.level <= previousChild.level) return
+
+        val gainedLevels = persistedChild.level - previousChild.level
+        val skillPointText = if (gainedLevels == 1) {
+            "1 neuer Skillpunkt"
+        } else {
+            "$gainedLevels neue Skillpunkte"
+        }
+
+        val childName = persistedChild.name.ifBlank {
+            previousChild.name.ifBlank {
+                "Luna"
+            }
+        }
+
+        showMessage(
+            "🎉 Level-Up! $childName ist jetzt Level ${persistedChild.level}. $skillPointText verfügbar!"
+        )
     }
 
     private fun getSelectedChild(): Child? {
