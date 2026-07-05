@@ -1,6 +1,7 @@
 // screens/LunaMeScreen.kt
 package de.meson_labs.luna_coin.screens
 
+import android.content.res.Configuration
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,13 +19,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,16 +43,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.ContentScale
-import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.components.dialogs.NotEnoughCoinsDialog
+import de.meson_labs.luna_coin.components.dialogs.ConfirmationDialog
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.LunaInventoryItem
@@ -62,7 +70,10 @@ fun LunaMeScreen(
     selectedChild: Child?,
     onBuyItem: (String) -> Unit,
     onLogout: () -> Unit,
-    onChildChanged: (Child) -> Unit
+    onChildChanged: (Child) -> Unit,
+    onIncreaseIntelligence: () -> Unit = {},
+    onIncreaseStrength: () -> Unit = {},
+    onIncreaseAgility: () -> Unit = {}
 ) {
     val configuration = LocalConfiguration.current
     val isTabletLayout = configuration.smallestScreenWidthDp >= 600
@@ -87,6 +98,10 @@ fun LunaMeScreen(
         mutableStateOf(selectedChild?.equippedItem)
     }
 
+    var selectedArea by remember {
+        mutableStateOf(LunaMeArea.INVENTORY)
+    }
+
     var itemToBuy by remember {
         mutableStateOf<LunaItemDefinition?>(null)
     }
@@ -97,6 +112,10 @@ fun LunaMeScreen(
 
     var showNotEnoughCoinsDialog by remember {
         mutableStateOf(false)
+    }
+
+    var skillToConfirm by remember {
+        mutableStateOf<LunaSkillConfirm?>(null)
     }
 
     LaunchedEffect(profileFeedback) {
@@ -131,276 +150,300 @@ fun LunaMeScreen(
     Box(
         modifier = modifier.fillMaxSize()
     ) {
-        if (isPhone) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(screenPadding)
-            ) {
-                LunaScreenHeader(
-                    title = "LunaME",
-                    selectedChild = selectedChild,
-                    onLogout = onLogout
-                )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(screenPadding)
+        ) {
+            LunaScreenHeader(
+                title = "LunaME",
+                selectedChild = selectedChild,
+                onLogout = onLogout
+            )
 
-                Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 14.dp))
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .padding(14.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(if (isPhonePortrait) 260.dp else 170.dp),
-                            contentAlignment = Alignment.Center
+            LunaMeAreaSwitch(
+                selectedArea = selectedArea,
+                isPhone = isPhone,
+                onSelectedAreaChanged = { selectedArea = it }
+            )
+
+            Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
+
+            when (selectedArea) {
+                LunaMeArea.INVENTORY -> {
+                    if (isPhone) {
+                        Column(
+                            modifier = Modifier.fillMaxSize()
                         ) {
-                            Image(
-                                painter = painterResource(id = lunaImage),
-                                contentDescription = "Luna",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Button(
-                            enabled = profileButtonEnabled,
-                            onClick = {
-                                selectedChild?.let { child ->
-                                    onChildChanged(
-                                        child.copy(
-                                            profileImageItem = previewItem,
-                                            hasProfileImage = true
-                                        )
-                                    )
-
-                                    profileFeedback = "Profilbild wurde aktualisiert"
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Als Profilbild speichern",
-                                maxLines = 1
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier.height(18.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            profileFeedback?.let { message ->
-                                Text(
-                                    text = message,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.SemiBold,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    shape = RoundedCornerShape(22.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .padding(14.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Inventar",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        InventoryGrid(
-                            items = LunaItemCatalog.allItems,
-                            unlockedItems = unlockedItems,
-                            equippedItem = equippedItem,
-                            previewItem = previewItem,
-                            isAdmin = isAdmin,
-                            selectedChild = selectedChild,
-                            isCompact = true,
-                            onUnlockedItemClick = { clickedItem ->
-                                selectedChild?.let { child ->
-                                    if (child.equippedItem == clickedItem) {
-                                        previewItem = null
-
-                                        onChildChanged(
-                                            child.copy(
-                                                equippedItem = null
-                                            )
-                                        )
-                                    } else {
-                                        previewItem = clickedItem
-
-                                        onChildChanged(
-                                            child.copy(
-                                                equippedItem = clickedItem
-                                            )
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(22.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .padding(14.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(if (isPhonePortrait) 260.dp else 170.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Image(
+                                            painter = painterResource(id = lunaImage),
+                                            contentDescription = "Luna",
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Fit
                                         )
                                     }
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Button(
+                                        enabled = profileButtonEnabled,
+                                        onClick = {
+                                            selectedChild?.let { child ->
+                                                onChildChanged(
+                                                    child.copy(
+                                                        profileImageItem = previewItem,
+                                                        hasProfileImage = true
+                                                    )
+                                                )
+
+                                                profileFeedback = "Profilbild wurde aktualisiert"
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = "Als Profilbild speichern",
+                                            maxLines = 1
+                                        )
+                                    }
+
+                                    Box(
+                                        modifier = Modifier.height(18.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        profileFeedback?.let { message ->
+                                            Text(
+                                                text = message,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                fontWeight = FontWeight.SemiBold,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    }
                                 }
-                            },
-                            onBuyRequest = { definition ->
-                                previewItem = definition.item
-                                itemToBuy = definition
                             }
-                        )
-                    }
-                }
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(screenPadding)
-            ) {
-                LunaScreenHeader(
-                    title = "LunaME",
-                    selectedChild = selectedChild,
-                    onLogout = onLogout
-                )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(28.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Image(
-                                painter = painterResource(id = lunaImage),
-                                contentDescription = "Luna",
+                            Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .size(800.dp),
-                                contentScale = ContentScale.Fit
-                            )
-                        }
+                                    .weight(1f),
+                                shape = RoundedCornerShape(22.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .padding(14.dp)
+                                ) {
+                                    InventoryGrid(
+                                        items = LunaItemCatalog.allItems,
+                                        unlockedItems = unlockedItems,
+                                        equippedItem = equippedItem,
+                                        previewItem = previewItem,
+                                        isAdmin = isAdmin,
+                                        selectedChild = selectedChild,
+                                        isCompact = true,
+                                        onUnlockedItemClick = { clickedItem ->
+                                            selectedChild?.let { child ->
+                                                if (child.equippedItem == clickedItem) {
+                                                    previewItem = null
 
-                        Spacer(modifier = Modifier.height(2.dp))
+                                                    onChildChanged(
+                                                        child.copy(
+                                                            equippedItem = null
+                                                        )
+                                                    )
+                                                } else {
+                                                    previewItem = clickedItem
 
-                        Button(
-                            enabled = profileButtonEnabled,
-                            onClick = {
-                                selectedChild?.let { child ->
-                                    onChildChanged(
-                                        child.copy(
-                                            profileImageItem = previewItem,
-                                            hasProfileImage = true
-                                        )
+                                                    onChildChanged(
+                                                        child.copy(
+                                                            equippedItem = clickedItem
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        onBuyRequest = { definition ->
+                                            previewItem = definition.item
+                                            itemToBuy = definition
+                                        }
                                     )
-
-                                    profileFeedback = "Profilbild wurde aktualisiert"
                                 }
                             }
-                        ) {
-                            Text("Als Profilbild speichern")
                         }
-
-                        Box(
-                            modifier = Modifier.height(18.dp),
-                            contentAlignment = Alignment.Center
+                    } else {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(28.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            profileFeedback?.let { message ->
-                                Text(
-                                    text = message,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.SemiBold,
-                                    textAlign = TextAlign.Center
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = lunaImage),
+                                        contentDescription = "Luna",
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .size(800.dp),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(2.dp))
+
+                                Button(
+                                    enabled = profileButtonEnabled,
+                                    onClick = {
+                                        selectedChild?.let { child ->
+                                            onChildChanged(
+                                                child.copy(
+                                                    profileImageItem = previewItem,
+                                                    hasProfileImage = true
+                                                )
+                                            )
+
+                                            profileFeedback = "Profilbild wurde aktualisiert"
+                                        }
+                                    }
+                                ) {
+                                    Text("Als Profilbild speichern")
+                                }
+
+                                Box(
+                                    modifier = Modifier.height(18.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    profileFeedback?.let { message ->
+                                        Text(
+                                            text = message,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.SemiBold,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            Column(
+                                modifier = Modifier
+                                    .width(430.dp)
+                                    .fillMaxHeight(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                InventoryGrid(
+                                    items = LunaItemCatalog.allItems,
+                                    unlockedItems = unlockedItems,
+                                    equippedItem = equippedItem,
+                                    previewItem = previewItem,
+                                    isAdmin = isAdmin,
+                                    selectedChild = selectedChild,
+                                    isCompact = false,
+                                    onUnlockedItemClick = { clickedItem ->
+                                        selectedChild?.let { child ->
+                                            if (child.equippedItem == clickedItem) {
+                                                previewItem = null
+
+                                                onChildChanged(
+                                                    child.copy(
+                                                        equippedItem = null
+                                                    )
+                                                )
+                                            } else {
+                                                previewItem = clickedItem
+
+                                                onChildChanged(
+                                                    child.copy(
+                                                        equippedItem = clickedItem
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    },
+                                    onBuyRequest = { definition ->
+                                        previewItem = definition.item
+                                        itemToBuy = definition
+                                    }
                                 )
                             }
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column(
+                LunaMeArea.SKILLS -> {
+                    Card(
                         modifier = Modifier
-                            .width(390.dp)
-                            .fillMaxHeight(),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .fillMaxWidth()
+                            .weight(1f),
+                        shape = RoundedCornerShape(28.dp)
                     ) {
-                        Text(
-                            text = "Inventar",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        InventoryGrid(
-                            items = LunaItemCatalog.allItems,
-                            unlockedItems = unlockedItems,
-                            equippedItem = equippedItem,
-                            previewItem = previewItem,
-                            isAdmin = isAdmin,
-                            selectedChild = selectedChild,
-                            isCompact = false,
-                            onUnlockedItemClick = { clickedItem ->
-                                selectedChild?.let { child ->
-                                    if (child.equippedItem == clickedItem) {
-                                        previewItem = null
-
-                                        onChildChanged(
-                                            child.copy(
-                                                equippedItem = null
-                                            )
-                                        )
-                                    } else {
-                                        previewItem = clickedItem
-
-                                        onChildChanged(
-                                            child.copy(
-                                                equippedItem = clickedItem
-                                            )
-                                        )
-                                    }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(if (isPhone) 3.dp else 6.dp)
+                        ) {
+                            SkillsPanel(
+                                selectedChild = selectedChild,
+                                isPhone = isPhone,
+                                onIncreaseIntelligence = {
+                                    skillToConfirm = LunaSkillConfirm(
+                                        title = "Intelligenz",
+                                        onConfirm = onIncreaseIntelligence
+                                    )
+                                },
+                                onIncreaseStrength = {
+                                    skillToConfirm = LunaSkillConfirm(
+                                        title = "Stärke",
+                                        onConfirm = onIncreaseStrength
+                                    )
+                                },
+                                onIncreaseAgility = {
+                                    skillToConfirm = LunaSkillConfirm(
+                                        title = "Geschicklichkeit",
+                                        onConfirm = onIncreaseAgility
+                                    )
                                 }
-                            },
-                            onBuyRequest = { definition ->
-                                previewItem = definition.item
-                                itemToBuy = definition
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
@@ -508,12 +551,374 @@ fun LunaMeScreen(
         }
     }
 
+    skillToConfirm?.let { skill ->
+        ConfirmationDialog(
+            title = "Skillpunkt vergeben?",
+            message = "Möchtest du wirklich einen Skillpunkt für ${skill.title} ausgeben? Diese Aktion kann nicht rückgängig gemacht werden.",
+            confirmText = "Ja, vergeben",
+            dismissText = "Abbrechen",
+            onConfirm = {
+                skill.onConfirm()
+                skillToConfirm = null
+            },
+            onDismiss = {
+                skillToConfirm = null
+            }
+        )
+    }
+
     if (showNotEnoughCoinsDialog) {
         NotEnoughCoinsDialog(
             onDismiss = {
                 showNotEnoughCoinsDialog = false
             }
         )
+    }
+}
+
+private data class LunaSkillConfirm(
+    val title: String,
+    val onConfirm: () -> Unit
+)
+
+
+@Composable
+private fun LunaMeAreaSwitch(
+    selectedArea: LunaMeArea,
+    isPhone: Boolean,
+    onSelectedAreaChanged: (LunaMeArea) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            LunaMeAreaButton(
+                text = "🎒 Inventar",
+                selected = selectedArea == LunaMeArea.INVENTORY,
+                modifier = Modifier.weight(1f),
+                isPhone = isPhone,
+                onClick = { onSelectedAreaChanged(LunaMeArea.INVENTORY) }
+            )
+
+            LunaMeAreaButton(
+                text = "⭐ Skills",
+                selected = selectedArea == LunaMeArea.SKILLS,
+                modifier = Modifier.weight(1f),
+                isPhone = isPhone,
+                onClick = { onSelectedAreaChanged(LunaMeArea.SKILLS) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun LunaMeAreaButton(
+    text: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    isPhone: Boolean,
+    onClick: () -> Unit
+) {
+    if (selected) {
+        Button(
+            onClick = onClick,
+            modifier = modifier.height(if (isPhone) 48.dp else 42.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = modifier.height(if (isPhone) 48.dp else 42.dp)
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun SkillsPanel(
+    selectedChild: Child?,
+    isPhone: Boolean,
+    onIncreaseIntelligence: () -> Unit,
+    onIncreaseStrength: () -> Unit,
+    onIncreaseAgility: () -> Unit
+) {
+    if (selectedChild == null) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Text(
+                text = "Bitte zuerst einen Benutzer auswählen.",
+                modifier = Modifier.padding(24.dp),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
+        return
+    }
+
+    val currentLevel = selectedChild.level.coerceIn(1, MAX_LEVEL)
+    val currentExperience = selectedChild.experience.coerceAtLeast(0)
+    val currentLevelStartExperience = totalExperienceForLevel(currentLevel)
+    val nextLevelExperience = totalExperienceForLevel((currentLevel + 1).coerceAtMost(MAX_LEVEL))
+    val experienceInCurrentLevel = (currentExperience - currentLevelStartExperience).coerceAtLeast(0)
+    val experienceNeededForCurrentLevel = (nextLevelExperience - currentLevelStartExperience).coerceAtLeast(1)
+    val progress = if (currentLevel >= MAX_LEVEL) {
+        1f
+    } else {
+        (experienceInCurrentLevel.toFloat() / experienceNeededForCurrentLevel.toFloat()).coerceIn(0f, 1f)
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(if (isPhone) 2.dp else 3.dp)
+    ) {
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(if (isPhone) 7.dp else 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = selectedChild.name,
+                        style = if (isPhone) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(if (isPhone) 2.dp else 3.dp))
+
+                    Text(
+                        text = "LEVEL $currentLevel",
+                        style = if (isPhone) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(if (isPhone) 3.dp else 5.dp))
+
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(if (isPhone) 8.dp else 10.dp)
+                            .clip(RoundedCornerShape(99.dp))
+                    )
+
+                    Spacer(modifier = Modifier.height(if (isPhone) 2.dp else 3.dp))
+
+                    Text(
+                        text = if (currentLevel >= MAX_LEVEL) {
+                            "Maximallevel erreicht"
+                        } else {
+                            "$experienceInCurrentLevel / $experienceNeededForCurrentLevel EP bis Level ${currentLevel + 1}"
+                        },
+                        style = if (isPhone) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Spacer(modifier = Modifier.height(if (isPhone) 3.dp else 4.dp))
+
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Text(
+                            text = "Skillpunkte: ${selectedChild.availableSkillPoints}",
+                            modifier = Modifier.padding(
+                                horizontal = if (isPhone) 12.dp else 18.dp,
+                                vertical = if (isPhone) 4.dp else 5.dp
+                            ),
+                            style = if (isPhone) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            SkillCard(
+                title = "Intelligenz",
+                emoji = "🧠",
+                imageRes = R.drawable.luna_int,
+                value = selectedChild.intelligence,
+                availableSkillPoints = selectedChild.availableSkillPoints,
+                isPhone = isPhone,
+                onIncrease = onIncreaseIntelligence
+            )
+        }
+
+        item {
+            SkillCard(
+                title = "Stärke",
+                emoji = "💪",
+                imageRes = R.drawable.luna_str,
+                value = selectedChild.strength,
+                availableSkillPoints = selectedChild.availableSkillPoints,
+                isPhone = isPhone,
+                onIncrease = onIncreaseStrength
+            )
+        }
+
+        item {
+            SkillCard(
+                title = "Geschicklichkeit",
+                emoji = "🏃",
+                imageRes = R.drawable.luna_agil,
+                value = selectedChild.agility,
+                availableSkillPoints = selectedChild.availableSkillPoints,
+                isPhone = isPhone,
+                onIncrease = onIncreaseAgility
+            )
+        }
+    }
+}
+
+@Composable
+private fun SkillCard(
+    title: String,
+    emoji: String,
+    imageRes: Int,
+    value: Int,
+    availableSkillPoints: Int,
+    isPhone: Boolean,
+    onIncrease: () -> Unit
+) {
+    val safeValue = value.coerceIn(1, MAX_SKILL_VALUE)
+    val canIncrease = availableSkillPoints > 0 && safeValue < MAX_SKILL_VALUE
+
+    val cardHeight = if (isPhone) 150.dp else 235.dp
+    val imageWindowWidth = if (isPhone) 200.dp else 350.dp
+    val imageSize = if (isPhone) 205.dp else 350.dp
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(cardHeight),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    horizontal = if (isPhone) 0.dp else 4.dp,
+                    vertical = 0.dp
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(if (isPhone) 1.dp else 4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(imageWindowWidth)
+                    .fillMaxHeight()
+                    .clipToBounds(),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = imageRes),
+                    contentDescription = title,
+                    modifier = Modifier
+                        .size(imageSize)
+                        .clip(RoundedCornerShape(16.dp)),
+                    contentScale = ContentScale.Fit
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = if (isPhone) 4.dp else 8.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "$emoji $title",
+                    style = if (isPhone) MaterialTheme.typography.labelLarge else MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(if (isPhone) 1.dp else 2.dp))
+
+                Text(
+                    text = "$safeValue / $MAX_SKILL_VALUE",
+                    style = if (isPhone) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(if (isPhone) 2.dp else 4.dp))
+
+                LinearProgressIndicator(
+                    progress = { safeValue.toFloat() / MAX_SKILL_VALUE.toFloat() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(if (isPhone) 6.dp else 8.dp)
+                        .clip(RoundedCornerShape(99.dp))
+                )
+            }
+
+            Button(
+                enabled = canIncrease,
+                onClick = onIncrease,
+                modifier = Modifier
+                    .padding(end = if (isPhone) 2.dp else 6.dp)
+                    .size(if (isPhone) 38.dp else 52.dp),
+                contentPadding = ButtonDefaults.ContentPadding
+            ) {
+                Text(
+                    text = "+",
+                    style = if (isPhone) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Black
+                )
+            }
+        }
     }
 }
 
@@ -542,8 +947,7 @@ private fun InventoryGrid(
         items(items) { definition ->
             val unlocked = definition.item in unlockedItems
 
-            val selected =
-                definition.item == equippedItem
+            val selected = definition.item == equippedItem
 
             InventoryTile(
                 definition = definition,
@@ -642,3 +1046,16 @@ private fun InventoryTile(
         )
     }
 }
+
+private fun totalExperienceForLevel(level: Int): Int {
+    val safeLevel = level.coerceIn(1, MAX_LEVEL)
+    return ((safeLevel - 1) * (safeLevel + 2) * 5) / 2
+}
+
+private enum class LunaMeArea {
+    INVENTORY,
+    SKILLS
+}
+
+private const val MAX_LEVEL = 100
+private const val MAX_SKILL_VALUE = 100

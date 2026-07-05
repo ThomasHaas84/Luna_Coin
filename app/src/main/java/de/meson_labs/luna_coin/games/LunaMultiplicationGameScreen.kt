@@ -98,15 +98,12 @@ fun LunaMultiplicationGameScreen(
         highscoreSaved = false
     }
 
-    fun saveHighscore() {
+    fun finishGame() {
         val child = selectedChild ?: return
 
-        viewModel.saveGameHighscore(
-            game = LunaGameType.MULTIPLICATION,
+        viewModel.finishMultiplicationGame(
             childId = child.id,
-            scoreType = LunaGameScoreType.TIME_SECONDS,
-            level = LunaGameLevel.DEFAULT,
-            value = elapsedSeconds.toInt()
+            timeSeconds = elapsedSeconds.toInt()
         )
     }
 
@@ -129,7 +126,7 @@ fun LunaMultiplicationGameScreen(
 
     LaunchedEffect(allCorrect) {
         if (allCorrect && !highscoreSaved && elapsedSeconds > 0L) {
-            saveHighscore()
+            finishGame()
             highscoreSaved = true
         }
     }

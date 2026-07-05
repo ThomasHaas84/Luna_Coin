@@ -31,6 +31,13 @@ data class Child(
     val allowRememberLogin: Boolean = true,
     val isBuiltInAdmin: Boolean = false,
 
+    val level: Int = 1,
+    val experience: Int = 0,
+    val availableSkillPoints: Int = 0,
+    val intelligence: Int = 1,
+    val strength: Int = 1,
+    val agility: Int = 1,
+
     val inventory: List<LunaInventoryItem> = emptyList(),
     val equippedItem: LunaInventoryItem? = null,
     val profileImageItem: LunaInventoryItem? = null,
@@ -179,7 +186,7 @@ enum class DayOfWeekName {
 }
 
 @Serializable
-enum class LogType { TASK_DONE, SHOP_BUY,DOG_PLAN, SYSTEM }
+enum class LogType { TASK_DONE, SHOP_BUY, DOG_PLAN, SYSTEM }
 
 @Serializable
 enum class LunaGameType { MEMORY, NUMBER_GUESS, MULTIPLICATION }

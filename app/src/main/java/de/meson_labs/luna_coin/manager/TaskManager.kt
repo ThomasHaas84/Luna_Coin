@@ -1,6 +1,7 @@
 package de.meson_labs.luna_coin.manager
 
 import de.meson_labs.luna_coin.data.repository.DataRepository
+import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.LogEntry
 import de.meson_labs.luna_coin.models.LogType
 import de.meson_labs.luna_coin.models.DayOfWeekName
@@ -153,8 +154,11 @@ class TaskManager(
             coinChange = task.rewardCoins
         )
 
-        val optimisticChild = child.copy(
-            coins = child.coins + task.rewardCoins
+        val experienceDelta = task.rewardCoins.coerceAtLeast(0)
+
+        val optimisticChild = ProgressManager.addTaskReward(
+            child = child,
+            rewardCoins = task.rewardCoins
         )
 
         return CompleteTaskOperation(
@@ -173,31 +177,45 @@ class TaskManager(
             updatedTask = updatedTask,
             log = log,
             childId = childId,
-            coinDelta = task.rewardCoins
+            coinDelta = task.rewardCoins,
+            experienceDelta = experienceDelta,
+            updatedChild = optimisticChild
         )
     }
 
-    suspend fun persistCompleteTask(operation: CompleteTaskOperation): Int {
-        val realCoinValue = repository.changeChildCoins(
+    suspend fun persistCompleteTask(operation: CompleteTaskOperation): Child {
+        val persistedChild = repository.changeChildCoinsAndExperience(
             childId = operation.childId,
-            coinDelta = operation.coinDelta
+            coinDelta = operation.coinDelta,
+            experienceDelta = operation.experienceDelta
         )
 
         repository.saveTask(operation.updatedTask)
         repository.saveLog(operation.log)
 
-        return realCoinValue
+        return persistedChild
     }
 
-    fun applyRealCoinValue(
+    fun applyPersistedChildProgress(
         currentData: LunaCoinData,
-        childId: String,
-        realCoinValue: Int
+        persistedChild: Child
     ): LunaCoinData {
         return sortChildrenInData(
             currentData.copy(
                 children = currentData.children.map { child ->
-                    if (child.id == childId) child.copy(coins = realCoinValue) else child
+                    if (child.id == persistedChild.id) {
+                        child.copy(
+                            coins = persistedChild.coins,
+                            level = persistedChild.level,
+                            experience = persistedChild.experience,
+                            availableSkillPoints = persistedChild.availableSkillPoints,
+                            intelligence = persistedChild.intelligence,
+                            strength = persistedChild.strength,
+                            agility = persistedChild.agility
+                        )
+                    } else {
+                        child
+                    }
                 }
             )
         )
@@ -317,6 +335,7 @@ class TaskManager(
             null
         }
     }
+
 }
 
 data class TaskOperation(
@@ -331,7 +350,9 @@ data class CompleteTaskOperation(
     val updatedTask: TaskItem,
     val log: LogEntry,
     val childId: String,
-    val coinDelta: Int
+    val coinDelta: Int,
+    val experienceDelta: Int,
+    val updatedChild: Child
 )
 
 data class DeleteTaskOperation(

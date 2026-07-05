@@ -73,6 +73,37 @@ interface DataRepository {
         isBuiltInAdmin: Boolean
     )
 
+    suspend fun updateChildProgress(
+        childId: String,
+        level: Int,
+        experience: Int,
+        availableSkillPoints: Int,
+        intelligence: Int,
+        strength: Int,
+        agility: Int
+    ) {
+        // Default no-op for Preview/Fake repositories.
+    }
+
+    suspend fun changeChildCoinsAndExperience(
+        childId: String,
+        coinDelta: Int,
+        experienceDelta: Int
+    ): Child {
+        val children = loadChildren()
+        val currentChild = children.firstOrNull { it.id == childId }
+            ?: throw IllegalStateException("Benutzer nicht gefunden")
+
+        val updatedChild = de.meson_labs.luna_coin.manager.ProgressManager.addCoinsAndExperience(
+            child = currentChild,
+            coinDelta = coinDelta,
+            experienceDelta = experienceDelta
+        )
+
+        saveChild(updatedChild)
+        return updatedChild
+    }
+
     suspend fun deleteChild(childId: String)
     suspend fun deleteTask(taskId: String)
     suspend fun deleteShopItem(shopItemId: String)

@@ -101,15 +101,12 @@ fun LunaNumberGuessGameScreen(
         highscoreSaved = false
     }
 
-    fun saveHighscore() {
+    fun finishGame() {
         val child = selectedChild ?: return
 
-        viewModel.saveGameHighscore(
-            game = LunaGameType.NUMBER_GUESS,
+        viewModel.finishNumberGuessGame(
             childId = child.id,
-            scoreType = LunaGameScoreType.ATTEMPTS,
-            level = LunaGameLevel.DEFAULT,
-            value = attempts
+            attempts = attempts
         )
     }
 
@@ -157,7 +154,7 @@ fun LunaNumberGuessGameScreen(
 
     LaunchedEffect(finished) {
         if (finished && !highscoreSaved && attempts > 0) {
-            saveHighscore()
+            finishGame()
             highscoreSaved = true
         }
     }

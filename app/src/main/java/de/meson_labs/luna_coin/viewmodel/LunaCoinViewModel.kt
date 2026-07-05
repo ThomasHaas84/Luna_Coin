@@ -7,6 +7,7 @@ import de.meson_labs.luna_coin.data.DemoData
 import de.meson_labs.luna_coin.data.DogPlanDefaultData
 import de.meson_labs.luna_coin.data.repository.DataRepository
 import de.meson_labs.luna_coin.manager.GameHighscoreManager
+import de.meson_labs.luna_coin.manager.GameResultScore
 import de.meson_labs.luna_coin.manager.DogScheduleManager
 import de.meson_labs.luna_coin.manager.DogPlanManager
 import de.meson_labs.luna_coin.manager.BackupManager
@@ -19,6 +20,8 @@ import de.meson_labs.luna_coin.manager.InventoryManager
 import de.meson_labs.luna_coin.manager.LuckyWheelManager
 import de.meson_labs.luna_coin.manager.TaskManager
 import de.meson_labs.luna_coin.manager.LogManager
+import de.meson_labs.luna_coin.manager.ProgressManager
+import de.meson_labs.luna_coin.manager.ProgressSkill
 import de.meson_labs.luna_coin.manager.ensureBuiltInAdmin
 import de.meson_labs.luna_coin.manager.sortChildrenInData
 import de.meson_labs.luna_coin.models.Child
@@ -238,6 +241,97 @@ class LunaCoinViewModel(
         _selectedDate.value = LocalDate.now()
     }
 
+
+    fun finishGame(
+        game: LunaGameType,
+        childId: String,
+        level: LunaGameLevel,
+        scores: List<GameResultScore>
+    ) {
+        val operation = gameHighscoreManager.prepareFinishGame(
+            currentData = _data.value,
+            game = game,
+            childId = childId,
+            level = level,
+            scores = scores
+        ) ?: return
+
+        _data.value = operation.optimisticData
+
+        viewModelScope.launch {
+            try {
+                val persistedChild = gameHighscoreManager.persistFinishGame(operation)
+
+                _data.value = gameHighscoreManager.applyPersistedChildProgress(
+                    currentData = _data.value,
+                    persistedChild = persistedChild
+                )
+            } catch (e: Exception) {
+                _data.value = operation.originalData
+                println("❌ Fehler beim Speichern des Spielabschlusses: ${e.message}")
+                e.printStackTrace()
+                showMessage("❌ Spielabschluss konnte nicht gespeichert werden")
+            }
+        }
+    }
+
+    fun finishNumberGuessGame(
+        childId: String,
+        attempts: Int
+    ) {
+        finishGame(
+            game = LunaGameType.NUMBER_GUESS,
+            childId = childId,
+            level = LunaGameLevel.DEFAULT,
+            scores = listOf(
+                GameResultScore(
+                    scoreType = LunaGameScoreType.ATTEMPTS,
+                    value = attempts
+                )
+            )
+        )
+    }
+
+    fun finishMemoryGame(
+        childId: String,
+        level: LunaGameLevel,
+        moves: Int,
+        timeSeconds: Int
+    ) {
+        finishGame(
+            game = LunaGameType.MEMORY,
+            childId = childId,
+            level = level,
+            scores = listOf(
+                GameResultScore(
+                    scoreType = LunaGameScoreType.ATTEMPTS,
+                    value = moves
+                ),
+                GameResultScore(
+                    scoreType = LunaGameScoreType.TIME_SECONDS,
+                    value = timeSeconds
+                )
+            )
+        )
+    }
+
+    fun finishMultiplicationGame(
+        childId: String,
+        timeSeconds: Int
+    ) {
+        finishGame(
+            game = LunaGameType.MULTIPLICATION,
+            childId = childId,
+            level = LunaGameLevel.DEFAULT,
+            scores = listOf(
+                GameResultScore(
+                    scoreType = LunaGameScoreType.TIME_SECONDS,
+                    value = timeSeconds
+                )
+            )
+        )
+    }
+
     fun saveGameHighscore(
         game: LunaGameType,
         childId: String,
@@ -258,7 +352,12 @@ class LunaCoinViewModel(
 
         viewModelScope.launch {
             try {
-                gameHighscoreManager.persistHighscore(operation)
+                val persistedChild = gameHighscoreManager.persistHighscore(operation)
+
+                _data.value = gameHighscoreManager.applyPersistedChildProgress(
+                    currentData = _data.value,
+                    persistedChild = persistedChild
+                )
             } catch (e: Exception) {
                 _data.value = operation.originalData
                 println("❌ Fehler beim Speichern des Highscores: ${e.message}")
@@ -282,12 +381,11 @@ class LunaCoinViewModel(
 
         viewModelScope.launch {
             try {
-                val realCoinValue = taskManager.persistCompleteTask(operation)
+                val persistedChild = taskManager.persistCompleteTask(operation)
 
-                _data.value = taskManager.applyRealCoinValue(
+                _data.value = taskManager.applyPersistedChildProgress(
                     currentData = _data.value,
-                    childId = operation.childId,
-                    realCoinValue = realCoinValue
+                    persistedChild = persistedChild
                 )
             } catch (e: Exception) {
                 _data.value = operation.originalData
@@ -869,15 +967,22 @@ class LunaCoinViewModel(
         }
 
         val originalData = _data.value
-        _data.value = originalData.copy(
-            dogPlan = operation.dogPlanData,
-            children = originalData.children.map { child ->
-                if (child.id == currentUser.id) {
-                    child.copy(coins = child.coins + operation.rewardCoins)
-                } else {
-                    child
+        val optimisticChild = ProgressManager.addTaskReward(
+            child = currentUser,
+            rewardCoins = operation.rewardCoins
+        )
+
+        _data.value = sortChildrenInData(
+            originalData.copy(
+                dogPlan = operation.dogPlanData,
+                children = originalData.children.map { child ->
+                    if (child.id == currentUser.id) {
+                        optimisticChild
+                    } else {
+                        child
+                    }
                 }
-            }
+            )
         )
 
         viewModelScope.launch {
@@ -885,19 +990,30 @@ class LunaCoinViewModel(
                 repository.saveDogPlanCompletion(operation.completion)
 
                 if (operation.rewardCoins > 0) {
-                    val realCoinValue = repository.changeChildCoins(
+                    val persistedChild = repository.changeChildCoinsAndExperience(
                         childId = currentUser.id,
-                        coinDelta = operation.rewardCoins
+                        coinDelta = operation.rewardCoins,
+                        experienceDelta = operation.rewardCoins
                     )
 
-                    _data.value = _data.value.copy(
-                        children = _data.value.children.map { child ->
-                            if (child.id == currentUser.id) {
-                                child.copy(coins = realCoinValue)
-                            } else {
-                                child
+                    _data.value = sortChildrenInData(
+                        _data.value.copy(
+                            children = _data.value.children.map { child ->
+                                if (child.id == currentUser.id) {
+                                    child.copy(
+                                        coins = persistedChild.coins,
+                                        level = persistedChild.level,
+                                        experience = persistedChild.experience,
+                                        availableSkillPoints = persistedChild.availableSkillPoints,
+                                        intelligence = persistedChild.intelligence,
+                                        strength = persistedChild.strength,
+                                        agility = persistedChild.agility
+                                    )
+                                } else {
+                                    child
+                                }
                             }
-                        }
+                        )
                     )
                 }
 
@@ -1039,6 +1155,59 @@ class LunaCoinViewModel(
         }
     }
 
+
+    fun increaseIntelligence() {
+        increaseSkill(ProgressSkill.INTELLIGENCE)
+    }
+
+    fun increaseStrength() {
+        increaseSkill(ProgressSkill.STRENGTH)
+    }
+
+    fun increaseAgility() {
+        increaseSkill(ProgressSkill.AGILITY)
+    }
+
+    private fun increaseSkill(skillType: ProgressSkill) {
+        val childId = _selectedChildId.value ?: return
+        val currentChild = _data.value.children.firstOrNull { it.id == childId } ?: return
+        val updatedChild = ProgressManager.increaseSkill(
+            child = currentChild,
+            skill = skillType
+        )
+
+        if (updatedChild == currentChild) return
+
+        val originalData = _data.value
+
+        _data.value = sortChildrenInData(
+            originalData.copy(
+                children = originalData.children.map { child ->
+                    if (child.id == childId) updatedChild else child
+                }
+            )
+        )
+
+        viewModelScope.launch {
+            try {
+                repository.updateChildProgress(
+                    childId = updatedChild.id,
+                    level = updatedChild.level,
+                    experience = updatedChild.experience,
+                    availableSkillPoints = updatedChild.availableSkillPoints,
+                    intelligence = updatedChild.intelligence,
+                    strength = updatedChild.strength,
+                    agility = updatedChild.agility
+                )
+            } catch (e: Exception) {
+                _data.value = originalData
+                println("❌ Fehler beim Speichern des Skills: ${e.message}")
+                e.printStackTrace()
+                showMessage("❌ Skill konnte nicht gespeichert werden")
+            }
+        }
+    }
+
     private fun getSelectedChild(): Child? {
         val childId = _selectedChildId.value ?: return null
         return _data.value.children.firstOrNull { it.id == childId }
@@ -1066,6 +1235,64 @@ class LunaCoinViewModel(
                 println("❌ Fehler beim Rückgängig machen des Logs: ${e.message}")
                 e.printStackTrace()
                 showMessage("❌ Aktion konnte nicht rückgängig gemacht werden")
+            }
+        }
+    }
+
+    fun awardGameFinished(childId: String) {
+        awardGameWin(childId)
+    }
+
+    fun awardGameWin(childId: String) {
+        if (childId.isBlank()) return
+
+        val child = _data.value.children.firstOrNull { it.id == childId } ?: return
+        val updatedChild = ProgressManager.addGameFinishedExperience(child)
+
+        if (updatedChild == child) return
+
+        val originalData = _data.value
+
+        _data.value = sortChildrenInData(
+            originalData.copy(
+                children = originalData.children.map { currentChild ->
+                    if (currentChild.id == childId) updatedChild else currentChild
+                }
+            )
+        )
+
+        viewModelScope.launch {
+            try {
+                val persistedChild = repository.changeChildCoinsAndExperience(
+                    childId = updatedChild.id,
+                    coinDelta = 0,
+                    experienceDelta = ProgressManager.EXPERIENCE_PER_GAME_FINISHED
+                )
+
+                _data.value = sortChildrenInData(
+                    _data.value.copy(
+                        children = _data.value.children.map { currentChild ->
+                            if (currentChild.id == persistedChild.id) {
+                                currentChild.copy(
+                                    coins = persistedChild.coins,
+                                    level = persistedChild.level,
+                                    experience = persistedChild.experience,
+                                    availableSkillPoints = persistedChild.availableSkillPoints,
+                                    intelligence = persistedChild.intelligence,
+                                    strength = persistedChild.strength,
+                                    agility = persistedChild.agility
+                                )
+                            } else {
+                                currentChild
+                            }
+                        }
+                    )
+                )
+            } catch (e: Exception) {
+                _data.value = originalData
+                println("❌ Fehler beim Speichern der Spiel-EP: ${e.message}")
+                e.printStackTrace()
+                showMessage("❌ Spiel-EP konnten nicht gespeichert werden")
             }
         }
     }

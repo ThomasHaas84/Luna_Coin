@@ -181,25 +181,15 @@ fun LunaMemoryGameScreen(
         pendingMismatch = null
     }
 
-    fun saveMemoryHighscores() {
+    fun finishGame() {
         val child = selectedChild ?: return
         val difficulty = selectedDifficulty ?: return
-        val level = difficulty.toLunaGameLevel()
 
-        viewModel.saveGameHighscore(
-            game = LunaGameType.MEMORY,
+        viewModel.finishMemoryGame(
             childId = child.id,
-            scoreType = LunaGameScoreType.ATTEMPTS,
-            level = level,
-            value = moves
-        )
-
-        viewModel.saveGameHighscore(
-            game = LunaGameType.MEMORY,
-            childId = child.id,
-            scoreType = LunaGameScoreType.TIME_SECONDS,
-            level = level,
-            value = elapsedSeconds.toInt()
+            level = difficulty.toLunaGameLevel(),
+            moves = moves,
+            timeSeconds = elapsedSeconds.toInt()
         )
     }
 
@@ -218,7 +208,7 @@ fun LunaMemoryGameScreen(
 
     LaunchedEffect(finished) {
         if (finished && !highscoreSaved && moves > 0) {
-            saveMemoryHighscores()
+            finishGame()
             highscoreSaved = true
         }
     }

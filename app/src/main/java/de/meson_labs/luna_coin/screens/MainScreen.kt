@@ -195,7 +195,10 @@ fun MainScreen(
                         selectedChild = selectedChild,
                         onBuyItem = viewModel::buyLunaMeItem,
                         onLogout = viewModel::logout,
-                        onChildChanged = viewModel::updateChild
+                        onChildChanged = viewModel::updateChild,
+                        onIncreaseIntelligence = viewModel::increaseIntelligence,
+                        onIncreaseStrength = viewModel::increaseStrength,
+                        onIncreaseAgility = viewModel::increaseAgility
                     )
 
                     4 -> SettingsScreen(

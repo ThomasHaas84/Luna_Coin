@@ -33,6 +33,12 @@ object DemoData {
             passwordRequired = false,
             allowRememberLogin = false,
             isBuiltInAdmin = false,
+            level = 1,
+            experience = 0,
+            availableSkillPoints = 0,
+            intelligence = 1,
+            strength = 1,
+            agility = 1,
             createdAt = now,
             updatedAt = now
         )
@@ -47,6 +53,12 @@ object DemoData {
             passwordRequired = false,
             allowRememberLogin = false,
             isBuiltInAdmin = false,
+            level = 1,
+            experience = 0,
+            availableSkillPoints = 0,
+            intelligence = 1,
+            strength = 1,
+            agility = 1,
             createdAt = now,
             updatedAt = now
         )
@@ -61,6 +73,12 @@ object DemoData {
             passwordRequired = false,
             allowRememberLogin = false,
             isBuiltInAdmin = false,
+            level = 1,
+            experience = 0,
+            availableSkillPoints = 0,
+            intelligence = 1,
+            strength = 1,
+            agility = 1,
             createdAt = now,
             updatedAt = now
         )
@@ -75,6 +93,12 @@ object DemoData {
             passwordRequired = false,
             allowRememberLogin = false,
             isBuiltInAdmin = false,
+            level = 1,
+            experience = 0,
+            availableSkillPoints = 0,
+            intelligence = 1,
+            strength = 1,
+            agility = 1,
             createdAt = now,
             updatedAt = now
         )
@@ -89,6 +113,12 @@ object DemoData {
             passwordRequired = false,
             allowRememberLogin = false,
             isBuiltInAdmin = false,
+            level = 1,
+            experience = 0,
+            availableSkillPoints = 0,
+            intelligence = 1,
+            strength = 1,
+            agility = 1,
             createdAt = now,
             updatedAt = now
         )
@@ -103,6 +133,12 @@ object DemoData {
             passwordRequired = false,
             allowRememberLogin = false,
             isBuiltInAdmin = false,
+            level = 1,
+            experience = 0,
+            availableSkillPoints = 0,
+            intelligence = 1,
+            strength = 1,
+            agility = 1,
             createdAt = now,
             updatedAt = now
         )
@@ -117,6 +153,12 @@ object DemoData {
             passwordRequired = false,
             allowRememberLogin = false,
             isBuiltInAdmin = false,
+            level = 1,
+            experience = 0,
+            availableSkillPoints = 0,
+            intelligence = 1,
+            strength = 1,
+            agility = 1,
             createdAt = now,
             updatedAt = now
         )
@@ -132,6 +174,12 @@ object DemoData {
             passwordRequired = true,
             allowRememberLogin = true,
             isBuiltInAdmin = false,
+            level = 1,
+            experience = 0,
+            availableSkillPoints = 0,
+            intelligence = 1,
+            strength = 1,
+            agility = 1,
             createdAt = now,
             updatedAt = now
         )
@@ -147,6 +195,12 @@ object DemoData {
             passwordRequired = true,
             allowRememberLogin = true,
             isBuiltInAdmin = true,
+            level = 1,
+            experience = 0,
+            availableSkillPoints = 0,
+            intelligence = 1,
+            strength = 1,
+            agility = 1,
             createdAt = now,
             updatedAt = now
         )

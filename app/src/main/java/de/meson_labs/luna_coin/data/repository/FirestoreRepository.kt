@@ -20,6 +20,7 @@ import de.meson_labs.luna_coin.models.LunaInventoryItem
 import de.meson_labs.luna_coin.models.ShopItem
 import de.meson_labs.luna_coin.models.TaskItem
 import de.meson_labs.luna_coin.models.UserRole
+import de.meson_labs.luna_coin.manager.ProgressManager
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 
@@ -573,6 +574,93 @@ class FirestoreRepository : DataRepository {
             .await()
 
         updateFamilyTimestamp()
+    }
+
+
+
+    override suspend fun updateChildProgress(
+        childId: String,
+        level: Int,
+        experience: Int,
+        availableSkillPoints: Int,
+        intelligence: Int,
+        strength: Int,
+        agility: Int
+    ) {
+        childrenRef.document(childId)
+            .set(
+                mapOf(
+                    "level" to level,
+                    "experience" to experience,
+                    "availableSkillPoints" to availableSkillPoints,
+                    "intelligence" to intelligence,
+                    "strength" to strength,
+                    "agility" to agility,
+                    "updatedAt" to Timestamp.now()
+                ),
+                SetOptions.merge()
+            )
+            .await()
+
+        updateFamilyTimestamp()
+    }
+
+
+    override suspend fun changeChildCoinsAndExperience(
+        childId: String,
+        coinDelta: Int,
+        experienceDelta: Int
+    ): Child {
+        val documentRef = childrenRef.document(childId)
+
+        val updatedChild = db.runTransaction { transaction ->
+            val snapshot = transaction.get(documentRef)
+
+            val currentCoins = snapshot.getLong("coins")?.toInt() ?: 0
+            val updatedCoins = currentCoins + coinDelta
+
+            if (updatedCoins < 0) {
+                throw IllegalStateException("Nicht genug Luna Coins")
+            }
+
+            val currentChild = Child(
+                id = childId,
+                familyId = snapshot.getString("familyId") ?: familyId,
+                name = snapshot.getString("name") ?: "",
+                coins = updatedCoins,
+                level = snapshot.getLong("level")?.toInt() ?: 1,
+                experience = snapshot.getLong("experience")?.toInt() ?: 0,
+                availableSkillPoints = snapshot.getLong("availableSkillPoints")?.toInt() ?: 0,
+                intelligence = snapshot.getLong("intelligence")?.toInt() ?: 1,
+                strength = snapshot.getLong("strength")?.toInt() ?: 1,
+                agility = snapshot.getLong("agility")?.toInt() ?: 1
+            )
+
+            val childWithProgress = ProgressManager.addExperience(
+                child = currentChild,
+                experienceDelta = experienceDelta
+            )
+
+            transaction.update(
+                documentRef,
+                mapOf(
+                    "coins" to childWithProgress.coins,
+                    "level" to childWithProgress.level,
+                    "experience" to childWithProgress.experience,
+                    "availableSkillPoints" to childWithProgress.availableSkillPoints,
+                    "intelligence" to childWithProgress.intelligence,
+                    "strength" to childWithProgress.strength,
+                    "agility" to childWithProgress.agility,
+                    "updatedAt" to Timestamp.now()
+                )
+            )
+
+            childWithProgress
+        }.await()
+
+        updateFamilyTimestamp()
+
+        return updatedChild
     }
 
     override suspend fun deleteChild(childId: String) {
