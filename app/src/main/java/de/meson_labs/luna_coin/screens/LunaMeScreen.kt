@@ -226,19 +226,16 @@ fun LunaMeScreen(
                                         )
                                     }
 
-                                    Box(
-                                        modifier = Modifier.height(18.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        profileFeedback?.let { message ->
-                                            Text(
-                                                text = message,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.primary,
-                                                fontWeight = FontWeight.SemiBold,
-                                                textAlign = TextAlign.Center
-                                            )
-                                        }
+                                    profileFeedback?.let { message ->
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        Text(
+                                            text = message,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.SemiBold,
+                                            textAlign = TextAlign.Center
+                                        )
                                     }
                                 }
                             }
@@ -266,25 +263,7 @@ fun LunaMeScreen(
                                         selectedChild = selectedChild,
                                         isCompact = true,
                                         onUnlockedItemClick = { clickedItem ->
-                                            selectedChild?.let { child ->
-                                                if (child.equippedItem == clickedItem) {
-                                                    previewItem = null
-
-                                                    onChildChanged(
-                                                        child.copy(
-                                                            equippedItem = null
-                                                        )
-                                                    )
-                                                } else {
-                                                    previewItem = clickedItem
-
-                                                    onChildChanged(
-                                                        child.copy(
-                                                            equippedItem = clickedItem
-                                                        )
-                                                    )
-                                                }
-                                            }
+                                            previewItem = clickedItem
                                         },
                                         onBuyRequest = { definition ->
                                             previewItem = definition.item
@@ -378,25 +357,7 @@ fun LunaMeScreen(
                                     selectedChild = selectedChild,
                                     isCompact = false,
                                     onUnlockedItemClick = { clickedItem ->
-                                        selectedChild?.let { child ->
-                                            if (child.equippedItem == clickedItem) {
-                                                previewItem = null
-
-                                                onChildChanged(
-                                                    child.copy(
-                                                        equippedItem = null
-                                                    )
-                                                )
-                                            } else {
-                                                previewItem = clickedItem
-
-                                                onChildChanged(
-                                                    child.copy(
-                                                        equippedItem = clickedItem
-                                                    )
-                                                )
-                                            }
-                                        }
+                                        previewItem = clickedItem
                                     },
                                     onBuyRequest = { definition ->
                                         previewItem = definition.item
@@ -409,41 +370,33 @@ fun LunaMeScreen(
                 }
 
                 LunaMeArea.SKILLS -> {
-                    Card(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
-                        shape = RoundedCornerShape(28.dp)
+                            .weight(1f)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .padding(if (isPhone) 3.dp else 6.dp)
-                        ) {
-                            SkillsPanel(
-                                selectedChild = selectedChild,
-                                isPhone = isPhone,
-                                onIncreaseIntelligence = {
-                                    skillToConfirm = LunaSkillConfirm(
-                                        title = "Intelligenz",
-                                        onConfirm = onIncreaseIntelligence
-                                    )
-                                },
-                                onIncreaseStrength = {
-                                    skillToConfirm = LunaSkillConfirm(
-                                        title = "Stärke",
-                                        onConfirm = onIncreaseStrength
-                                    )
-                                },
-                                onIncreaseAgility = {
-                                    skillToConfirm = LunaSkillConfirm(
-                                        title = "Geschicklichkeit",
-                                        onConfirm = onIncreaseAgility
-                                    )
-                                }
-                            )
-                        }
+                        SkillsPanel(
+                            selectedChild = selectedChild,
+                            isPhone = isPhone,
+                            onIncreaseIntelligence = {
+                                skillToConfirm = LunaSkillConfirm(
+                                    title = "Intelligenz",
+                                    onConfirm = onIncreaseIntelligence
+                                )
+                            },
+                            onIncreaseStrength = {
+                                skillToConfirm = LunaSkillConfirm(
+                                    title = "Stärke",
+                                    onConfirm = onIncreaseStrength
+                                )
+                            },
+                            onIncreaseAgility = {
+                                skillToConfirm = LunaSkillConfirm(
+                                    title = "Geschicklichkeit",
+                                    onConfirm = onIncreaseAgility
+                                )
+                            }
+                        )
                     }
                 }
             }
@@ -588,36 +541,26 @@ private fun LunaMeAreaSwitch(
     isPhone: Boolean,
     onSelectedAreaChanged: (LunaMeArea) -> Unit
 ) {
-    Card(
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-        )
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            LunaMeAreaButton(
-                text = "🎒 Inventar",
-                selected = selectedArea == LunaMeArea.INVENTORY,
-                modifier = Modifier.weight(1f),
-                isPhone = isPhone,
-                onClick = { onSelectedAreaChanged(LunaMeArea.INVENTORY) }
-            )
+        LunaMeAreaButton(
+            text = "🎒 Inventar",
+            selected = selectedArea == LunaMeArea.INVENTORY,
+            modifier = Modifier.weight(1f),
+            isPhone = isPhone,
+            onClick = { onSelectedAreaChanged(LunaMeArea.INVENTORY) }
+        )
 
-            LunaMeAreaButton(
-                text = "⭐ Skills",
-                selected = selectedArea == LunaMeArea.SKILLS,
-                modifier = Modifier.weight(1f),
-                isPhone = isPhone,
-                onClick = { onSelectedAreaChanged(LunaMeArea.SKILLS) }
-            )
-        }
+        LunaMeAreaButton(
+            text = "⭐ Skills",
+            selected = selectedArea == LunaMeArea.SKILLS,
+            modifier = Modifier.weight(1f),
+            isPhone = isPhone,
+            onClick = { onSelectedAreaChanged(LunaMeArea.SKILLS) }
+        )
     }
 }
 

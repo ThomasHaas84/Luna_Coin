@@ -36,6 +36,7 @@ import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.games.LunaMemoryGameScreen
 import de.meson_labs.luna_coin.games.LunaMultiplicationGameScreen
 import de.meson_labs.luna_coin.games.LunaNumberGuessGameScreen
+import de.meson_labs.luna_coin.games.LunaWordGuessGameScreen
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 
@@ -43,7 +44,8 @@ private enum class ActiveGame {
     NONE,
     MEMORY,
     NUMBER_GUESS,
-    MULTIPLICATION
+    MULTIPLICATION,
+    WORD_GUESS
 }
 
 @Composable
@@ -86,11 +88,20 @@ fun LunaGamesScreen(
             )
         }
 
+        ActiveGame.WORD_GUESS -> {
+            LunaWordGuessGameScreen(
+                modifier = modifier,
+                selectedChild = selectedChild,
+                viewModel = viewModel,
+                onLogout = onLogout,
+                onBack = { activeGame = ActiveGame.NONE }
+            )
+        }
+
         ActiveGame.NONE -> {
             val configuration = LocalConfiguration.current
             val isTabletLayout = configuration.smallestScreenWidthDp >= 600
             val isPhone = !isTabletLayout
-
             val screenPadding = if (isPhone) 14.dp else 24.dp
             val sectionSpacing = if (isPhone) 18.dp else 32.dp
             val cardSpacing = if (isPhone) 10.dp else 12.dp
@@ -111,11 +122,7 @@ fun LunaGamesScreen(
 
                 Text(
                     text = "Minispiele:",
-                    style = if (isPhone) {
-                        MaterialTheme.typography.titleLarge
-                    } else {
-                        MaterialTheme.typography.titleLarge
-                    },
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
 
@@ -140,9 +147,15 @@ fun LunaGamesScreen(
                             description = "10 Felder lösen",
                             symbol = "✖️",
                             onClick = { activeGame = ActiveGame.MULTIPLICATION }
+                        ),
+                        MiniGameItem(
+                            title = "Neun Leben",
+                            description = "Wort erraten",
+                            symbol = "❤",
+                            onClick = { activeGame = ActiveGame.WORD_GUESS }
                         )
                     ),
-                    columns = if (isPhone) 1 else 3,
+                    columns = if (isPhone) 2 else 4,
                     spacing = cardSpacing,
                     isPhone = isPhone
                 )

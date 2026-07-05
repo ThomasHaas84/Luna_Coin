@@ -12,8 +12,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -192,36 +190,26 @@ private fun TaskAreaSwitch(
     isPhone: Boolean,
     onSelectedAreaChanged: (TaskArea) -> Unit
 ) {
-    Card(
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-        )
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(if (isPhone) 4.dp else 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(if (isPhone) 4.dp else 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TaskAreaButton(
-                text = if (isPhone) "🧹 Haushalt" else "🧹 Haushaltsaufgaben",
-                selected = selectedArea == TaskArea.HOUSEHOLD,
-                modifier = Modifier.weight(1f),
-                isPhone = isPhone,
-                onClick = { onSelectedAreaChanged(TaskArea.HOUSEHOLD) }
-            )
+        TaskAreaButton(
+            text = if (isPhone) "🧹 Haushalt" else "🧹 Haushaltsaufgaben",
+            selected = selectedArea == TaskArea.HOUSEHOLD,
+            modifier = Modifier.weight(1f),
+            isPhone = isPhone,
+            onClick = { onSelectedAreaChanged(TaskArea.HOUSEHOLD) }
+        )
 
-            TaskAreaButton(
-                text = if (isPhone) "🐶 Hund" else "🐶 Hundeplan",
-                selected = selectedArea == TaskArea.DOG_PLAN,
-                modifier = Modifier.weight(1f),
-                isPhone = isPhone,
-                onClick = { onSelectedAreaChanged(TaskArea.DOG_PLAN) }
-            )
-        }
+        TaskAreaButton(
+            text = if (isPhone) "🐶 Hund" else "🐶 Hundeplan",
+            selected = selectedArea == TaskArea.DOG_PLAN,
+            modifier = Modifier.weight(1f),
+            isPhone = isPhone,
+            onClick = { onSelectedAreaChanged(TaskArea.DOG_PLAN) }
+        )
     }
 }
 

@@ -189,7 +189,7 @@ enum class DayOfWeekName {
 enum class LogType { TASK_DONE, SHOP_BUY, DOG_PLAN, SYSTEM }
 
 @Serializable
-enum class LunaGameType { MEMORY, NUMBER_GUESS, MULTIPLICATION }
+enum class LunaGameType { MEMORY, NUMBER_GUESS, MULTIPLICATION, WORD_GUESS }
 
 @Serializable
 enum class LunaGameScoreType { ATTEMPTS, TIME_SECONDS }
