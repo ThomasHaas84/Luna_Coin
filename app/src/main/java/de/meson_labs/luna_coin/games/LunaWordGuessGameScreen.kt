@@ -1,6 +1,7 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package de.meson_labs.luna_coin.games
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -45,7 +46,6 @@ import de.meson_labs.luna_coin.models.LunaGameLevel
 import de.meson_labs.luna_coin.models.LunaGameScoreType
 import de.meson_labs.luna_coin.models.LunaGameType
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
-import kotlin.random.Random
 
 private const val WORD_GUESS_MAX_LIVES = 9
 
@@ -434,15 +434,10 @@ private fun LetterKeyboard(
         ) {
             letters.forEach { letter ->
                 val alreadyUsed = letter in guessedLetters || letter in wrongLetters
-                OutlinedButton(
+                Button(
                     onClick = { onLetterClick(letter) },
                     enabled = !finished && !alreadyUsed,
-                    modifier = Modifier
-                        .height(44.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.surface,
-                            shape = RoundedCornerShape(12.dp)
-                        )
+                    modifier = Modifier.height(44.dp)
                 ) {
                     Text(
                         text = letter.toString(),
