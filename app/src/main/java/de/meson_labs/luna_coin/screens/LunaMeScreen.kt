@@ -94,8 +94,10 @@ fun LunaMeScreen(
         selectedChild?.inventory ?: emptyList()
     }
 
+    val savedProfileItem = selectedChild?.profileImageItem ?: selectedChild?.equippedItem
+
     var previewItem by remember {
-        mutableStateOf(selectedChild?.equippedItem)
+        mutableStateOf(savedProfileItem)
     }
 
     var selectedArea by remember {
@@ -125,9 +127,9 @@ fun LunaMeScreen(
         }
     }
 
-    LaunchedEffect(selectedChild?.id, selectedChild?.equippedItem) {
+    LaunchedEffect(selectedChild?.id, savedProfileItem) {
         if (itemToBuy == null) {
-            previewItem = selectedChild?.equippedItem
+            previewItem = savedProfileItem
         }
     }
 
@@ -136,7 +138,7 @@ fun LunaMeScreen(
     }
 
     val lunaImage = previewDefinition?.lunaImageRes ?: R.drawable.luna_dog
-    val equippedItem = selectedChild?.equippedItem
+    val equippedItem = savedProfileItem
 
     val profileButtonEnabled =
         selectedChild != null &&
@@ -411,7 +413,7 @@ fun LunaMeScreen(
                         interactionSource = remember { MutableInteractionSource() }
                     ) {
                         itemToBuy = null
-                        previewItem = selectedChild?.equippedItem
+                        previewItem = savedProfileItem
                     }
                     .padding(
                         start = if (isPhone) 16.dp else 0.dp,
@@ -470,7 +472,7 @@ fun LunaMeScreen(
                             TextButton(
                                 onClick = {
                                     itemToBuy = null
-                                    previewItem = selectedChild?.equippedItem
+                                    previewItem = savedProfileItem
                                 }
                             ) {
                                 Text("Abbrechen")
@@ -481,7 +483,7 @@ fun LunaMeScreen(
                                     selectedChild?.let { child ->
                                         if (definition.item in child.inventory) {
                                             itemToBuy = null
-                                            previewItem = selectedChild?.equippedItem
+                                            previewItem = savedProfileItem
                                             return@Button
                                         }
 
@@ -890,12 +892,14 @@ private fun InventoryGrid(
         items(items) { definition ->
             val unlocked = definition.item in unlockedItems
 
-            val selected = definition.item == equippedItem
+            val isSavedProfileItem = definition.item == equippedItem
+            val isPreviewItem = definition.item == previewItem
 
             InventoryTile(
                 definition = definition,
                 unlocked = unlocked,
-                selected = selected && (unlocked || isAdmin),
+                selected = isSavedProfileItem && (unlocked || isAdmin),
+                previewSelected = isPreviewItem && !isSavedProfileItem && (unlocked || isAdmin),
                 isAdmin = isAdmin,
                 canAfford = selectedChild != null &&
                         selectedChild.coins >= definition.priceCoins,
@@ -917,18 +921,19 @@ private fun InventoryTile(
     definition: LunaItemDefinition,
     unlocked: Boolean,
     selected: Boolean,
+    previewSelected: Boolean,
     isAdmin: Boolean,
     canAfford: Boolean,
     isCompact: Boolean,
     onClick: () -> Unit
 ) {
-    val borderColor = if (selected) {
+    val borderColor = if (selected || previewSelected) {
         MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.outlineVariant
     }
 
-    val borderWidth = if (selected) {
+    val borderWidth = if (selected || previewSelected) {
         3.dp
     } else {
         1.dp
@@ -980,6 +985,7 @@ private fun InventoryTile(
         Text(
             text = when {
                 selected -> "Angelegt"
+                previewSelected -> "Vorschau"
                 visibleAsUnlocked -> ""
                 else -> "${definition.priceCoins} 🪙"
             },

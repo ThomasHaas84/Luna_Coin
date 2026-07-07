@@ -34,6 +34,7 @@ import de.meson_labs.luna_coin.models.DogPlanTaskType
 import de.meson_labs.luna_coin.models.UserRole
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -56,10 +57,31 @@ fun DogPlanSection(
     onClearLateShift: (date: String) -> Unit = {}
 ) {
     val selectedDateText = selectedDate.toString()
-    val isToday = selectedDate == LocalDate.now()
-    val canPlanShift = selectedChild != null && !selectedDate.isBefore(LocalDate.now())
+    val today = LocalDate.now()
+    val nowTime = LocalTime.now()
+    val isToday = selectedDate == today
+    val canPlanShift = selectedChild != null && !selectedDate.isBefore(today)
     val canManageAllShifts = selectedChild?.role == UserRole.PARENT ||
             selectedChild?.role == UserRole.ADMIN
+
+    fun canCompleteTemplate(template: DogPlanTaskTemplate): Boolean {
+        if (selectedChild == null) {
+            return false
+        }
+
+        if (isToday) {
+            return true
+        }
+
+        val isMidnightWalk = template.type == DogPlanTaskType.WALK &&
+                template.time.trim() == "00:00"
+        val isSelectedYesterday = selectedDate == today.minusDays(1)
+        val isStillInExtendedNightWindow = nowTime < LocalTime.of(2, 0)
+
+        return isMidnightWalk &&
+                isSelectedYesterday &&
+                isStillInExtendedNightWindow
+    }
 
     val activeTemplates = dogPlan.templates
         .filter { it.isActive }
@@ -124,7 +146,7 @@ fun DogPlanSection(
                             selectedDateText
                         ),
                         children = children,
-                        canComplete = selectedChild != null && isToday,
+                        canComplete = canCompleteTemplate(template),
                         onClick = { templateForCompletion = template }
                     )
                 }
@@ -143,7 +165,7 @@ fun DogPlanSection(
                             selectedDateText
                         ),
                         children = children,
-                        canComplete = selectedChild != null && isToday,
+                        canComplete = canCompleteTemplate(template),
                         onClick = { templateForCompletion = template }
                     )
                 }
@@ -162,7 +184,7 @@ fun DogPlanSection(
                             selectedDateText
                         ),
                         children = children,
-                        canComplete = selectedChild != null && isToday,
+                        canComplete = canCompleteTemplate(template),
                         onClick = { templateForCompletion = template }
                     )
                 }
@@ -183,6 +205,7 @@ fun DogPlanSection(
                     diarrhea,
                     comment
                 )
+
                 templateForCompletion = null
             }
         )
@@ -201,6 +224,7 @@ fun DogPlanSection(
                     DogPlanShiftMode.EARLY -> onAssignEarlyShift(selectedDateText, childId)
                     DogPlanShiftMode.LATE -> onAssignLateShift(selectedDateText, childId)
                 }
+
                 shiftDialogMode = null
             },
             onClear = {
@@ -208,6 +232,7 @@ fun DogPlanSection(
                     DogPlanShiftMode.EARLY -> onClearEarlyShift(selectedDateText)
                     DogPlanShiftMode.LATE -> onClearLateShift(selectedDateText)
                 }
+
                 shiftDialogMode = null
             }
         )
@@ -359,7 +384,7 @@ private fun DogPlanTaskRow(
 
                     if (completion == null && !canComplete) {
                         Text(
-                            text = " · nur heute abhakbar",
+                            text = " · nur im gültigen Zeitraum abhakbar",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -398,6 +423,7 @@ private fun DogPlanCompletionInfo(
     )
 
     val details = mutableListOf<String>()
+
     if (completion.peed) details += "gepinkelt"
     if (completion.pooped) details += "gekackt"
     if (completion.diarrhea) details += "Durchfall"
