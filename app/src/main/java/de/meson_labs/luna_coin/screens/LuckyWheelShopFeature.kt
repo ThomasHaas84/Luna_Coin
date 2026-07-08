@@ -115,9 +115,9 @@ fun LuckyWheelShopCard(
                     CoinDisplay(amount = price)
                 } else {
                     Text(
-                        text = "Heute kostenlos",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
+                        text = "🎁 HEUTE KOSTENLOS",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = Color(0xFF22C55E)
                     )
                 }
 
@@ -328,30 +328,32 @@ fun LuckyWheelDialog(
                             )
                         )
 
+                        val pointerTop = center.y - radius + 2.dp.toPx()
+
                         drawLine(
                             color = Color.Black,
                             start = Offset(
                                 x = center.x,
-                                y = -2.dp.toPx()
+                                y = pointerTop
                             ),
                             end = Offset(
-                                x = center.x - 14.dp.toPx(),
-                                y = 34.dp.toPx()
+                                x = center.x - 10.dp.toPx(),
+                                y = pointerTop + 24.dp.toPx()
                             ),
-                            strokeWidth = 6.dp.toPx()
+                            strokeWidth = 5.dp.toPx()
                         )
 
                         drawLine(
                             color = Color.Black,
                             start = Offset(
                                 x = center.x,
-                                y = -2.dp.toPx()
+                                y = pointerTop
                             ),
                             end = Offset(
-                                x = center.x + 14.dp.toPx(),
-                                y = 34.dp.toPx()
+                                x = center.x + 10.dp.toPx(),
+                                y = pointerTop + 24.dp.toPx()
                             ),
-                            strokeWidth = 6.dp.toPx()
+                            strokeWidth = 5.dp.toPx()
                         )
                     }
 

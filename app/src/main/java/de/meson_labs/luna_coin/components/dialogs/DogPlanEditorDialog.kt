@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -97,8 +98,13 @@ fun DogPlanEditorDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Schließen")
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
+            ) {
+                Text("Schließen", maxLines = 1)
             }
         }
     )
@@ -126,19 +132,33 @@ fun DogPlanEditorDialog(
             text = {
                 Text("Soll \"${template.title}\" wirklich gelöscht werden?")
             },
-            dismissButton = {
-                TextButton(onClick = { templateForDelete = null }) {
-                    Text("Abbrechen")
-                }
-            },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDeleteTemplate(template.id)
-                        templateForDelete = null
-                    }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
                 ) {
-                    Text("Löschen")
+                    Button(
+                        onClick = { templateForDelete = null },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Abbrechen", maxLines = 1)
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            onDeleteTemplate(template.id)
+                            templateForDelete = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Löschen", maxLines = 1)
+                    }
                 }
             }
         )
@@ -206,15 +226,24 @@ private fun DogPlanTemplateCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Row {
-                OutlinedButton(onClick = onEdit) {
-                    Text("Bearbeiten")
+            Column {
+                OutlinedButton(
+                    onClick = onEdit,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Bearbeiten", maxLines = 1)
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                OutlinedButton(onClick = onDelete) {
-                    Text("Löschen")
+                OutlinedButton(
+                    onClick = onDelete,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Löschen", maxLines = 1)
                 }
             }
         }
@@ -234,10 +263,8 @@ private fun DogPlanTemplateEditorDialog(
     var selectedType by remember(template?.id) { mutableStateOf(template?.type ?: DogPlanTaskType.WALK) }
     var timeText by remember(template?.id) { mutableStateOf(template?.time ?: "") }
     var coinsText by remember(template?.id) { mutableStateOf((template?.rewardCoins ?: 0).toString()) }
-    var sortOrderText by remember(template?.id) {
-        mutableStateOf(
-            (template?.sortOrder ?: ((templates.maxOfOrNull { it.sortOrder } ?: 0) + 10)).toString()
-        )
+    val preservedSortOrder = remember(template?.id, templates) {
+        template?.sortOrder ?: ((templates.maxOfOrNull { it.sortOrder } ?: 0) + 10)
     }
     var isActive by remember(template?.id) { mutableStateOf(template?.isActive ?: true) }
     var requiresWalkDetails by remember(template?.id) {
@@ -334,20 +361,6 @@ private fun DogPlanTemplateEditorDialog(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = sortOrderText,
-                        onValueChange = {
-                            sortOrderText = it.filter { char -> char.isDigit() }
-                            errorText = null
-                        },
-                        label = { Text("Reihenfolge") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
                     Spacer(modifier = Modifier.height(12.dp))
 
                     DogPlanCheckboxRow(
@@ -380,52 +393,57 @@ private fun DogPlanTemplateEditorDialog(
                 }
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Abbrechen")
-            }
-        },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    val title = titleText.trim()
-                    val coins = coinsText.toIntOrNull()
-                    val sortOrder = sortOrderText.toIntOrNull()
-
-                    if (title.isBlank()) {
-                        errorText = "Bitte einen Namen eingeben."
-                        return@TextButton
-                    }
-
-                    if (coins == null) {
-                        errorText = "Bitte gültige Coins eingeben."
-                        return@TextButton
-                    }
-
-                    if (sortOrder == null) {
-                        errorText = "Bitte eine gültige Reihenfolge eingeben."
-                        return@TextButton
-                    }
-
-                    onSave(
-                        DogPlanTaskTemplate(
-                            id = template?.id ?: "",
-                            familyId = template?.familyId ?: "",
-                            title = title,
-                            type = selectedType,
-                            time = timeText.trim(),
-                            rewardCoins = coins,
-                            isActive = isActive,
-                            sortOrder = sortOrder,
-                            requiresWalkDetails = requiresWalkDetails,
-                            requiresComment = requiresComment,
-                            createdAt = template?.createdAt,
-                            updatedAt = template?.updatedAt
-                        )
-                    )
-                }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
             ) {
-                Text("Speichern")
+                Button(
+                    onClick = {
+                        val title = titleText.trim()
+                        val coins = coinsText.toIntOrNull()
+
+                        if (title.isBlank()) {
+                            errorText = "Bitte einen Namen eingeben."
+                            return@Button
+                        }
+
+                        if (coins == null) {
+                            errorText = "Bitte gültige Coins eingeben."
+                            return@Button
+                        }
+
+                        onSave(
+                            DogPlanTaskTemplate(
+                                id = template?.id ?: "",
+                                familyId = template?.familyId ?: "",
+                                title = title,
+                                type = selectedType,
+                                time = timeText.trim(),
+                                rewardCoins = coins,
+                                isActive = isActive,
+                                sortOrder = preservedSortOrder,
+                                requiresWalkDetails = requiresWalkDetails,
+                                requiresComment = requiresComment,
+                                createdAt = template?.createdAt,
+                                updatedAt = template?.updatedAt
+                            )
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Speichern", maxLines = 1)
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Abbrechen", maxLines = 1)
+                }
             }
         }
     )

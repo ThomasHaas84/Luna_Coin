@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -53,7 +54,6 @@ import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.components.common.LogCard
 import de.meson_labs.luna_coin.components.common.toDisplayText
 import de.meson_labs.luna_coin.components.dialogs.ConfirmationDialog
-import de.meson_labs.luna_coin.components.dialogs.DogScheduleEditorDialog
 import de.meson_labs.luna_coin.components.dialogs.DogPlanEditorDialog
 import de.meson_labs.luna_coin.components.dialogs.LunaGifDialog
 import de.meson_labs.luna_coin.components.dialogs.ShopEditorDialog
@@ -155,9 +155,9 @@ fun SettingsScreen(
     var showWatchlist by remember { mutableStateOf(true) }
     var showAppSettings by remember { mutableStateOf(false) }
     var showShopEditor by remember { mutableStateOf(false) }
-    var showDogScheduleEditor by remember { mutableStateOf(false) }
     var showDogPlanEditor by remember { mutableStateOf(false) }
     var showTaskEditor by remember { mutableStateOf(false) }
+    var showAdminBackup by remember { mutableStateOf(false) }
 
     var showUserEditorDialog by remember { mutableStateOf(false) }
     var userForEdit by remember { mutableStateOf<Child?>(null) }
@@ -286,14 +286,36 @@ fun SettingsScreen(
                 if (isAdmin) {
                     item {
                         Spacer(modifier = Modifier.height(if (isPhone) 10.dp else 12.dp))
-                        Button(
-                            onClick = {
-                                userForEdit = null
-                                showUserEditorDialog = true
-                            }
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                         ) {
-                            Text("Benutzer hinzufügen")
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "Benutzerverwaltung",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Button(
+                                    onClick = {
+                                        userForEdit = null
+                                        showUserEditorDialog = true
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("👤 + Benutzer hinzufügen")
+                                }
+                            }
                         }
+
                         Spacer(modifier = Modifier.height(smallSpacerHeight))
                     }
                 }
@@ -401,26 +423,29 @@ fun SettingsScreen(
                     Text("Verwaltung", style = sectionTitleStyle)
                     Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
 
-                    Button(onClick = { showTaskEditor = true }) {
-                        Text("Aufgaben bearbeiten")
+                    Button(
+                        onClick = { showTaskEditor = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("✅ Aufgaben bearbeiten")
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Button(onClick = { showShopEditor = true }) {
-                        Text("Shop bearbeiten")
+                    Button(
+                        onClick = { showShopEditor = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("🛒 Shop bearbeiten")
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Button(onClick = { showDogScheduleEditor = true }) {
-                        Text("Hundeplan bearbeiten (alt)")
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(onClick = { showDogPlanEditor = true }) {
-                        Text("🐶 Neuer Hundeplan (Beta)")
+                    Button(
+                        onClick = { showDogPlanEditor = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("🐶 Hundeplan bearbeiten")
                     }
                 }
             }
@@ -428,28 +453,70 @@ fun SettingsScreen(
             if (isAdmin) {
                 item {
                     Spacer(modifier = Modifier.height(largeSectionSpacerHeight))
-                    Text("Admin - Datensicherung", style = sectionTitleStyle)
-                    Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
 
-                    Row {
-                        OutlinedButton(onClick = { showResetDialog = true }) {
-                            Text("Demo-Daten zurücksetzen")
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        OutlinedButton(onClick = { showCreateBackupDialog = true }) {
-                            Text("Cloud-Backup erstellen")
-                        }
+                    OutlinedButton(
+                        onClick = { showAdminBackup = !showAdminBackup },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            if (showAdminBackup) {
+                                "Admin - Datensicherung ausblenden"
+                            } else {
+                                "Admin - Datensicherung anzeigen"
+                            }
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    if (showAdminBackup) {
+                        Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
 
-                    Row {
-                        OutlinedButton(onClick = { showRestoreDialog = true }) {
-                            Text("Backup wiederherstellen")
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        OutlinedButton(onClick = { showImportJsonDialog = true }) {
-                            Text("JSON importieren")
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "Datensicherung",
+                                    style = sectionTitleStyle,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                OutlinedButton(
+                                    onClick = { showCreateBackupDialog = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Cloud-Backup erstellen")
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                OutlinedButton(
+                                    onClick = { showRestoreDialog = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Cloud-Backup wiederherstellen")
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                OutlinedButton(
+                                    onClick = { showResetDialog = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Demo-Daten zurücksetzen")
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                OutlinedButton(
+                                    onClick = { showImportJsonDialog = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("JSON importieren")
+                                }
+                            }
                         }
                     }
                 }
@@ -600,17 +667,6 @@ fun SettingsScreen(
         )
     }
 
-    if (showDogScheduleEditor) {
-        DogScheduleEditorDialog(
-            dogSchedule = data.dogSchedule,
-            children = data.children,
-            onDismiss = { showDogScheduleEditor = false },
-            onAddDogSchedule = onAddDogSchedule,
-            onUpdateDogSchedule = onUpdateDogSchedule,
-            onDeleteDogSchedule = onDeleteDogSchedule
-        )
-    }
-
     if (showDogPlanEditor) {
         DogPlanEditorDialog(
             templates = data.dogPlan.templates,
@@ -730,24 +786,62 @@ private fun UserManagementCard(
             if (canManageUsers) {
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Row {
-                    OutlinedButton(onClick = onEditCoins) {
-                        Text("🎮 Fortschritt")
+                val isPhone = LocalConfiguration.current.smallestScreenWidthDp < 600
+
+                if (isPhone) {
+                    Column {
+                        OutlinedButton(
+                            onClick = onEditCoins,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("🎮 Fortschritt", maxLines = 1)
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        OutlinedButton(
+                            onClick = onEditUser,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Bearbeiten", maxLines = 1)
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        OutlinedButton(
+                            onClick = onDeleteUser,
+                            enabled = !child.isBuiltInAdmin,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("Löschen", maxLines = 1)
+                        }
                     }
+                } else {
+                    Row {
+                        OutlinedButton(onClick = onEditCoins) {
+                            Text("🎮 Fortschritt", maxLines = 1)
+                        }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
 
-                    OutlinedButton(onClick = onEditUser) {
-                        Text("Bearbeiten")
-                    }
+                        OutlinedButton(onClick = onEditUser) {
+                            Text("Bearbeiten", maxLines = 1)
+                        }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
 
-                    OutlinedButton(
-                        onClick = onDeleteUser,
-                        enabled = !child.isBuiltInAdmin
-                    ) {
-                        Text("Löschen")
+                        OutlinedButton(
+                            onClick = onDeleteUser,
+                            enabled = !child.isBuiltInAdmin,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("Löschen", maxLines = 1)
+                        }
                     }
                 }
             }
@@ -1029,41 +1123,52 @@ private fun ProgressEditDialog(
                 }
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Abbrechen")
-            }
-        },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    if (coinsText.isBlank()) {
-                        errorText = "Bitte Coins eingeben."
-                        return@TextButton
-                    }
-
-                    if (experienceText.isBlank()) {
-                        errorText = "Bitte EP eingeben."
-                        return@TextButton
-                    }
-
-                    if (skillPointsText.isBlank()) {
-                        errorText = "Bitte Skillpunkte eingeben."
-                        return@TextButton
-                    }
-
-                    onSave(
-                        coins.coerceAtLeast(0),
-                        experience.coerceAtLeast(0),
-                        availableSkillPoints.coerceAtLeast(0),
-                        intelligence.coerceIn(1, 100),
-                        strength.coerceIn(1, 100),
-                        agility.coerceIn(1, 100),
-                        commentText.trim().ifBlank { null }
-                    )
-                }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
             ) {
-                Text("Speichern")
+                Button(
+                    onClick = {
+                        if (coinsText.isBlank()) {
+                            errorText = "Bitte Coins eingeben."
+                            return@Button
+                        }
+
+                        if (experienceText.isBlank()) {
+                            errorText = "Bitte EP eingeben."
+                            return@Button
+                        }
+
+                        if (skillPointsText.isBlank()) {
+                            errorText = "Bitte Skillpunkte eingeben."
+                            return@Button
+                        }
+
+                        onSave(
+                            coins.coerceAtLeast(0),
+                            experience.coerceAtLeast(0),
+                            availableSkillPoints.coerceAtLeast(0),
+                            intelligence.coerceIn(1, 100),
+                            strength.coerceIn(1, 100),
+                            agility.coerceIn(1, 100),
+                            commentText.trim().ifBlank { null }
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Speichern", maxLines = 1)
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Abbrechen", maxLines = 1)
+                }
             }
         }
     )
@@ -1275,53 +1380,64 @@ private fun UserEditorDialog(
                 }
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Abbrechen")
-            }
-        },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    val name = nameText.trim()
-                    val age = ageText.toIntOrNull()
-                    val coins = coinsText.toIntOrNull() ?: 0
-
-                    if (name.isBlank()) {
-                        errorText = "Bitte einen Namen eingeben."
-                        return@TextButton
-                    }
-
-                    if (age == null) {
-                        errorText = "Bitte ein gültiges Alter eingeben."
-                        return@TextButton
-                    }
-
-                    if (isEditMode && child != null) {
-                        val updatedChild = child.copy(
-                            name = name,
-                            age = age,
-                            role = if (isBuiltInAdmin) UserRole.ADMIN else selectedRole,
-                            password = passwordText,
-                            passwordRequired = if (isBuiltInAdmin) true else passwordRequired,
-                            allowRememberLogin = allowRememberLogin
-                        )
-
-                        onSaveExisting(updatedChild)
-                    } else {
-                        onSaveNew(
-                            name,
-                            selectedRole,
-                            passwordText,
-                            age,
-                            coins,
-                            passwordRequired,
-                            allowRememberLogin
-                        )
-                    }
-                }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
             ) {
-                Text("Speichern")
+                Button(
+                    onClick = {
+                        val name = nameText.trim()
+                        val age = ageText.toIntOrNull()
+                        val coins = coinsText.toIntOrNull() ?: 0
+
+                        if (name.isBlank()) {
+                            errorText = "Bitte einen Namen eingeben."
+                            return@Button
+                        }
+
+                        if (age == null) {
+                            errorText = "Bitte ein gültiges Alter eingeben."
+                            return@Button
+                        }
+
+                        if (isEditMode && child != null) {
+                            val updatedChild = child.copy(
+                                name = name,
+                                age = age,
+                                role = if (isBuiltInAdmin) UserRole.ADMIN else selectedRole,
+                                password = passwordText,
+                                passwordRequired = if (isBuiltInAdmin) true else passwordRequired,
+                                allowRememberLogin = allowRememberLogin
+                            )
+
+                            onSaveExisting(updatedChild)
+                        } else {
+                            onSaveNew(
+                                name,
+                                selectedRole,
+                                passwordText,
+                                age,
+                                coins,
+                                passwordRequired,
+                                allowRememberLogin
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Speichern", maxLines = 1)
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Abbrechen", maxLines = 1)
+                }
             }
         }
     )

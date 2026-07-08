@@ -96,6 +96,13 @@ fun ShopScreen(
     val luckyWheelIsFreeToday = selectedChildId != null &&
             luckyWheelUsageToday?.freeSpinUsed != true
 
+    val sortedShopItems = remember(data.shopItems) {
+        data.shopItems.sortedWith(
+            compareBy<ShopItem> { it.priceCoins }
+                .thenBy { it.title.lowercase() }
+        )
+    }
+
     LaunchedEffect(purchaseMessage) {
         if (purchaseMessage != null) {
             delay(3000)
@@ -142,7 +149,7 @@ fun ShopScreen(
                 )
             }
 
-            if (data.shopItems.isEmpty()) {
+            if (sortedShopItems.isEmpty()) {
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Text(
@@ -152,7 +159,7 @@ fun ShopScreen(
                     }
                 }
             } else {
-                items(data.shopItems) { item ->
+                items(sortedShopItems) { item ->
                     val purchasesToday = selectedChildId?.let { childId ->
                         countShopItemPurchasesToday(
                             data = data,

@@ -1,10 +1,17 @@
 package de.meson_labs.luna_coin.components.dialogs
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
 @Composable
 fun LunaBaseDialog(
@@ -27,17 +34,32 @@ fun LunaBaseDialog(
             }
         },
         confirmButton = {
-            onConfirm?.let {
-                TextButton(onClick = {
-                    it()
-                    onDismiss()
-                }) {
-                    Text(confirmText)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        onConfirm?.invoke()
+                        onDismiss()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(confirmText, maxLines = 1)
                 }
-            } ?: TextButton(onClick = onDismiss) { Text(confirmText) }
-        },
-        dismissButton = dismissText?.let {
-            { TextButton(onClick = onDismiss) { Text(it) } }
+
+                dismissText?.let {
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(it, maxLines = 1)
+                    }
+                }
+            }
         }
     )
 }
