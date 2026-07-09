@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -90,6 +91,10 @@ fun MainScreen(
                     mutableIntStateOf(0)
                 }
 
+                var klingonNavEnabled by remember {
+                    mutableStateOf(false)
+                }
+
                 fun selectTab(newTab: Int) {
                     if (selectedTab != newTab) {
                         view.playSoundEffect(SoundEffectConstants.CLICK)
@@ -97,33 +102,63 @@ fun MainScreen(
                     }
                 }
 
-                val navItems = listOf(
-                    LunaBottomNavItem(
-                        title = "Aufgaben",
-                        compactTitle = "Aufgaben",
-                        icon = Icons.Default.CheckCircle
-                    ),
-                    LunaBottomNavItem(
-                        title = "Shop",
-                        compactTitle = "Shop",
-                        icon = Icons.Default.ShoppingCart
-                    ),
-                    LunaBottomNavItem(
-                        title = "Luna-Games",
-                        compactTitle = "Games",
-                        icon = Icons.Default.SportsEsports
-                    ),
-                    LunaBottomNavItem(
-                        title = "LunaME",
-                        compactTitle = "LunaME",
-                        icon = Icons.Default.Pets
-                    ),
-                    LunaBottomNavItem(
-                        title = "Einstellungen",
-                        compactTitle = "Einstellung",
-                        icon = Icons.Default.Settings
+                val navItems = if (klingonNavEnabled) {
+                    listOf(
+                        LunaBottomNavItem(
+                            title = "Qu'mey",
+                            compactTitle = "Qu'mey",
+                            icon = Icons.Default.CheckCircle
+                        ),
+                        LunaBottomNavItem(
+                            title = "je'",
+                            compactTitle = "je'",
+                            icon = Icons.Default.ShoppingCart
+                        ),
+                        LunaBottomNavItem(
+                            title = "Quj",
+                            compactTitle = "Quj",
+                            icon = Icons.Default.SportsEsports
+                        ),
+                        LunaBottomNavItem(
+                            title = "LunaME",
+                            compactTitle = "LunaME",
+                            icon = Icons.Default.Pets
+                        ),
+                        LunaBottomNavItem(
+                            title = "SeHlaw",
+                            compactTitle = "SeH",
+                            icon = Icons.Default.Settings
+                        )
                     )
-                )
+                } else {
+                    listOf(
+                        LunaBottomNavItem(
+                            title = "Aufgaben",
+                            compactTitle = "Aufgaben",
+                            icon = Icons.Default.CheckCircle
+                        ),
+                        LunaBottomNavItem(
+                            title = "Shop",
+                            compactTitle = "Shop",
+                            icon = Icons.Default.ShoppingCart
+                        ),
+                        LunaBottomNavItem(
+                            title = "Luna-Games",
+                            compactTitle = "Games",
+                            icon = Icons.Default.SportsEsports
+                        ),
+                        LunaBottomNavItem(
+                            title = "LunaME",
+                            compactTitle = "LunaME",
+                            icon = Icons.Default.Pets
+                        ),
+                        LunaBottomNavItem(
+                            title = "Einstellungen",
+                            compactTitle = "Einstellung",
+                            icon = Icons.Default.Settings
+                        )
+                    )
+                }
 
                 Scaffold(
                     bottomBar = {
@@ -241,6 +276,9 @@ fun MainScreen(
                             onCreateCloudBackup = viewModel::createCloudBackup,
                             onRestoreFromBackup = viewModel::restoreFromBackup,
                             onImportFromJson = viewModel::importFromJson,
+                            onKlingonModeChanged = { enabled ->
+                                klingonNavEnabled = enabled
+                            },
                             onLogout = viewModel::logout
                         )
                     }

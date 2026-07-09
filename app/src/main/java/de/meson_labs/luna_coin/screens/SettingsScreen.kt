@@ -32,6 +32,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -101,6 +102,7 @@ fun SettingsScreen(
     onRestoreFromBackup: () -> Unit,
     onImportFromJson: () -> Unit,
 
+    onKlingonModeChanged: (Boolean) -> Unit = {},
     onLogout: () -> Unit,
 ) {
     val currentMessage by viewModel.message.collectAsState()
@@ -168,6 +170,7 @@ fun SettingsScreen(
     var languageGifTitle by remember { mutableStateOf("") }
     var languageGifMessage by remember { mutableStateOf("") }
     var languageGifResId by remember { mutableIntStateOf(0) }
+    var klingonModeEnabled by remember { mutableStateOf(false) }
 
     var childForProgressEdit by remember { mutableStateOf<Child?>(null) }
 
@@ -179,6 +182,17 @@ fun SettingsScreen(
             delay(3000)
             languageMessage = null
         }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            onKlingonModeChanged(false)
+        }
+    }
+
+    fun disableKlingonMode() {
+        klingonModeEnabled = false
+        onKlingonModeChanged(false)
     }
 
     val canEdit = selectedChild?.role == UserRole.PARENT || selectedChild?.role == UserRole.ADMIN
@@ -207,7 +221,7 @@ fun SettingsScreen(
         ) {
             item {
                 LunaScreenHeader(
-                    title = "Einstellungen",
+                    title = if (klingonModeEnabled) "SeHlaw" else "Einstellungen",
                     selectedChild = selectedChild,
                     onLogout = onLogout
                 )
@@ -233,7 +247,13 @@ fun SettingsScreen(
 
             item {
                 Button(onClick = { showAppSettings = !showAppSettings }) {
-                    Text(if (showAppSettings) "App-Einstellungen ausblenden" else "App-Einstellungen anzeigen")
+                    Text(
+                        if (klingonModeEnabled) {
+                            if (showAppSettings) "SeHlaw So'." else "SeHlaw cha'."
+                        } else {
+                            if (showAppSettings) "App-Einstellungen ausblenden" else "App-Einstellungen anzeigen"
+                        }
+                    )
                 }
                 Spacer(modifier = Modifier.height(smallSpacerHeight))
             }
@@ -242,30 +262,90 @@ fun SettingsScreen(
                 item {
                     Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text("App-Einstellungen", style = sectionTitleStyle)
+                            Text(
+                                text = if (klingonModeEnabled) "SeHlaw" else "App-Einstellungen",
+                                style = sectionTitleStyle
+                            )
 
                             Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
 
-                            Text("Sprache:", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                text = if (klingonModeEnabled) "Hol:" else "Sprache:",
+                                style = MaterialTheme.typography.titleMedium
+                            )
 
                             Column {
-                                TextButton(onClick = { languageMessage = "Deutsch wurde ausgewählt." }) { Text("Deutsch") }
-                                TextButton(onClick = { languageMessage = "Englisch wurde noch nicht implementiert." }) { Text("Englisch") }
                                 TextButton(onClick = {
+                                    disableKlingonMode()
+                                    languageMessage = "Deutsch wurde ausgewählt."
+                                }) {
+                                    Text(if (klingonModeEnabled) "DIvI' HolHa'" else "Deutsch")
+                                }
+
+                                TextButton(onClick = {
+                                    disableKlingonMode()
+                                    languageMessage = "Diese Sprache wurde noch nicht implementiert."
+                                }) {
+                                    Text(if (klingonModeEnabled) "DIvI' Hol" else "Englisch")
+                                }
+
+                                TextButton(onClick = {
+                                    disableKlingonMode()
                                     languageGifTitle = "Französisch"
                                     languageGifMessage = "Haha, gay..."
                                     languageGifResId = R.drawable.gay
                                     showLanguageGif = true
-                                }) { Text("Französisch") }
-                                TextButton(onClick = { languageMessage = "Qapla'!" }) { Text("Klingonisch") }
+                                }) {
+                                    Text(if (klingonModeEnabled) "vIraS Hol" else "Französisch")
+                                }
+
+                                TextButton(onClick = {
+                                    klingonModeEnabled = true
+                                    onKlingonModeChanged(true)
+                                    languageMessage = "Qapla'"
+                                }) {
+                                    Text(if (klingonModeEnabled) "tlhIngan Hol" else "Klingonisch")
+                                }
+                            }
+
+                            if (languageMessage != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                                    )
+                                ) {
+                                    Text(
+                                        text = languageMessage!!,
+                                        modifier = Modifier.padding(12.dp),
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Switch(checked = mimiModeEnabled, onCheckedChange = { mimiModeEnabled = it })
-                                Text("Mimi-Modus aktivieren", modifier = Modifier.padding(start = 12.dp))
+                                Text(
+                                    text = if (klingonModeEnabled) "Mimi SeH chu'" else "Mimi-Modus aktivieren",
+                                    modifier = Modifier.padding(start = 12.dp)
+                                )
                             }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Text(
+                                text = if (klingonModeEnabled) {
+                                    "Mimi SeHlaw vaj wovmoHghach chuS je tInHa'moH. 'ej not mevbogh Deghmey? chel."
+                                } else {
+                                    "Der Mimi-Modus stellt die Bildschirmhelligkeit und die Lautstärke der App herab.\nAußerdem werden ständig zufällig-passivaggressive Fragezeichen eingefügt?"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(sectionSpacerHeight))
@@ -278,7 +358,7 @@ fun SettingsScreen(
                         Text(if (showUsersAndCoins) "Benutzer & Coins ausblenden" else "Benutzer & Coins anzeigen")
                     }
                 } else {
-                    Text("Meine Coins", style = sectionTitleStyle)
+                    Text(if (klingonModeEnabled) "DeQmeywIj" else "Meine Coins", style = sectionTitleStyle)
                 }
             }
 
@@ -348,7 +428,7 @@ fun SettingsScreen(
             if (canEdit) {
                 item {
                     Spacer(modifier = Modifier.height(sectionSpacerHeight))
-                    Text("Watchlist", style = sectionTitleStyle)
+                    Text(if (klingonModeEnabled) "bej tetlh" else "Watchlist", style = sectionTitleStyle)
                     Spacer(modifier = Modifier.height(smallSpacerHeight))
 
                     Button(onClick = { showWatchlist = !showWatchlist }) {
@@ -390,7 +470,7 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(smallSpacerHeight))
                 } else {
-                    Text("Mein Log", style = sectionTitleStyle)
+                    Text(if (klingonModeEnabled) "QonoSwIj" else "Mein Log", style = sectionTitleStyle)
                     Spacer(modifier = Modifier.height(smallSpacerHeight))
                     Button(onClick = { showLogs = !showLogs }) {
                         Text(if (showLogs) "Mein Log ausblenden" else "Mein Log anzeigen")
@@ -420,14 +500,14 @@ fun SettingsScreen(
             if (canEdit) {
                 item {
                     Spacer(modifier = Modifier.height(largeSectionSpacerHeight))
-                    Text("Verwaltung", style = sectionTitleStyle)
+                    Text(if (klingonModeEnabled) "loH" else "Verwaltung", style = sectionTitleStyle)
                     Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
 
                     Button(
                         onClick = { showTaskEditor = true },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("✅ Aufgaben bearbeiten")
+                        Text(if (klingonModeEnabled) "✅ Qu\'mey choH" else "✅ Aufgaben bearbeiten")
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -436,7 +516,7 @@ fun SettingsScreen(
                         onClick = { showShopEditor = true },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("🛒 Shop bearbeiten")
+                        Text(if (klingonModeEnabled) "🛒 Suy choH" else "🛒 Shop bearbeiten")
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -445,7 +525,7 @@ fun SettingsScreen(
                         onClick = { showDogPlanEditor = true },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("🐶 Hundeplan bearbeiten")
+                        Text(if (klingonModeEnabled) "🐶 targh nab choH" else "🐶 Hundeplan bearbeiten")
                     }
                 }
             }
