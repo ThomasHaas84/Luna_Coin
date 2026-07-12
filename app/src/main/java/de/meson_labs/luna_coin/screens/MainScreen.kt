@@ -143,7 +143,7 @@ fun MainScreen(
                             icon = Icons.Default.ShoppingCart
                         ),
                         LunaBottomNavItem(
-                            title = "Luna-Games",
+                            title = "Games & Tools",
                             compactTitle = "Games",
                             icon = Icons.Default.SportsEsports
                         ),

@@ -16,6 +16,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +30,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.meson_labs.luna_coin.R
@@ -38,14 +40,21 @@ import de.meson_labs.luna_coin.games.LunaMultiplicationGameScreen
 import de.meson_labs.luna_coin.games.LunaNumberGuessGameScreen
 import de.meson_labs.luna_coin.games.LunaWordGuessGameScreen
 import de.meson_labs.luna_coin.models.Child
+import de.meson_labs.luna_coin.tools.LunaPasswordGenerator
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 
-private enum class ActiveGame {
+private enum class LunaGamesDestination {
     NONE,
     MEMORY,
     NUMBER_GUESS,
     MULTIPLICATION,
-    WORD_GUESS
+    WORD_GUESS,
+    PASSWORD_GENERATOR
+}
+
+private enum class GamesToolsTab {
+    GAMES,
+    TOOLS
 }
 
 @Composable
@@ -55,50 +64,60 @@ fun LunaGamesScreen(
     viewModel: LunaCoinViewModel,
     onLogout: () -> Unit
 ) {
-    var activeGame by remember { mutableStateOf(ActiveGame.NONE) }
+    var activeGame by remember { mutableStateOf(LunaGamesDestination.NONE) }
+    var selectedTab by remember { mutableStateOf(GamesToolsTab.GAMES) }
 
     when (activeGame) {
-        ActiveGame.MEMORY -> {
+        LunaGamesDestination.MEMORY -> {
             LunaMemoryGameScreen(
                 modifier = modifier,
                 selectedChild = selectedChild,
                 viewModel = viewModel,
                 onLogout = onLogout,
-                onBack = { activeGame = ActiveGame.NONE }
+                onBack = { activeGame = LunaGamesDestination.NONE }
             )
         }
 
-        ActiveGame.NUMBER_GUESS -> {
+        LunaGamesDestination.NUMBER_GUESS -> {
             LunaNumberGuessGameScreen(
                 modifier = modifier,
                 selectedChild = selectedChild,
                 viewModel = viewModel,
                 onLogout = onLogout,
-                onBack = { activeGame = ActiveGame.NONE }
+                onBack = { activeGame = LunaGamesDestination.NONE }
             )
         }
 
-        ActiveGame.MULTIPLICATION -> {
+        LunaGamesDestination.MULTIPLICATION -> {
             LunaMultiplicationGameScreen(
                 modifier = modifier,
                 selectedChild = selectedChild,
                 viewModel = viewModel,
                 onLogout = onLogout,
-                onBack = { activeGame = ActiveGame.NONE }
+                onBack = { activeGame = LunaGamesDestination.NONE }
             )
         }
 
-        ActiveGame.WORD_GUESS -> {
+        LunaGamesDestination.WORD_GUESS -> {
             LunaWordGuessGameScreen(
                 modifier = modifier,
                 selectedChild = selectedChild,
                 viewModel = viewModel,
                 onLogout = onLogout,
-                onBack = { activeGame = ActiveGame.NONE }
+                onBack = { activeGame = LunaGamesDestination.NONE }
             )
         }
 
-        ActiveGame.NONE -> {
+        LunaGamesDestination.PASSWORD_GENERATOR -> {
+            PasswordGeneratorScreen(
+                modifier = modifier,
+                selectedChild = selectedChild,
+                onLogout = onLogout,
+                onBack = { activeGame = LunaGamesDestination.NONE }
+            )
+        }
+
+        LunaGamesDestination.NONE -> {
             val configuration = LocalConfiguration.current
             val isTabletLayout = configuration.smallestScreenWidthDp >= 600
             val isPhone = !isTabletLayout
@@ -113,107 +132,264 @@ fun LunaGamesScreen(
                     .padding(screenPadding)
             ) {
                 LunaScreenHeader(
-                    title = "Luna-Games",
+                    title = "Games & Tools",
                     selectedChild = selectedChild,
                     onLogout = onLogout
                 )
 
-                Spacer(modifier = Modifier.height(if (isPhone) 16.dp else 24.dp))
+                Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 14.dp))
 
+                GamesToolsTabSelector(
+                    selectedTab = selectedTab,
+                    isPhone = isPhone,
+                    onTabSelected = { selectedTab = it }
+                )
+
+                Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
+
+                when (selectedTab) {
+                    GamesToolsTab.GAMES -> GamesContent(
+                        isPhone = isPhone,
+                        cardSpacing = cardSpacing,
+                        sectionSpacing = sectionSpacing,
+                        onGameSelected = { activeGame = it }
+                    )
+
+                    GamesToolsTab.TOOLS -> ToolsContent(
+                        isPhone = isPhone,
+                        cardSpacing = cardSpacing,
+                        onPasswordGeneratorSelected = {
+                            activeGame = LunaGamesDestination.PASSWORD_GENERATOR
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GamesToolsTabSelector(
+    selectedTab: GamesToolsTab,
+    isPhone: Boolean,
+    onTabSelected: (GamesToolsTab) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (selectedTab == GamesToolsTab.GAMES) {
+            Button(
+                onClick = { onTabSelected(GamesToolsTab.GAMES) },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(if (isPhone) 48.dp else 42.dp)
+            ) {
                 Text(
-                    text = "Minispiele:",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    text = "Games",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                MiniGameGrid(
-                    games = listOf(
-                        MiniGameItem(
-                            title = "Memory",
-                            description = "Paare finden",
-                            symbol = "🧠",
-                            onClick = { activeGame = ActiveGame.MEMORY }
-                        ),
-                        MiniGameItem(
-                            title = "Zahlenraten",
-                            description = "Zahl erraten",
-                            symbol = "🔢",
-                            onClick = { activeGame = ActiveGame.NUMBER_GUESS }
-                        ),
-                        MiniGameItem(
-                            title = "1 x 1",
-                            description = "10 Felder lösen",
-                            symbol = "✖️",
-                            onClick = { activeGame = ActiveGame.MULTIPLICATION }
-                        ),
-                        MiniGameItem(
-                            title = "Neun Leben",
-                            description = "Wort erraten",
-                            symbol = "❤",
-                            onClick = { activeGame = ActiveGame.WORD_GUESS }
-                        )
-                    ),
-                    columns = if (isPhone) 2 else 4,
-                    spacing = cardSpacing,
-                    isPhone = isPhone
-                )
-
-                Spacer(modifier = Modifier.height(sectionSpacing))
-
+            }
+        } else {
+            OutlinedButton(
+                onClick = { onTabSelected(GamesToolsTab.GAMES) },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(if (isPhone) 48.dp else 42.dp)
+            ) {
                 Text(
-                    text = "Coming soon:",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    text = "Games",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
                 )
+            }
+        }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                ComingSoonGrid(
-                    columns = if (isPhone) 2 else 3,
-                    spacing = cardSpacing,
-                    isPhone = isPhone
+        if (selectedTab == GamesToolsTab.TOOLS) {
+            Button(
+                onClick = { onTabSelected(GamesToolsTab.TOOLS) },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(if (isPhone) 48.dp else 42.dp)
+            ) {
+                Text(
+                    text = "Tools",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        } else {
+            OutlinedButton(
+                onClick = { onTabSelected(GamesToolsTab.TOOLS) },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(if (isPhone) 48.dp else 42.dp)
+            ) {
+                Text(
+                    text = "Tools",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }
     }
 }
 
-private data class MiniGameItem(
+@Composable
+private fun GamesContent(
+    isPhone: Boolean,
+    cardSpacing: Dp,
+    sectionSpacing: Dp,
+    onGameSelected: (LunaGamesDestination) -> Unit
+) {
+    Text(
+        text = "Minispiele:",
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    GameToolGrid(
+        items = listOf(
+            GameToolItem(
+                title = "Memory",
+                description = "Paare finden",
+                symbol = "🧠",
+                buttonText = "Start",
+                enabled = true,
+                onClick = { onGameSelected(LunaGamesDestination.MEMORY) }
+            ),
+            GameToolItem(
+                title = "Zahlenraten",
+                description = "Zahl erraten",
+                symbol = "🔢",
+                buttonText = "Start",
+                enabled = true,
+                onClick = { onGameSelected(LunaGamesDestination.NUMBER_GUESS) }
+            ),
+            GameToolItem(
+                title = "1 x 1",
+                description = "10 Felder lösen",
+                symbol = "✖️",
+                buttonText = "Start",
+                enabled = true,
+                onClick = { onGameSelected(LunaGamesDestination.MULTIPLICATION) }
+            ),
+            GameToolItem(
+                title = "Neun Leben",
+                description = "Wort erraten",
+                symbol = "❤",
+                buttonText = "Start",
+                enabled = true,
+                onClick = { onGameSelected(LunaGamesDestination.WORD_GUESS) }
+            )
+        ),
+        columns = if (isPhone) 2 else 4,
+        spacing = cardSpacing,
+        isPhone = isPhone
+    )
+
+    Spacer(modifier = Modifier.height(sectionSpacing))
+
+    Text(
+        text = "Coming soon:",
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    ComingSoonGrid(
+        columns = if (isPhone) 2 else 3,
+        spacing = cardSpacing,
+        isPhone = isPhone
+    )
+}
+
+@Composable
+private fun ToolsContent(
+    isPhone: Boolean,
+    cardSpacing: Dp,
+    onPasswordGeneratorSelected: () -> Unit
+) {
+    Text(
+        text = "Tools:",
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    GameToolGrid(
+        items = listOf(
+            GameToolItem(
+                title = "Passwort-Generator",
+                description = "Sichere Passwörter erstellen",
+                infoText = LunaPasswordGenerator.getCombinationCountText(),
+                symbol = "🔐",
+                buttonText = "Öffnen",
+                enabled = true,
+                onClick = onPasswordGeneratorSelected
+            ),
+            GameToolItem(
+                title = "Coins senden",
+                description = "Coins mit Kommentar senden",
+                infoText = "",
+                symbol = "🪙",
+                buttonText = "Bald verfügbar",
+                enabled = false,
+                onClick = {}
+            )
+        ),
+        columns = if (isPhone) 1 else 4,
+        spacing = cardSpacing,
+        isPhone = isPhone
+    )
+}
+
+private data class GameToolItem(
     val title: String,
     val description: String,
+    val infoText: String = "",
     val symbol: String,
+    val buttonText: String,
+    val enabled: Boolean,
     val onClick: () -> Unit
 )
 
 @Composable
-private fun MiniGameGrid(
-    games: List<MiniGameItem>,
+private fun GameToolGrid(
+    items: List<GameToolItem>,
     columns: Int,
-    spacing: androidx.compose.ui.unit.Dp,
+    spacing: Dp,
     isPhone: Boolean
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(spacing)
     ) {
-        games.chunked(columns).forEach { rowGames ->
+        items.chunked(columns).forEach { rowItems ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing)
             ) {
-                rowGames.forEach { game ->
-                    MiniGameCard(
-                        title = game.title,
-                        description = game.description,
-                        symbol = game.symbol,
-                        onClick = game.onClick,
+                rowItems.forEach { item ->
+                    GameToolCard(
+                        title = item.title,
+                        description = item.description,
+                        infoText = item.infoText,
+                        symbol = item.symbol,
+                        buttonText = item.buttonText,
+                        enabled = item.enabled,
+                        onClick = item.onClick,
                         isPhone = isPhone,
                         modifier = Modifier.weight(1f)
                     )
                 }
 
-                repeat(columns - rowGames.size) {
+                repeat(columns - rowItems.size) {
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }
@@ -222,16 +398,19 @@ private fun MiniGameGrid(
 }
 
 @Composable
-private fun MiniGameCard(
+private fun GameToolCard(
     title: String,
     description: String,
+    infoText: String,
     symbol: String,
+    buttonText: String,
+    enabled: Boolean,
     onClick: () -> Unit,
     isPhone: Boolean,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(if (isPhone) 118.dp else 160.dp),
+        modifier = modifier.height(if (isPhone) 132.dp else 170.dp),
         shape = RoundedCornerShape(if (isPhone) 16.dp else 18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -240,7 +419,7 @@ private fun MiniGameCard(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(if (isPhone) 10.dp else 10.dp),
+                .padding(10.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
@@ -273,6 +452,20 @@ private fun MiniGameCard(
                         softWrap = false,
                         overflow = TextOverflow.Ellipsis
                     )
+
+                    if (infoText.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = infoText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 Text(
@@ -283,9 +476,15 @@ private fun MiniGameCard(
 
             Button(
                 onClick = onClick,
+                enabled = enabled,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(text = "Start")
+                Text(
+                    text = buttonText,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
@@ -294,7 +493,7 @@ private fun MiniGameCard(
 @Composable
 private fun ComingSoonGrid(
     columns: Int,
-    spacing: androidx.compose.ui.unit.Dp,
+    spacing: Dp,
     isPhone: Boolean
 ) {
     val images = listOf(
