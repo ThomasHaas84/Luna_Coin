@@ -15,6 +15,7 @@ import de.meson_labs.luna_coin.manager.ShopManager
 import de.meson_labs.luna_coin.manager.BuyShopItemPreparation
 import de.meson_labs.luna_coin.manager.UserManager
 import de.meson_labs.luna_coin.manager.CoinManager
+import de.meson_labs.luna_coin.manager.CoinTransferManager
 import de.meson_labs.luna_coin.manager.BuyLunaMeItemPreparation
 import de.meson_labs.luna_coin.manager.InventoryManager
 import de.meson_labs.luna_coin.manager.LuckyWheelManager
@@ -58,6 +59,7 @@ class LunaCoinViewModel(
     private val shopManager = ShopManager(repository)
     private val userManager = UserManager(repository)
     private val coinManager = CoinManager(repository)
+    private val coinTransferManager = CoinTransferManager(repository)
     private val inventoryManager = InventoryManager(repository)
     private val luckyWheelManager = LuckyWheelManager(repository)
     private val taskManager = TaskManager(repository)
@@ -205,6 +207,47 @@ class LunaCoinViewModel(
     override fun onCleared() {
         repository.stopRealtimeSync()
         super.onCleared()
+    }
+
+    fun transferCoins(
+        senderId: String,
+        recipientId: String,
+        amount: Int,
+        comment: String,
+        onResult: (Boolean, String?) -> Unit = { _, _ -> }
+    ) {
+        val sender = _data.value.children.firstOrNull { it.id == senderId }
+        val recipient = _data.value.children.firstOrNull { it.id == recipientId }
+
+        if (sender == null || recipient == null) {
+            val error = "Sender oder Empfänger wurde nicht gefunden."
+            showMessage(error)
+            onResult(false, error)
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val result = coinTransferManager.transfer(sender, recipient, amount, comment)
+                _data.value = _data.value.copy(
+                    children = _data.value.children.map { child ->
+                        when (child.id) {
+                            sender.id -> child.copy(coins = result.newSenderCoins)
+                            recipient.id -> child.copy(coins = result.newRecipientCoins)
+                            else -> child
+                        }
+                    },
+                    logs = listOf(result.senderLog, result.recipientLog) + _data.value.logs
+                )
+                val text = "$amount Luna Coin${if (amount == 1) "" else "s"} wurden an ${recipient.name} gesendet."
+                showMessage(text)
+                onResult(true, null)
+            } catch (error: Exception) {
+                val text = error.message ?: "Coins konnten nicht gesendet werden."
+                showMessage(text)
+                onResult(false, text)
+            }
+        }
     }
 
     fun showMessage(text: String) {

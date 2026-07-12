@@ -1,6 +1,9 @@
 package de.meson_labs.luna_coin.screens
 
 import android.content.Context
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,9 +60,16 @@ import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.tools.LunaPasswordGenerator
 import org.json.JSONArray
 import org.json.JSONObject
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 private const val PASSWORD_FAVORITES_PREFS = "password_generator_favorites"
 private const val MAX_PASSWORD_FAVORITES = 10
+private const val PASSWORD_KEY_ALIAS = "luna_coin_password_favorites_key"
+private const val ENCRYPTED_VALUE_PREFIX = "enc_v1:"
 
 private data class PasswordFavorite(
     val password: String,
@@ -559,30 +569,58 @@ private fun loadPasswordFavorites(
             PASSWORD_FAVORITES_PREFS,
             Context.MODE_PRIVATE
         )
-        val storedJson = preferences.getString(userId, null)
+
+        val storedValue = preferences.getString(userId, null)
             ?: return emptyList()
 
-        val jsonArray = JSONArray(storedJson)
+        val jsonText: String
+        val wasLegacyPlainText: Boolean
 
-        buildList {
-            for (index in 0 until jsonArray.length()) {
-                val item = jsonArray.optJSONObject(index) ?: continue
-                val password = item.optString("password")
-                val comment = item.optString("comment")
+        if (storedValue.startsWith(ENCRYPTED_VALUE_PREFIX)) {
+            jsonText = decryptPasswordFavorites(storedValue)
+            wasLegacyPlainText = false
+        } else {
+            jsonText = storedValue
+            wasLegacyPlainText = true
+        }
 
-                if (password.isNotBlank()) {
-                    add(
-                        PasswordFavorite(
-                            password = password,
-                            comment = comment
-                        )
-                    )
-                }
-            }
-        }.take(MAX_PASSWORD_FAVORITES)
+        val favorites = parsePasswordFavorites(jsonText)
+
+        if (wasLegacyPlainText && favorites.isNotEmpty()) {
+            savePasswordFavorites(
+                context = context,
+                userId = userId,
+                favorites = favorites
+            )
+        }
+
+        favorites
     }.getOrElse {
         emptyList()
     }
+}
+
+private fun parsePasswordFavorites(
+    jsonText: String
+): List<PasswordFavorite> {
+    val jsonArray = JSONArray(jsonText)
+
+    return buildList {
+        for (index in 0 until jsonArray.length()) {
+            val item = jsonArray.optJSONObject(index) ?: continue
+            val password = item.optString("password")
+            val comment = item.optString("comment")
+
+            if (password.isNotBlank()) {
+                add(
+                    PasswordFavorite(
+                        password = password,
+                        comment = comment
+                    )
+                )
+            }
+        }
+    }.take(MAX_PASSWORD_FAVORITES)
 }
 
 private fun savePasswordFavorites(
@@ -590,24 +628,120 @@ private fun savePasswordFavorites(
     userId: String,
     favorites: List<PasswordFavorite>
 ) {
-    val jsonArray = JSONArray()
+    runCatching {
+        val jsonArray = JSONArray()
 
-    favorites
-        .take(MAX_PASSWORD_FAVORITES)
-        .forEach { favorite ->
-            jsonArray.put(
-                JSONObject().apply {
-                    put("password", favorite.password)
-                    put("comment", favorite.comment)
-                }
-            )
-        }
+        favorites
+            .take(MAX_PASSWORD_FAVORITES)
+            .forEach { favorite ->
+                jsonArray.put(
+                    JSONObject().apply {
+                        put("password", favorite.password)
+                        put("comment", favorite.comment)
+                    }
+                )
+            }
 
-    context.getSharedPreferences(
-        PASSWORD_FAVORITES_PREFS,
-        Context.MODE_PRIVATE
+        val encryptedValue = encryptPasswordFavorites(
+            plainText = jsonArray.toString()
+        )
+
+        context.getSharedPreferences(
+            PASSWORD_FAVORITES_PREFS,
+            Context.MODE_PRIVATE
+        )
+            .edit()
+            .putString(userId, encryptedValue)
+            .apply()
+    }
+}
+
+private fun encryptPasswordFavorites(
+    plainText: String
+): String {
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+    cipher.init(
+        Cipher.ENCRYPT_MODE,
+        getOrCreatePasswordFavoritesKey()
     )
-        .edit()
-        .putString(userId, jsonArray.toString())
-        .apply()
+
+    val encryptedBytes = cipher.doFinal(
+        plainText.toByteArray(Charsets.UTF_8)
+    )
+
+    val ivBase64 = Base64.encodeToString(
+        cipher.iv,
+        Base64.NO_WRAP
+    )
+
+    val encryptedBase64 = Base64.encodeToString(
+        encryptedBytes,
+        Base64.NO_WRAP
+    )
+
+    return ENCRYPTED_VALUE_PREFIX + ivBase64 + ":" + encryptedBase64
+}
+
+private fun decryptPasswordFavorites(
+    encryptedValue: String
+): String {
+    val encryptedParts = encryptedValue
+        .removePrefix(ENCRYPTED_VALUE_PREFIX)
+        .split(":", limit = 2)
+
+    require(encryptedParts.size == 2) {
+        "Ungültiges Format der verschlüsselten Passwort-Favoriten."
+    }
+
+    val iv = Base64.decode(
+        encryptedParts[0],
+        Base64.NO_WRAP
+    )
+
+    val encryptedBytes = Base64.decode(
+        encryptedParts[1],
+        Base64.NO_WRAP
+    )
+
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+    cipher.init(
+        Cipher.DECRYPT_MODE,
+        getOrCreatePasswordFavoritesKey(),
+        GCMParameterSpec(128, iv)
+    )
+
+    return cipher.doFinal(encryptedBytes)
+        .toString(Charsets.UTF_8)
+}
+
+private fun getOrCreatePasswordFavoritesKey(): SecretKey {
+    val keyStore = KeyStore.getInstance("AndroidKeyStore").apply {
+        load(null)
+    }
+
+    val existingKey = keyStore.getKey(
+        PASSWORD_KEY_ALIAS,
+        null
+    ) as? SecretKey
+
+    if (existingKey != null) {
+        return existingKey
+    }
+
+    val keyGenerator = KeyGenerator.getInstance(
+        KeyProperties.KEY_ALGORITHM_AES,
+        "AndroidKeyStore"
+    )
+
+    val keySpec = KeyGenParameterSpec.Builder(
+        PASSWORD_KEY_ALIAS,
+        KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+    )
+        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+        .setKeySize(256)
+        .build()
+
+    keyGenerator.init(keySpec)
+    return keyGenerator.generateKey()
 }

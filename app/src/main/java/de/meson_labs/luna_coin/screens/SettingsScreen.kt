@@ -55,6 +55,7 @@ import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.components.common.LogCard
 import de.meson_labs.luna_coin.components.common.toDisplayText
 import de.meson_labs.luna_coin.components.dialogs.ConfirmationDialog
+import de.meson_labs.luna_coin.components.dialogs.CoinTransferDialog
 import de.meson_labs.luna_coin.components.dialogs.DogPlanEditorDialog
 import de.meson_labs.luna_coin.components.dialogs.LunaGifDialog
 import de.meson_labs.luna_coin.components.dialogs.ShopEditorDialog
@@ -153,6 +154,7 @@ fun SettingsScreen(
     var showImportJsonDialog by remember { mutableStateOf(false) }
 
     var showUsersAndCoins by remember { mutableStateOf(false) }
+    var showCoinTransferDialog by remember { mutableStateOf(false) }
     var showLogs by remember { mutableStateOf(false) }
     var showWatchlist by remember { mutableStateOf(true) }
     var showAppSettings by remember { mutableStateOf(false) }
@@ -405,6 +407,19 @@ fun SettingsScreen(
                         ChildCoinCard(
                             coins = child.coins
                         )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Button(
+                            onClick = { showCoinTransferDialog = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.luna_coin_small),
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Luna Coins senden")
+                        }
                     } else {
                         UserManagementCard(
                             child = child,
@@ -768,6 +783,19 @@ fun SettingsScreen(
             onAddTask = onAddTask,
             onUpdateTask = onUpdateTask,
             onDeleteTask = onDeleteTask
+        )
+    }
+
+    if (showCoinTransferDialog && selectedChild != null) {
+        CoinTransferDialog(
+            sender = selectedChild,
+            recipients = data.children.filter { it.id != selectedChild.id },
+            onDismiss = { showCoinTransferDialog = false },
+            onSend = { recipientId, amount, comment, onResult ->
+                viewModel.transferCoins(selectedChild.id, recipientId, amount, comment) { success, _ ->
+                    onResult(success)
+                }
+            }
         )
     }
 }

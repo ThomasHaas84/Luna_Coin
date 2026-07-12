@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -19,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.components.LunaScreenHeader
+import de.meson_labs.luna_coin.components.dialogs.CoinTransferDialog
 import de.meson_labs.luna_coin.games.LunaMemoryGameScreen
 import de.meson_labs.luna_coin.games.LunaMultiplicationGameScreen
 import de.meson_labs.luna_coin.games.LunaNumberGuessGameScreen
@@ -64,8 +67,11 @@ fun LunaGamesScreen(
     viewModel: LunaCoinViewModel,
     onLogout: () -> Unit
 ) {
+    val data by viewModel.data.collectAsState()
+
     var activeGame by remember { mutableStateOf(LunaGamesDestination.NONE) }
     var selectedTab by remember { mutableStateOf(GamesToolsTab.GAMES) }
+    var showCoinTransferDialog by remember { mutableStateOf(false) }
 
     when (activeGame) {
         LunaGamesDestination.MEMORY -> {
@@ -160,11 +166,29 @@ fun LunaGamesScreen(
                         cardSpacing = cardSpacing,
                         onPasswordGeneratorSelected = {
                             activeGame = LunaGamesDestination.PASSWORD_GENERATOR
+                        },
+                        onCoinTransferSelected = {
+                            showCoinTransferDialog = true
                         }
                     )
                 }
             }
         }
+    }
+
+    if (showCoinTransferDialog && selectedChild != null) {
+        CoinTransferDialog(
+            sender = selectedChild,
+            recipients = data.children.filter { child ->
+                child.id != selectedChild.id
+            },
+            onDismiss = { showCoinTransferDialog = false },
+            onSend = { recipientId, amount, comment, onResult ->
+                viewModel.transferCoins(selectedChild.id, recipientId, amount, comment) { success, _ ->
+                    onResult(success)
+                }
+            }
+        )
     }
 }
 
@@ -313,7 +337,8 @@ private fun GamesContent(
 private fun ToolsContent(
     isPhone: Boolean,
     cardSpacing: Dp,
-    onPasswordGeneratorSelected: () -> Unit
+    onPasswordGeneratorSelected: () -> Unit,
+    onCoinTransferSelected: () -> Unit
 ) {
     Text(
         text = "Tools:",
@@ -338,10 +363,11 @@ private fun ToolsContent(
                 title = "Coins senden",
                 description = "Coins mit Kommentar senden",
                 infoText = "",
-                symbol = "🪙",
-                buttonText = "Bald verfügbar",
-                enabled = false,
-                onClick = {}
+                symbol = "",
+                imageRes = R.drawable.luna_coin_small,
+                buttonText = "Öffnen",
+                enabled = true,
+                onClick = onCoinTransferSelected
             )
         ),
         columns = if (isPhone) 1 else 4,
@@ -355,6 +381,7 @@ private data class GameToolItem(
     val description: String,
     val infoText: String = "",
     val symbol: String,
+    val imageRes: Int? = null,
     val buttonText: String,
     val enabled: Boolean,
     val onClick: () -> Unit
@@ -381,6 +408,7 @@ private fun GameToolGrid(
                         description = item.description,
                         infoText = item.infoText,
                         symbol = item.symbol,
+                        imageRes = item.imageRes,
                         buttonText = item.buttonText,
                         enabled = item.enabled,
                         onClick = item.onClick,
@@ -403,6 +431,7 @@ private fun GameToolCard(
     description: String,
     infoText: String,
     symbol: String,
+    imageRes: Int?,
     buttonText: String,
     enabled: Boolean,
     onClick: () -> Unit,
@@ -468,10 +497,19 @@ private fun GameToolCard(
                     }
                 }
 
-                Text(
-                    text = symbol,
-                    fontSize = if (isPhone) 34.sp else 42.sp
-                )
+                if (imageRes != null) {
+                    Image(
+                        painter = painterResource(id = imageRes),
+                        contentDescription = title,
+                        modifier = Modifier.size(if (isPhone) 42.dp else 52.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                } else {
+                    Text(
+                        text = symbol,
+                        fontSize = if (isPhone) 34.sp else 42.sp
+                    )
+                }
             }
 
             Button(

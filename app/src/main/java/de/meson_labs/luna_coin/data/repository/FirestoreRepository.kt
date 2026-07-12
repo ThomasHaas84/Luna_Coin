@@ -759,6 +759,55 @@ class FirestoreRepository : DataRepository {
         return newCoinValue
     }
 
+
+    override suspend fun transferCoins(
+        senderId: String,
+        recipientId: String,
+        amount: Int,
+        senderLog: LogEntry,
+        recipientLog: LogEntry
+    ): Pair<Int, Int> {
+        require(senderId != recipientId) { "Sender und Empfänger dürfen nicht identisch sein" }
+        require(amount > 0) { "Der Betrag muss größer als 0 sein" }
+
+        val senderRef = childrenRef.document(senderId)
+        val recipientRef = childrenRef.document(recipientId)
+        val senderLogItem = prepareForSave(senderLog)
+        val recipientLogItem = prepareForSave(recipientLog)
+
+        val result = db.runTransaction { transaction ->
+            val senderSnapshot = transaction.get(senderRef)
+            val recipientSnapshot = transaction.get(recipientRef)
+
+            if (!senderSnapshot.exists()) {
+                throw IllegalStateException("Sender wurde nicht gefunden")
+            }
+            if (!recipientSnapshot.exists()) {
+                throw IllegalStateException("Empfänger wurde nicht gefunden")
+            }
+
+            val senderCoins = senderSnapshot.getLong("coins")?.toInt() ?: 0
+            val recipientCoins = recipientSnapshot.getLong("coins")?.toInt() ?: 0
+            if (senderCoins < amount) {
+                throw IllegalStateException("Nicht genug Luna Coins")
+            }
+
+            val newSenderCoins = senderCoins - amount
+            val newRecipientCoins = recipientCoins + amount
+            val now = Timestamp.now()
+
+            transaction.update(senderRef, mapOf("coins" to newSenderCoins, "updatedAt" to now))
+            transaction.update(recipientRef, mapOf("coins" to newRecipientCoins, "updatedAt" to now))
+            transaction.set(logsRef.document(senderLogItem.id), senderLogItem)
+            transaction.set(logsRef.document(recipientLogItem.id), recipientLogItem)
+
+            newSenderCoins to newRecipientCoins
+        }.await()
+
+        updateFamilyTimestamp()
+        return result
+    }
+
     override suspend fun setChildCoins(
         childId: String,
         coins: Int

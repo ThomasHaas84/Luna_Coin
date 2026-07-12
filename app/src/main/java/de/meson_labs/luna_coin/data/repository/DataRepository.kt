@@ -124,4 +124,14 @@ interface DataRepository {
         childId: String,
         coinDelta: Int
     ): Int
+
+    suspend fun transferCoins(
+        senderId: String,
+        recipientId: String,
+        amount: Int,
+        senderLog: LogEntry,
+        recipientLog: LogEntry
+    ): Pair<Int, Int> {
+        throw UnsupportedOperationException("Coin-Übertragungen werden von diesem Repository nicht unterstützt")
+    }
 }
