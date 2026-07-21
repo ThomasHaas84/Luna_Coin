@@ -65,7 +65,8 @@ fun LunaGamesScreen(
     modifier: Modifier = Modifier,
     selectedChild: Child?,
     viewModel: LunaCoinViewModel,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onFullscreenChanged: (Boolean) -> Unit = {}
 ) {
     val data by viewModel.data.collectAsState()
 
@@ -80,7 +81,11 @@ fun LunaGamesScreen(
                 selectedChild = selectedChild,
                 viewModel = viewModel,
                 onLogout = onLogout,
-                onBack = { activeGame = LunaGamesDestination.NONE }
+                onBack = {
+                    onFullscreenChanged(false)
+                    activeGame = LunaGamesDestination.NONE
+                },
+                onFullscreenChanged = onFullscreenChanged
             )
         }
 
@@ -90,7 +95,11 @@ fun LunaGamesScreen(
                 selectedChild = selectedChild,
                 viewModel = viewModel,
                 onLogout = onLogout,
-                onBack = { activeGame = LunaGamesDestination.NONE }
+                onBack = {
+                    onFullscreenChanged(false)
+                    activeGame = LunaGamesDestination.NONE
+                },
+                onFullscreenChanged = onFullscreenChanged
             )
         }
 
@@ -100,7 +109,11 @@ fun LunaGamesScreen(
                 selectedChild = selectedChild,
                 viewModel = viewModel,
                 onLogout = onLogout,
-                onBack = { activeGame = LunaGamesDestination.NONE }
+                onBack = {
+                    onFullscreenChanged(false)
+                    activeGame = LunaGamesDestination.NONE
+                },
+                onFullscreenChanged = onFullscreenChanged
             )
         }
 
@@ -110,7 +123,11 @@ fun LunaGamesScreen(
                 selectedChild = selectedChild,
                 viewModel = viewModel,
                 onLogout = onLogout,
-                onBack = { activeGame = LunaGamesDestination.NONE }
+                onBack = {
+                    onFullscreenChanged(false)
+                    activeGame = LunaGamesDestination.NONE
+                },
+                onFullscreenChanged = onFullscreenChanged
             )
         }
 

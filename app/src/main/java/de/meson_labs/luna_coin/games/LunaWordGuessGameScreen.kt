@@ -1,10 +1,7 @@
-@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-
 package de.meson_labs.luna_coin.games
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +20,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.meson_labs.luna_coin.components.LunaScreenHeader
 import de.meson_labs.luna_coin.components.dialogs.ConfirmationDialog
+import de.meson_labs.luna_coin.data.WordGuessWords
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.LunaGameLevel
 import de.meson_labs.luna_coin.models.LunaGameScoreType
@@ -49,45 +48,14 @@ import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
 
 private const val WORD_GUESS_MAX_LIVES = 9
 
-private data class WordGuessWord(
-    val word: String,
-    val hint: String
-)
-
-private val wordGuessWords = listOf(
-    WordGuessWord("ZWOELF", "Eine Zahl"),
-    WordGuessWord("PILZE", "Wächst im Wald"),
-    WordGuessWord("BRAUT", "Hochzeit"),
-    WordGuessWord("TANTE", "Familie"),
-    WordGuessWord("SORGE", "Gefühl"),
-    WordGuessWord("OTTER", "Tier am Wasser"),
-    WordGuessWord("PFERD", "Tier"),
-    WordGuessWord("ZWANG", "Man muss etwas tun"),
-    WordGuessWord("QUARZ", "Stein / Mineral"),
-    WordGuessWord("SPECK", "Essen"),
-    WordGuessWord("ECKEN", "Davon hat ein Quadrat vier"),
-    WordGuessWord("AUTOS", "Fahrzeuge"),
-    WordGuessWord("SAEULE", "Gebäude-Teil"),
-    WordGuessWord("ANGEL", "Damit fängt man Fische"),
-    WordGuessWord("JETZT", "Nicht später"),
-    WordGuessWord("KAMPF", "Auseinandersetzung"),
-    WordGuessWord("MUENZE", "Geldstück"),
-    WordGuessWord("WALZE", "Runde Rolle"),
-    WordGuessWord("JOGGEN", "Sport"),
-    WordGuessWord("BAUEN", "Etwas herstellen"),
-    WordGuessWord("LEBEN", "Nicht tot sein"),
-    WordGuessWord("KAUEN", "Mit den Zähnen"),
-    WordGuessWord("PIZZA", "Essen"),
-    WordGuessWord("BUSCH", "Pflanze")
-)
-
 @Composable
 fun LunaWordGuessGameScreen(
     modifier: Modifier = Modifier,
     selectedChild: Child?,
     viewModel: LunaCoinViewModel,
     onLogout: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onFullscreenChanged: (Boolean) -> Unit = {}
 ) {
     val configuration = LocalConfiguration.current
     val isPhone = configuration.smallestScreenWidthDp < 600
@@ -97,7 +65,15 @@ fun LunaWordGuessGameScreen(
     val highscores = data.gameHighscores
     val children = data.children
 
-    var currentWord by remember { mutableStateOf(wordGuessWords.random()) }
+    DisposableEffect(Unit) {
+        onFullscreenChanged(true)
+
+        onDispose {
+            onFullscreenChanged(false)
+        }
+    }
+
+    var currentWord by remember { mutableStateOf(WordGuessWords.words.random()) }
     var lives by remember { mutableIntStateOf(WORD_GUESS_MAX_LIVES) }
     var guessedLetters by remember { mutableStateOf(setOf<Char>()) }
     var wrongLetters by remember { mutableStateOf(setOf<Char>()) }
@@ -129,7 +105,7 @@ fun LunaWordGuessGameScreen(
     )
 
     fun resetGame() {
-        currentWord = wordGuessWords.random()
+        currentWord = WordGuessWords.words.random()
         lives = WORD_GUESS_MAX_LIVES
         guessedLetters = emptySet()
         wrongLetters = emptySet()
@@ -413,36 +389,60 @@ private fun LetterKeyboard(
     finished: Boolean,
     onLetterClick: (Char) -> Unit
 ) {
-    val letters = listOf(
-        'A', 'B', 'C', 'D', 'E', 'F', 'G',
-        'H', 'I', 'J', 'K', 'L', 'M', 'N',
-        'O', 'P', 'Q', 'R', 'S', 'T', 'U',
-        'V', 'W', 'X', 'Y', 'Z'
+    val letterRows = listOf(
+        listOf('A', 'B', 'C', 'D', 'E', 'F', 'G'),
+        listOf('H', 'I', 'J', 'K', 'L', 'M', 'N'),
+        listOf('O', 'P', 'Q', 'R', 'S', 'T', 'U'),
+        listOf('V', 'W', 'X', 'Y', 'Z')
     )
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
     ) {
-        FlowRow(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            letters.forEach { letter ->
-                val alreadyUsed = letter in guessedLetters || letter in wrongLetters
-                Button(
-                    onClick = { onLetterClick(letter) },
-                    enabled = !finished && !alreadyUsed,
-                    modifier = Modifier.height(44.dp)
+            letterRows.forEach { rowLetters ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        text = letter.toString(),
-                        fontWeight = FontWeight.Bold
-                    )
+                    rowLetters.forEach { letter ->
+                        val alreadyUsed = letter in guessedLetters || letter in wrongLetters
+
+                        Button(
+                            onClick = { onLetterClick(letter) },
+                            enabled = !finished && !alreadyUsed,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                horizontal = 0.dp,
+                                vertical = 0.dp
+                            )
+                        ) {
+                            Text(
+                                text = letter.toString(),
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    repeat(7 - rowLetters.size) {
+                        Spacer(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                        )
+                    }
                 }
             }
         }

@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,7 +51,8 @@ fun LunaNumberGuessGameScreen(
     selectedChild: Child?,
     viewModel: LunaCoinViewModel,
     onLogout: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onFullscreenChanged: (Boolean) -> Unit = {}
 ) {
     val configuration = LocalConfiguration.current
     val isTabletLayout = configuration.smallestScreenWidthDp >= 600
@@ -65,6 +67,14 @@ fun LunaNumberGuessGameScreen(
     val data by viewModel.data.collectAsState()
     val highscores = data.gameHighscores
     val children = data.children
+
+    DisposableEffect(Unit) {
+        onFullscreenChanged(true)
+
+        onDispose {
+            onFullscreenChanged(false)
+        }
+    }
 
     var targetNumber by remember { mutableIntStateOf(Random.nextInt(1, 101)) }
     var input by remember { mutableStateOf("") }

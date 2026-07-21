@@ -114,6 +114,10 @@ fun MainScreen(
                     mutableStateOf(false)
                 }
 
+                var gameFullscreen by remember {
+                    mutableStateOf(false)
+                }
+
                 fun selectTab(newTab: Int) {
                     if (selectedTab != newTab) {
                         view.playSoundEffect(SoundEffectConstants.CLICK)
@@ -181,34 +185,36 @@ fun MainScreen(
 
                 Scaffold(
                     bottomBar = {
-                        NavigationBar {
-                            navItems.forEachIndexed { index, item ->
-                                NavigationBarItem(
-                                    selected = selectedTab == index,
-                                    onClick = {
-                                        selectTab(index)
-                                    },
-                                    icon = {
-                                        Icon(
-                                            imageVector = item.icon,
-                                            contentDescription = item.title
-                                        )
-                                    },
-                                    label = {
-                                        Text(
-                                            text = if (isCompactPhone) {
-                                                item.compactTitle
-                                            } else {
-                                                item.title
-                                            },
-                                            maxLines = 1,
-                                            softWrap = false,
-                                            overflow = TextOverflow.Visible,
-                                            fontSize = bottomNavFontSize
-                                        )
-                                    },
-                                    alwaysShowLabel = true
-                                )
+                        if (!gameFullscreen) {
+                            NavigationBar {
+                                navItems.forEachIndexed { index, item ->
+                                    NavigationBarItem(
+                                        selected = selectedTab == index,
+                                        onClick = {
+                                            selectTab(index)
+                                        },
+                                        icon = {
+                                            Icon(
+                                                imageVector = item.icon,
+                                                contentDescription = item.title
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                text = if (isCompactPhone) {
+                                                    item.compactTitle
+                                                } else {
+                                                    item.title
+                                                },
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                overflow = TextOverflow.Visible,
+                                                fontSize = bottomNavFontSize
+                                            )
+                                        },
+                                        alwaysShowLabel = true
+                                    )
+                                }
                             }
                         }
                     }
@@ -253,7 +259,8 @@ fun MainScreen(
                             modifier = Modifier.padding(innerPadding),
                             selectedChild = selectedChild,
                             viewModel = viewModel,
-                            onLogout = viewModel::logout
+                            onLogout = viewModel::logout,
+                            onFullscreenChanged = { gameFullscreen = it }
                         )
 
                         3 -> LunaMeScreen(

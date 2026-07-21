@@ -24,6 +24,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,11 +58,20 @@ fun LunaMultiplicationGameScreen(
     selectedChild: Child?,
     viewModel: LunaCoinViewModel,
     onLogout: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onFullscreenChanged: (Boolean) -> Unit = {}
 ) {
     val data by viewModel.data.collectAsState()
     val highscores = data.gameHighscores
     val children = data.children
+
+    DisposableEffect(Unit) {
+        onFullscreenChanged(true)
+
+        onDispose {
+            onFullscreenChanged(false)
+        }
+    }
 
     var missingFields by remember { mutableStateOf(setOf<Pair<Int, Int>>()) }
     var selectedField by remember { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -428,15 +438,11 @@ private fun PhoneMultiplicationLayout(
             Spacer(modifier = Modifier.height(4.dp))
 
             BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.TopCenter
             ) {
                 val spacing = 2.dp
-                val cellSizeByWidth = (maxWidth - spacing * 9) / 10
-                val cellSizeByHeight = (maxHeight - spacing * 9) / 10
-                val cellSize = min(cellSizeByWidth.value, cellSizeByHeight.value).dp
+                val cellSize = ((maxWidth - spacing * 9) / 10)
 
                 MultiplicationGrid(
                     spacing = spacing,
@@ -449,7 +455,7 @@ private fun PhoneMultiplicationLayout(
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             PhoneNumberPad(
                 modifier = Modifier.fillMaxWidth(),
@@ -458,6 +464,8 @@ private fun PhoneMultiplicationLayout(
                 onBackClick = onBackClick,
                 onEnterClick = onEnterClick
             )
+
+            Spacer(modifier = Modifier.weight(1f))
         }
     }
 }
