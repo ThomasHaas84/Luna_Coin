@@ -24,6 +24,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -128,18 +129,6 @@ fun SettingsScreen(
         18.dp
     } else {
         24.dp
-    }
-
-    val largeSectionSpacerHeight = if (isPhone) {
-        24.dp
-    } else {
-        32.dp
-    }
-
-    val sectionTitleStyle = if (isPhone) {
-        MaterialTheme.typography.titleLarge
-    } else {
-        MaterialTheme.typography.headlineSmall
     }
 
     LaunchedEffect(currentMessage) {
@@ -248,7 +237,15 @@ fun SettingsScreen(
             }
 
             item {
-                Button(onClick = { showAppSettings = !showAppSettings }) {
+                SettingsSectionHeader(
+                    title = if (klingonModeEnabled) "SeHlaw" else "App-Einstellungen",
+                    isPhone = isPhone
+                )
+
+                Button(
+                    onClick = { showAppSettings = !showAppSettings },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(
                         if (klingonModeEnabled) {
                             if (showAppSettings) "SeHlaw So'." else "SeHlaw cha'."
@@ -264,13 +261,6 @@ fun SettingsScreen(
                 item {
                     Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = if (klingonModeEnabled) "SeHlaw" else "App-Einstellungen",
-                                style = sectionTitleStyle
-                            )
-
-                            Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
-
                             Text(
                                 text = if (klingonModeEnabled) "Hol:" else "Sprache:",
                                 style = MaterialTheme.typography.titleMedium
@@ -355,12 +345,22 @@ fun SettingsScreen(
             }
 
             item {
+                SettingsSectionHeader(
+                    title = if (canEdit) {
+                        if (klingonModeEnabled) "lo'wI'pu' DeQmey je" else "Benutzer & Coins"
+                    } else {
+                        if (klingonModeEnabled) "DeQmeywIj" else "Meine Coins"
+                    },
+                    isPhone = isPhone
+                )
+
                 if (canEdit) {
-                    Button(onClick = { showUsersAndCoins = !showUsersAndCoins }) {
+                    Button(
+                        onClick = { showUsersAndCoins = !showUsersAndCoins },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text(if (showUsersAndCoins) "Benutzer & Coins ausblenden" else "Benutzer & Coins anzeigen")
                     }
-                } else {
-                    Text(if (klingonModeEnabled) "DeQmeywIj" else "Meine Coins", style = sectionTitleStyle)
                 }
             }
 
@@ -442,11 +442,15 @@ fun SettingsScreen(
 
             if (canEdit) {
                 item {
-                    Spacer(modifier = Modifier.height(sectionSpacerHeight))
-                    Text(if (klingonModeEnabled) "bej tetlh" else "Watchlist", style = sectionTitleStyle)
-                    Spacer(modifier = Modifier.height(smallSpacerHeight))
+                    SettingsSectionHeader(
+                        title = if (klingonModeEnabled) "bej tetlh" else "Watchlist",
+                        isPhone = isPhone
+                    )
 
-                    Button(onClick = { showWatchlist = !showWatchlist }) {
+                    Button(
+                        onClick = { showWatchlist = !showWatchlist },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text(if (showWatchlist) "Watchlist ausblenden" else "Watchlist anzeigen")
                     }
                 }
@@ -467,7 +471,15 @@ fun SettingsScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(sectionSpacerHeight))
+                SettingsSectionHeader(
+                    title = if (canEdit) {
+                        if (klingonModeEnabled) "QonoS" else "Protokoll"
+                    } else {
+                        if (klingonModeEnabled) "QonoSwIj" else "Mein Log"
+                    },
+                    isPhone = isPhone
+                )
+
                 if (canEdit) {
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Button(onClick = { showLogs = !showLogs }) {
@@ -485,9 +497,10 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(smallSpacerHeight))
                 } else {
-                    Text(if (klingonModeEnabled) "QonoSwIj" else "Mein Log", style = sectionTitleStyle)
-                    Spacer(modifier = Modifier.height(smallSpacerHeight))
-                    Button(onClick = { showLogs = !showLogs }) {
+                    Button(
+                        onClick = { showLogs = !showLogs },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text(if (showLogs) "Mein Log ausblenden" else "Mein Log anzeigen")
                     }
                     Spacer(modifier = Modifier.height(smallSpacerHeight))
@@ -514,9 +527,11 @@ fun SettingsScreen(
 
             if (canEdit) {
                 item {
-                    Spacer(modifier = Modifier.height(largeSectionSpacerHeight))
-                    Text(if (klingonModeEnabled) "loH" else "Verwaltung", style = sectionTitleStyle)
-                    Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
+                    SettingsSectionHeader(
+                        title = if (klingonModeEnabled) "loH" else "Verwaltung",
+                        isPhone = isPhone,
+                        largeTopSpacing = true
+                    )
 
                     Button(
                         onClick = { showTaskEditor = true },
@@ -547,7 +562,11 @@ fun SettingsScreen(
 
             if (isAdmin) {
                 item {
-                    Spacer(modifier = Modifier.height(largeSectionSpacerHeight))
+                    SettingsSectionHeader(
+                        title = "Admin – Datensicherung",
+                        isPhone = isPhone,
+                        largeTopSpacing = true
+                    )
 
                     OutlinedButton(
                         onClick = { showAdminBackup = !showAdminBackup },
@@ -570,14 +589,6 @@ fun SettingsScreen(
                             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
-                                Text(
-                                    text = "Datensicherung",
-                                    style = sectionTitleStyle,
-                                    fontWeight = FontWeight.Bold
-                                )
-
-                                Spacer(modifier = Modifier.height(12.dp))
-
                                 OutlinedButton(
                                     onClick = { showCreateBackupDialog = true },
                                     modifier = Modifier.fillMaxWidth()
@@ -796,6 +807,43 @@ fun SettingsScreen(
                     onResult(success)
                 }
             }
+        )
+    }
+}
+
+@Composable
+private fun SettingsSectionHeader(
+    title: String,
+    isPhone: Boolean,
+    largeTopSpacing: Boolean = false
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                top = when {
+                    largeTopSpacing && isPhone -> 24.dp
+                    largeTopSpacing -> 32.dp
+                    isPhone -> 18.dp
+                    else -> 24.dp
+                },
+                bottom = if (isPhone) 10.dp else 14.dp
+            )
+    ) {
+        Text(
+            text = title,
+            style = if (isPhone) {
+                MaterialTheme.typography.titleLarge
+            } else {
+                MaterialTheme.typography.headlineSmall
+            },
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(if (isPhone) 6.dp else 8.dp))
+
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant
         )
     }
 }
