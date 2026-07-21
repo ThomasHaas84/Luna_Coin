@@ -1163,10 +1163,14 @@ class LunaCoinViewModel(
         }
 
         val originalData = _data.value
-        val optimisticChild = ProgressManager.addTaskReward(
-            child = currentUser,
-            rewardCoins = operation.rewardCoins
-        )
+        val optimisticChild = if (operation.isEditing) {
+            currentUser
+        } else {
+            ProgressManager.addTaskReward(
+                child = currentUser,
+                rewardCoins = operation.rewardCoins
+            )
+        }
 
         _data.value = sortChildrenInData(
             originalData.copy(
@@ -1185,7 +1189,7 @@ class LunaCoinViewModel(
             try {
                 repository.saveDogPlanCompletion(operation.completion)
 
-                if (operation.rewardCoins > 0) {
+                if (!operation.isEditing && operation.rewardCoins > 0) {
                     val persistedChild = repository.changeChildCoinsAndExperience(
                         childId = currentUser.id,
                         coinDelta = operation.rewardCoins,
@@ -1227,17 +1231,29 @@ class LunaCoinViewModel(
                     timestamp = LocalDateTime.now().toString(),
                     childId = currentUser.id,
                     type = LogType.DOG_PLAN,
-                    text = createDogPlanLogText(
-                        childName = currentUser.name,
-                        templateTitle = template?.title ?: "Hundeplan-Aufgabe",
-                        templateType = template?.type ?: DogPlanTaskType.OTHER,
-                        rewardCoins = operation.completion.rewardCoins,
-                        peed = operation.completion.peed,
-                        pooped = operation.completion.pooped,
-                        diarrhea = operation.completion.diarrhea,
-                        comment = operation.completion.comment
-                    ),
-                    coinChange = operation.completion.rewardCoins
+                    text = if (operation.isEditing) {
+                        createDogPlanEditLogText(
+                            editorName = currentUser.name,
+                            templateTitle = template?.title ?: "Hundeplan-Aufgabe",
+                            templateType = template?.type ?: DogPlanTaskType.OTHER,
+                            peed = operation.completion.peed,
+                            pooped = operation.completion.pooped,
+                            diarrhea = operation.completion.diarrhea,
+                            comment = operation.completion.comment
+                        )
+                    } else {
+                        createDogPlanLogText(
+                            childName = currentUser.name,
+                            templateTitle = template?.title ?: "Hundeplan-Aufgabe",
+                            templateType = template?.type ?: DogPlanTaskType.OTHER,
+                            rewardCoins = operation.completion.rewardCoins,
+                            peed = operation.completion.peed,
+                            pooped = operation.completion.pooped,
+                            diarrhea = operation.completion.diarrhea,
+                            comment = operation.completion.comment
+                        )
+                    },
+                    coinChange = if (operation.isEditing) 0 else operation.completion.rewardCoins
                 )
 
                 repository.saveLog(log)
@@ -1246,7 +1262,13 @@ class LunaCoinViewModel(
                     logs = listOf(log) + _data.value.logs
                 )
 
-                showMessage("✅ Hundeplan-Aufgabe erledigt")
+                showMessage(
+                    if (operation.isEditing) {
+                        "✅ Hundeplan-Eintrag geändert"
+                    } else {
+                        "✅ Hundeplan-Aufgabe erledigt"
+                    }
+                )
             } catch (e: Exception) {
                 _data.value = originalData
                 println("❌ Fehler beim Erledigen der Hundeplan-Aufgabe: ${e.message}")
@@ -1688,6 +1710,43 @@ class LunaCoinViewModel(
         showMessage(backupManager.getImportFromJsonMessage())
     }
 
+
+    private fun createDogPlanEditLogText(
+        editorName: String,
+        templateTitle: String,
+        templateType: DogPlanTaskType,
+        peed: Boolean,
+        pooped: Boolean,
+        diarrhea: Boolean,
+        comment: String
+    ): String {
+        val icon = when (templateType) {
+            DogPlanTaskType.WALK -> "✏️🐶"
+            DogPlanTaskType.FEEDING_EARLY -> "✏️🍖"
+            DogPlanTaskType.FEEDING_LATE -> "✏️🍖"
+            DogPlanTaskType.OTHER -> "✏️🐾"
+        }
+
+        val detailLines = mutableListOf<String>()
+
+        if (templateType == DogPlanTaskType.WALK) {
+            detailLines += if (peed) "✔ Gepinkelt" else "✖ Nicht gepinkelt"
+            detailLines += if (pooped) "✔ Gekackt" else "✖ Nicht gekackt"
+            detailLines += if (diarrhea) "⚠ Durchfall" else "✔ Kein Durchfall"
+        }
+
+        if (comment.isNotBlank()) {
+            detailLines += "Kommentar: ${comment.trim()}"
+        }
+
+        val detailsText = if (detailLines.isNotEmpty()) {
+            "\n" + detailLines.joinToString("\n")
+        } else {
+            ""
+        }
+
+        return "$icon $editorName hat den Eintrag „$templateTitle“ nachträglich bearbeitet.$detailsText"
+    }
 
     private fun createDogPlanLogText(
         childName: String,
