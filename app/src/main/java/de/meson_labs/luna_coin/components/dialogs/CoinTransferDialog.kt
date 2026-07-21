@@ -2,12 +2,14 @@ package de.meson_labs.luna_coin.components.dialogs
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -17,6 +19,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -33,6 +37,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.models.Child
+import de.meson_labs.luna_coin.models.CurrencyType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,42 +45,151 @@ fun CoinTransferDialog(
     sender: Child,
     recipients: List<Child>,
     onDismiss: () -> Unit,
-    onSend: (recipientId: String, amount: Int, comment: String, onResult: (Boolean) -> Unit) -> Unit
+    onSend: (
+        recipientId: String,
+        amount: Long,
+        comment: String,
+        currency: CurrencyType,
+        onResult: (Boolean) -> Unit
+    ) -> Unit
 ) {
-    var selectedRecipient by remember(recipients) { mutableStateOf(recipients.firstOrNull()) }
-    var recipientMenuExpanded by remember { mutableStateOf(false) }
-    var amountText by remember { mutableStateOf("") }
-    var comment by remember { mutableStateOf("") }
-    var showConfirmation by remember { mutableStateOf(false) }
-    var isSending by remember { mutableStateOf(false) }
-    var errorText by remember { mutableStateOf<String?>(null) }
+    var selectedRecipient by remember(recipients) {
+        mutableStateOf(recipients.firstOrNull())
+    }
+    var recipientMenuExpanded by remember {
+        mutableStateOf(false)
+    }
+    var selectedCurrency by remember {
+        mutableStateOf(CurrencyType.LUNA_COIN)
+    }
+    var amountText by remember {
+        mutableStateOf("")
+    }
+    var comment by remember {
+        mutableStateOf("")
+    }
+    var showConfirmation by remember {
+        mutableStateOf(false)
+    }
+    var isSending by remember {
+        mutableStateOf(false)
+    }
+    var errorText by remember {
+        mutableStateOf<String?>(null)
+    }
 
-    val amount = amountText.toIntOrNull() ?: 0
+    val amount = amountText.toLongOrNull() ?: 0L
     val cleanedComment = comment.trim()
+
+    val availableBalance = when (selectedCurrency) {
+        CurrencyType.LUNA_COIN -> sender.coins.toLong()
+        CurrencyType.LUNA_SILVER -> sender.silver
+    }
+
+    val currencyLabel = when (selectedCurrency) {
+        CurrencyType.LUNA_COIN -> "Luna Coins"
+        CurrencyType.LUNA_SILVER -> "Luna Silver"
+    }
+
+    val amountLabel = when (selectedCurrency) {
+        CurrencyType.LUNA_COIN -> "Anzahl Luna Coins"
+        CurrencyType.LUNA_SILVER -> "Anzahl Luna Silver"
+    }
+
     val canContinue =
         selectedRecipient != null &&
-                amount > 0 &&
-                amount <= sender.coins &&
+                amount > 0L &&
+                amount <= availableBalance &&
                 cleanedComment.isNotBlank()
 
     AlertDialog(
-        onDismissRequest = { if (!isSending) onDismiss() },
-        title = { Text("Luna Coins senden") },
+        onDismissRequest = {
+            if (!isSending) {
+                onDismiss()
+            }
+        },
+        title = {
+            Text("Coins senden")
+        },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Image(
-                        painter = painterResource(R.drawable.luna_coin_small),
-                        contentDescription = "Luna Coin",
-                        modifier = Modifier.size(64.dp)
+                Text(
+                    text = "Währung",
+                    fontWeight = FontWeight.Bold
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = selectedCurrency == CurrencyType.LUNA_COIN,
+                        onClick = {
+                            selectedCurrency = CurrencyType.LUNA_COIN
+                            amountText = ""
+                            errorText = null
+                        },
+                        label = {
+                            Text("Luna Coins")
+                        }
                     )
-                    Text(
-                        text = "Dein Guthaben: ${sender.coins}",
-                        fontWeight = FontWeight.Bold
+
+                    FilterChip(
+                        selected = selectedCurrency == CurrencyType.LUNA_SILVER,
+                        onClick = {
+                            selectedCurrency = CurrencyType.LUNA_SILVER
+                            amountText = ""
+                            errorText = null
+                        },
+                        label = {
+                            Text("Luna Silver")
+                        }
                     )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier.size(64.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(
+                                id = when (selectedCurrency) {
+                                    CurrencyType.LUNA_COIN -> R.drawable.luna_coin_small
+                                    CurrencyType.LUNA_SILVER -> R.drawable.luna_silver
+                                }
+                            ),
+                            contentDescription = when (selectedCurrency) {
+                                CurrencyType.LUNA_COIN -> "Luna Coin"
+                                CurrencyType.LUNA_SILVER -> "Luna Silver"
+                            },
+                            modifier = Modifier.size(
+                                when (selectedCurrency) {
+                                    CurrencyType.LUNA_COIN -> 64.dp
+                                    CurrencyType.LUNA_SILVER -> 52.dp
+                                }
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Column {
+                        Text(
+                            text = "Dein Guthaben:",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+
+                        Text(
+                            text = "$availableBalance $currencyLabel",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
                 ExposedDropdownMenuBox(
@@ -88,7 +202,9 @@ fun CoinTransferDialog(
                         value = selectedRecipient?.name.orEmpty(),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Empfänger") },
+                        label = {
+                            Text("Empfänger")
+                        },
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(
                                 expanded = recipientMenuExpanded
@@ -107,10 +223,13 @@ fun CoinTransferDialog(
                     ) {
                         recipients.forEach { recipient ->
                             DropdownMenuItem(
-                                text = { Text(recipient.name) },
+                                text = {
+                                    Text(recipient.name)
+                                },
                                 onClick = {
                                     selectedRecipient = recipient
                                     recipientMenuExpanded = false
+                                    errorText = null
                                 }
                             )
                         }
@@ -122,9 +241,12 @@ fun CoinTransferDialog(
                     onValueChange = { value ->
                         amountText = value
                             .filter(Char::isDigit)
-                            .take(6)
+                            .take(12)
+                        errorText = null
                     },
-                    label = { Text("Anzahl Luna Coins") },
+                    label = {
+                        Text(amountLabel)
+                    },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number
                     ),
@@ -134,12 +256,15 @@ fun CoinTransferDialog(
 
                 OutlinedTextField(
                     value = comment,
-                    onValueChange = {
-                        if (it.length <= 150) {
-                            comment = it
+                    onValueChange = { value ->
+                        if (value.length <= 150) {
+                            comment = value
+                            errorText = null
                         }
                     },
-                    label = { Text("Kommentar (Pflichtfeld)") },
+                    label = {
+                        Text("Kommentar (Pflichtfeld)")
+                    },
                     supportingText = {
                         Text("${comment.length}/150 Zeichen")
                     },
@@ -148,14 +273,18 @@ fun CoinTransferDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                if (amount > 0) {
+                if (amount > 0L) {
                     Text(
-                        "Danach verbleiben dir ${sender.coins - amount} Luna Coins."
+                        text = "Danach verbleiben dir " +
+                                "${availableBalance - amount} $currencyLabel."
                     )
                 }
 
                 errorText?.let { error ->
-                    Text(error)
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         },
@@ -163,17 +292,27 @@ fun CoinTransferDialog(
             Button(
                 onClick = {
                     errorText = when {
-                        selectedRecipient == null ->
+                        selectedRecipient == null -> {
                             "Bitte wähle einen Empfänger aus."
+                        }
 
-                        amount <= 0 ->
+                        amount <= 0L -> {
                             "Bitte gib einen gültigen Betrag ein."
+                        }
 
-                        amount > sender.coins ->
-                            "Du hast nicht genug Luna Coins."
+                        amount > availableBalance -> {
+                            when (selectedCurrency) {
+                                CurrencyType.LUNA_COIN ->
+                                    "Du hast nicht genug Luna Coins."
 
-                        cleanedComment.isBlank() ->
+                                CurrencyType.LUNA_SILVER ->
+                                    "Du hast nicht genug Luna Silver."
+                            }
+                        }
+
+                        cleanedComment.isBlank() -> {
                             "Bitte gib einen Kommentar ein."
+                        }
 
                         else -> null
                     }
@@ -210,23 +349,23 @@ fun CoinTransferDialog(
             text = {
                 Column {
                     Text(
-                        "Du sendest $amount Luna Coin" +
-                                "${if (amount == 1) "" else "s"} an " +
+                        text = "Du sendest $amount $currencyLabel an " +
                                 "${selectedRecipient!!.name}."
                     )
 
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Text("Kommentar:")
+
                     Text(
                         text = "„$cleanedComment“",
                         fontWeight = FontWeight.SemiBold
                     )
 
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        "Diese Aktion kann nicht selbstständig " +
+                        text = "Diese Aktion kann nicht selbstständig " +
                                 "rückgängig gemacht werden."
                     )
                 }
@@ -239,7 +378,8 @@ fun CoinTransferDialog(
                         onSend(
                             selectedRecipient!!.id,
                             amount,
-                            cleanedComment
+                            cleanedComment,
+                            selectedCurrency
                         ) { success ->
                             isSending = false
 
@@ -247,6 +387,7 @@ fun CoinTransferDialog(
                                 onDismiss()
                             } else {
                                 showConfirmation = false
+                                errorText = "Die Übertragung ist fehlgeschlagen."
                             }
                         }
                     },

@@ -63,6 +63,7 @@ import de.meson_labs.luna_coin.components.dialogs.LunaGifDialog
 import de.meson_labs.luna_coin.components.dialogs.ShopEditorDialog
 import de.meson_labs.luna_coin.components.dialogs.TaskEditorDialog
 import de.meson_labs.luna_coin.models.Child
+import de.meson_labs.luna_coin.models.CurrencyType
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.LunaGameType
@@ -510,7 +511,9 @@ fun SettingsScreen(
                 items(visibleUsers) { child ->
                     if (!canEdit && child.role == UserRole.CHILD) {
                         ChildCoinCard(
-                            coins = child.coins
+                            coins = child.coins,
+                            silver = child.silver,
+                            onConvert = { viewModel.convertCoinsToSilver(child.id, it) }
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Button(
@@ -523,7 +526,7 @@ fun SettingsScreen(
                                 modifier = Modifier.size(28.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Luna Coins senden")
+                            Text("Coins senden")
                         }
                     } else {
                         UserManagementCard(
@@ -966,15 +969,33 @@ fun SettingsScreen(
             onDismiss = {
                 childForProgressEdit = null
             },
-            onSave = { coins, experience, availableSkillPoints, intelligence, strength, agility, comment ->
+            onSave = {
+                    coins,
+                    silver,
+                    experience,
+                    availableSkillPoints,
+                    intelligence,
+                    strength,
+                    agility,
+                    endurance,
+                    perception,
+                    charisma,
+                    luck,
+                    comment ->
+
                 viewModel.updateChildProgressAsAdmin(
                     childId = child.id,
                     coins = coins,
+                    silver = silver,
                     experience = experience,
                     availableSkillPoints = availableSkillPoints,
                     intelligence = intelligence,
                     strength = strength,
                     agility = agility,
+                    endurance = endurance,
+                    perception = perception,
+                    charisma = charisma,
+                    luck = luck,
                     comment = comment
                 )
 
@@ -1066,8 +1087,20 @@ fun SettingsScreen(
             sender = selectedChild,
             recipients = data.children.filter { it.id != selectedChild.id },
             onDismiss = { showCoinTransferDialog = false },
-            onSend = { recipientId, amount, comment, onResult ->
-                viewModel.transferCoins(selectedChild.id, recipientId, amount, comment) { success, _ ->
+            onSend = {
+                    recipientId,
+                    amount,
+                    comment,
+                    currency,
+                    onResult ->
+
+                viewModel.transferCoins(
+                    senderId = selectedChild.id,
+                    recipientId = recipientId,
+                    amount = amount,
+                    comment = comment,
+                    currency = currency
+                ) { success, _ ->
                     onResult(success)
                 }
             }
@@ -1237,20 +1270,105 @@ private fun SettingsSectionHeader(
 
 @Composable
 private fun ChildCoinCard(
-    coins: Int
+    coins: Int,
+    silver: Long,
+    onConvert: (Int) -> Unit
 ) {
+    var convertText by remember {
+        mutableStateOf("")
+    }
+
+    val conversionAmount = convertText.toIntOrNull() ?: 0
+    val canConvert = conversionAmount in 1..coins
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        LargeCoinAmountDisplay(
-            amount = coins,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 1.dp
         )
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                LargeCoinAmountDisplay(
+                    amount = coins,
+                    modifier = Modifier.weight(1f)
+                )
+
+                LargeSilverAmountDisplay(
+                    amount = silver,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = "Luna Coins in Luna Silver umwandeln",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "1 Luna Coin = 100 Luna Silver. " +
+                        "Eine Rückumwandlung ist nicht möglich.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = convertText,
+                    onValueChange = { value ->
+                        convertText = value
+                            .filter(Char::isDigit)
+                            .take(6)
+                    },
+                    label = {
+                        Text("Luna Coins")
+                    },
+                    supportingText = {
+                        if (conversionAmount > 0) {
+                            Text(
+                                "$conversionAmount Coins = " +
+                                        "${conversionAmount * 100L} Luna Silver"
+                            )
+                        }
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Button(
+                    onClick = {
+                        onConvert(conversionAmount)
+                        convertText = ""
+                    },
+                    enabled = canConvert
+                ) {
+                    Text("Umwandeln")
+                }
+            }
+        }
     }
 }
 
@@ -1283,6 +1401,7 @@ private fun UserManagementCard(
                 Text("${child.name}: ", style = MaterialTheme.typography.bodyLarge)
 
                 CoinDisplay(amount = child.coins)
+                Text(" · ${child.silver} Silver")
 
                 Text(
                     text = " · ${child.role.toDisplayText()}",
@@ -1292,7 +1411,7 @@ private fun UserManagementCard(
                 if (child.isBuiltInAdmin) {
                     Text(
                         text = " · Standard-Admin",
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -1397,23 +1516,124 @@ private fun LargeCoinAmountDisplay(
     amount: Int,
     modifier: Modifier = Modifier
 ) {
+    val isPhone = LocalConfiguration.current.smallestScreenWidthDp < 600
+    val coinImageSize = if (isPhone) 140.dp else 200.dp
+    val imageAreaHeight = coinImageSize
+    val amountAreaHeight = if (isPhone) 48.dp else 64.dp
+    val labelAreaHeight = 28.dp
+
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.luna_coin_small),
-            contentDescription = "Luna Coin",
-            modifier = Modifier.size(200.dp)
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(imageAreaHeight),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.luna_coin_small),
+                contentDescription = "Luna Coin",
+                modifier = Modifier.size(coinImageSize)
+            )
+        }
 
-        Text(
-            text = amount.toString(),
-            style = MaterialTheme.typography.displayMedium,
-            color = MaterialTheme.colorScheme.tertiary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(amountAreaHeight),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = amount.toString(),
+                style = if (isPhone) {
+                    MaterialTheme.typography.headlineLarge
+                } else {
+                    MaterialTheme.typography.displayMedium
+                },
+                color = MaterialTheme.colorScheme.tertiary,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(labelAreaHeight),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Text(
+                text = "Luna Coins",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun LargeSilverAmountDisplay(
+    amount: Long,
+    modifier: Modifier = Modifier
+) {
+    val isPhone = LocalConfiguration.current.smallestScreenWidthDp < 600
+    val silverImageSize = if (isPhone) 110.dp else 155.dp
+    val imageAreaHeight = if (isPhone) 140.dp else 200.dp
+    val amountAreaHeight = if (isPhone) 48.dp else 64.dp
+    val labelAreaHeight = 28.dp
+
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(imageAreaHeight),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.luna_silver),
+                contentDescription = "Luna Silver",
+                modifier = Modifier.size(silverImageSize)
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(amountAreaHeight),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = amount.toString(),
+                style = if (isPhone) {
+                    MaterialTheme.typography.headlineMedium
+                } else {
+                    MaterialTheme.typography.displaySmall
+                },
+                color = MaterialTheme.colorScheme.secondary,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(labelAreaHeight),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Text(
+                text = "Luna Silver",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
@@ -1424,26 +1644,37 @@ private fun ProgressEditDialog(
     onDismiss: () -> Unit,
     onSave: (
         coins: Int,
+        silver: Long,
         experience: Int,
         availableSkillPoints: Int,
         intelligence: Int,
         strength: Int,
         agility: Int,
+        endurance: Int,
+        perception: Int,
+        charisma: Int,
+        luck: Int,
         comment: String?
     ) -> Unit
 ) {
     var coinsText by remember(child.id) { mutableStateOf(child.coins.toString()) }
+    var silverText by remember(child.id) { mutableStateOf(child.silver.toString()) }
     var experienceText by remember(child.id) { mutableStateOf(child.experience.toString()) }
     var skillPointsText by remember(child.id) { mutableStateOf(child.availableSkillPoints.toString()) }
 
     var intelligence by remember(child.id) { mutableIntStateOf(child.intelligence.coerceIn(1, 100)) }
     var strength by remember(child.id) { mutableIntStateOf(child.strength.coerceIn(1, 100)) }
     var agility by remember(child.id) { mutableIntStateOf(child.agility.coerceIn(1, 100)) }
+    var endurance by remember(child.id) { mutableIntStateOf(child.endurance.coerceIn(1, 100)) }
+    var perception by remember(child.id) { mutableIntStateOf(child.perception.coerceIn(1, 100)) }
+    var charisma by remember(child.id) { mutableIntStateOf(child.charisma.coerceIn(1, 100)) }
+    var luck by remember(child.id) { mutableIntStateOf(child.luck.coerceIn(1, 100)) }
 
     var commentText by remember(child.id) { mutableStateOf("") }
     var errorText by remember(child.id) { mutableStateOf<String?>(null) }
 
     val coins = coinsText.toIntOrNull() ?: 0
+    val silver = silverText.toLongOrNull() ?: 0L
     val experience = experienceText.toIntOrNull() ?: 0
     val availableSkillPoints = skillPointsText.toIntOrNull() ?: 0
 
@@ -1512,6 +1743,23 @@ private fun ProgressEditDialog(
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = silverText,
+                        onValueChange = { value ->
+                            silverText = value.filter(Char::isDigit)
+                            errorText = null
+                        },
+                        label = {
+                            Text("Luna Silver")
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     Button(
                         onClick = {
@@ -1547,7 +1795,7 @@ private fun ProgressEditDialog(
                         } else {
                             "Level $calculatedLevel · nächstes Level in $experienceUntilNextLevel EP"
                         },
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
                     )
@@ -1635,13 +1883,57 @@ private fun ProgressEditDialog(
                     )
 
                     SkillAdminRow(
-                        label = "⚡ Geschicklichkeit",
+                        label = "⚡ Beweglichkeit",
                         value = agility,
                         onMinus = {
                             changeSkill(agility, -1) { agility = it }
                         },
                         onPlus = {
                             changeSkill(agility, 1) { agility = it }
+                        }
+                    )
+
+                    SkillAdminRow(
+                        label = "🛡️ Ausdauer",
+                        value = endurance,
+                        onMinus = {
+                            changeSkill(endurance, -1) { endurance = it }
+                        },
+                        onPlus = {
+                            changeSkill(endurance, 1) { endurance = it }
+                        }
+                    )
+
+                    SkillAdminRow(
+                        label = "👁️ Wahrnehmung",
+                        value = perception,
+                        onMinus = {
+                            changeSkill(perception, -1) { perception = it }
+                        },
+                        onPlus = {
+                            changeSkill(perception, 1) { perception = it }
+                        }
+                    )
+
+                    SkillAdminRow(
+                        label = "💬 Charisma",
+                        value = charisma,
+                        onMinus = {
+                            changeSkill(charisma, -1) { charisma = it }
+                        },
+                        onPlus = {
+                            changeSkill(charisma, 1) { charisma = it }
+                        }
+                    )
+
+                    SkillAdminRow(
+                        label = "🍀 Glück",
+                        value = luck,
+                        onMinus = {
+                            changeSkill(luck, -1) { luck = it }
+                        },
+                        onPlus = {
+                            changeSkill(luck, 1) { luck = it }
                         }
                     )
 
@@ -1691,11 +1983,16 @@ private fun ProgressEditDialog(
 
                         onSave(
                             coins.coerceAtLeast(0),
+                            silver.coerceAtLeast(0L),
                             experience.coerceAtLeast(0),
                             availableSkillPoints.coerceAtLeast(0),
                             intelligence.coerceIn(1, 100),
                             strength.coerceIn(1, 100),
                             agility.coerceIn(1, 100),
+                            endurance.coerceIn(1, 100),
+                            perception.coerceIn(1, 100),
+                            charisma.coerceIn(1, 100),
+                            luck.coerceIn(1, 100),
                             commentText.trim().ifBlank { null }
                         )
                     },
@@ -1733,7 +2030,7 @@ private fun SkillAdminRow(
         Text(
             text = label,
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold
         )
 

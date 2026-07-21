@@ -17,8 +17,8 @@ android {
         applicationId = "de.meson_labs.luna_coin"
         minSdk = 29
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.9.5"
+        versionCode = 10
+        versionName = "0.9.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

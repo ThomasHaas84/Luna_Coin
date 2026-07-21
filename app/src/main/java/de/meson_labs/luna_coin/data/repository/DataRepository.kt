@@ -1,38 +1,14 @@
 package de.meson_labs.luna_coin.data.repository
 
-import de.meson_labs.luna_coin.models.Child
-import de.meson_labs.luna_coin.models.DogPlanData
-import de.meson_labs.luna_coin.models.DogPlanShift
-import de.meson_labs.luna_coin.models.DogPlanTaskCompletion
-import de.meson_labs.luna_coin.models.DogPlanTaskTemplate
-import de.meson_labs.luna_coin.models.DogScheduleItem
-import de.meson_labs.luna_coin.models.GameDailyReward
-import de.meson_labs.luna_coin.models.GameHighscore
-import de.meson_labs.luna_coin.models.GameSettings
-import de.meson_labs.luna_coin.models.LogEntry
-import de.meson_labs.luna_coin.models.LuckyWheelUsage
-import de.meson_labs.luna_coin.models.LunaCoinData
-import de.meson_labs.luna_coin.models.LunaGameType
-import de.meson_labs.luna_coin.models.LunaInventoryItem
-import de.meson_labs.luna_coin.models.ShopItem
-import de.meson_labs.luna_coin.models.TaskItem
-import de.meson_labs.luna_coin.models.UserRole
+import de.meson_labs.luna_coin.models.*
 
 interface DataRepository {
-
     suspend fun loadData(): LunaCoinData?
     suspend fun saveData(data: LunaCoinData)
-
     suspend fun createCloudBackup(data: LunaCoinData)
     suspend fun loadCloudBackup(): LunaCoinData?
-
-    fun startRealtimeSync(
-        onDataChanged: (LunaCoinData) -> Unit,
-        onError: (Exception) -> Unit
-    )
-
+    fun startRealtimeSync(onDataChanged: (LunaCoinData) -> Unit, onError: (Exception) -> Unit)
     fun stopRealtimeSync()
-
     suspend fun loadChildren(): List<Child>
     suspend fun loadTasks(): List<TaskItem>
     suspend fun loadShopItems(): List<ShopItem>
@@ -46,7 +22,6 @@ interface DataRepository {
     suspend fun loadGameHighscores(): List<GameHighscore>
     suspend fun loadGameDailyRewards(): List<GameDailyReward>
     suspend fun loadGameSettings(): GameSettings
-
     suspend fun saveChild(child: Child)
     suspend fun saveTask(task: TaskItem)
     suspend fun saveShopItem(shopItem: ShopItem)
@@ -60,61 +35,13 @@ interface DataRepository {
     suspend fun saveGameHighscore(highscore: GameHighscore)
     suspend fun saveGameDailyReward(reward: GameDailyReward)
     suspend fun saveGameSettings(settings: GameSettings)
-
-    suspend fun updateChildInventory(
-        childId: String,
-        inventory: List<LunaInventoryItem>,
-        equippedItem: LunaInventoryItem?,
-        profileImageItem: LunaInventoryItem?,
-        hasProfileImage: Boolean
-    )
-
-    suspend fun updateChildProfile(
-        childId: String,
-        name: String,
-        role: UserRole,
-        password: String,
-        age: Int,
-        passwordRequired: Boolean,
-        allowRememberLogin: Boolean,
-        isBuiltInAdmin: Boolean
-    )
-
-    suspend fun updateChildProgress(
-        childId: String,
-        level: Int,
-        experience: Int,
-        availableSkillPoints: Int,
-        intelligence: Int,
-        strength: Int,
-        agility: Int,
-        endurance: Int,
-        perception: Int,
-        charisma: Int,
-        luck: Int
-    ) {
-        // Default no-op for Preview/Fake repositories.
+    suspend fun updateChildInventory(childId: String, inventory: List<LunaInventoryItem>, equippedItem: LunaInventoryItem?, profileImageItem: LunaInventoryItem?, hasProfileImage: Boolean)
+    suspend fun updateChildProfile(childId: String, name: String, role: UserRole, password: String, age: Int, passwordRequired: Boolean, allowRememberLogin: Boolean, isBuiltInAdmin: Boolean)
+    suspend fun updateChildProgress(childId: String, level: Int, experience: Int, availableSkillPoints: Int, intelligence: Int, strength: Int, agility: Int, endurance: Int, perception: Int, charisma: Int, luck: Int) {}
+    suspend fun changeChildCoinsAndExperience(childId: String, coinDelta: Int, experienceDelta: Int): Child {
+        val currentChild = loadChildren().firstOrNull { it.id == childId } ?: error("Benutzer nicht gefunden")
+        return de.meson_labs.luna_coin.manager.ProgressManager.addCoinsAndExperience(currentChild, coinDelta, experienceDelta).also { saveChild(it) }
     }
-
-    suspend fun changeChildCoinsAndExperience(
-        childId: String,
-        coinDelta: Int,
-        experienceDelta: Int
-    ): Child {
-        val children = loadChildren()
-        val currentChild = children.firstOrNull { it.id == childId }
-            ?: throw IllegalStateException("Benutzer nicht gefunden")
-
-        val updatedChild = de.meson_labs.luna_coin.manager.ProgressManager.addCoinsAndExperience(
-            child = currentChild,
-            coinDelta = coinDelta,
-            experienceDelta = experienceDelta
-        )
-
-        saveChild(updatedChild)
-        return updatedChild
-    }
-
     suspend fun deleteChild(childId: String)
     suspend fun deleteTask(taskId: String)
     suspend fun deleteShopItem(shopItemId: String)
@@ -126,29 +53,18 @@ interface DataRepository {
     suspend fun deleteLuckyWheelUsage(usageId: String)
     suspend fun deleteGameHighscore(highscoreId: String)
     suspend fun deleteGameDailyReward(rewardId: String)
-
     suspend fun deleteGameHighscoresByGame(game: LunaGameType)
     suspend fun deleteAllGameHighscores()
-
-    suspend fun setChildCoins(
-        childId: String,
-        coins: Int
-    ): Int
-
-    suspend fun changeChildCoins(
-        childId: String,
-        coinDelta: Int
-    ): Int
-
-    suspend fun transferCoins(
-        senderId: String,
-        recipientId: String,
-        amount: Int,
-        senderLog: LogEntry,
-        recipientLog: LogEntry
-    ): Pair<Int, Int> {
-        throw UnsupportedOperationException(
-            "Coin-Übertragungen werden von diesem Repository nicht unterstützt"
-        )
+    suspend fun setChildCoins(childId: String, coins: Int): Int
+    suspend fun changeChildCoins(childId: String, coinDelta: Int): Int
+    suspend fun setChildSilver(childId: String, silver: Long): Long
+    suspend fun changeChildSilver(childId: String, silverDelta: Long): Long
+    suspend fun convertCoinsToSilver(childId: String, coinAmount: Int, log: LogEntry): Pair<Int, Long>
+    suspend fun transferCurrency(senderId: String, recipientId: String, amount: Long, currency: CurrencyType, senderLog: LogEntry, recipientLog: LogEntry): Pair<Long, Long> {
+        throw UnsupportedOperationException("Währungsübertragungen werden von diesem Repository nicht unterstützt")
+    }
+    suspend fun transferCoins(senderId: String, recipientId: String, amount: Int, senderLog: LogEntry, recipientLog: LogEntry): Pair<Int, Int> {
+        val result = transferCurrency(senderId, recipientId, amount.toLong(), CurrencyType.LUNA_COIN, senderLog, recipientLog)
+        return result.first.toInt() to result.second.toInt()
     }
 }

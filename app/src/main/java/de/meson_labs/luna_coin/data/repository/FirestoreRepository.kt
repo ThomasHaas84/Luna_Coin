@@ -7,6 +7,7 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import de.meson_labs.luna_coin.models.Child
+import de.meson_labs.luna_coin.models.CurrencyType
 import de.meson_labs.luna_coin.models.DogPlanData
 import de.meson_labs.luna_coin.models.DogPlanShift
 import de.meson_labs.luna_coin.models.DogPlanTaskCompletion
@@ -708,6 +709,7 @@ class FirestoreRepository : DataRepository {
                 familyId = snapshot.getString("familyId") ?: familyId,
                 name = snapshot.getString("name") ?: "",
                 coins = updatedCoins,
+                silver = snapshot.getLong("silver") ?: 0L,
                 level = snapshot.getLong("level")?.toInt() ?: 1,
                 experience = snapshot.getLong("experience")?.toInt() ?: 0,
                 availableSkillPoints = snapshot.getLong("availableSkillPoints")?.toInt() ?: 0,
@@ -888,52 +890,38 @@ class FirestoreRepository : DataRepository {
     }
 
 
-    override suspend fun transferCoins(
-        senderId: String,
-        recipientId: String,
-        amount: Int,
-        senderLog: LogEntry,
-        recipientLog: LogEntry
-    ): Pair<Int, Int> {
-        require(senderId != recipientId) { "Sender und Empfänger dürfen nicht identisch sein" }
-        require(amount > 0) { "Der Betrag muss größer als 0 sein" }
-
-        val senderRef = childrenRef.document(senderId)
-        val recipientRef = childrenRef.document(recipientId)
-        val senderLogItem = prepareForSave(senderLog)
-        val recipientLogItem = prepareForSave(recipientLog)
-
+    override suspend fun transferCurrency(
+        senderId: String, recipientId: String, amount: Long, currency: CurrencyType,
+        senderLog: LogEntry, recipientLog: LogEntry
+    ): Pair<Long, Long> {
+        require(senderId != recipientId); require(amount > 0)
+        val senderRef = childrenRef.document(senderId); val recipientRef = childrenRef.document(recipientId)
+        val senderLogItem = prepareForSave(senderLog); val recipientLogItem = prepareForSave(recipientLog)
+        val field = if (currency == CurrencyType.LUNA_COIN) "coins" else "silver"
         val result = db.runTransaction { transaction ->
-            val senderSnapshot = transaction.get(senderRef)
-            val recipientSnapshot = transaction.get(recipientRef)
+            val senderSnapshot = transaction.get(senderRef); val recipientSnapshot = transaction.get(recipientRef)
+            if (!senderSnapshot.exists() || !recipientSnapshot.exists()) throw IllegalStateException("Sender oder Empfänger wurde nicht gefunden")
+            val senderBalance = senderSnapshot.getLong(field) ?: 0L; val recipientBalance = recipientSnapshot.getLong(field) ?: 0L
+            if (senderBalance < amount) throw IllegalStateException(if(currency==CurrencyType.LUNA_COIN) "Nicht genug Luna Coins" else "Nicht genug Luna Silver")
+            val now=Timestamp.now(); val newSender=senderBalance-amount; val newRecipient=recipientBalance+amount
+            transaction.update(senderRef,mapOf(field to newSender,"updatedAt" to now)); transaction.update(recipientRef,mapOf(field to newRecipient,"updatedAt" to now))
+            transaction.set(logsRef.document(senderLogItem.id),senderLogItem); transaction.set(logsRef.document(recipientLogItem.id),recipientLogItem)
+            newSender to newRecipient
+        }.await(); updateFamilyTimestamp(); return result
+    }
 
-            if (!senderSnapshot.exists()) {
-                throw IllegalStateException("Sender wurde nicht gefunden")
-            }
-            if (!recipientSnapshot.exists()) {
-                throw IllegalStateException("Empfänger wurde nicht gefunden")
-            }
+    override suspend fun transferCoins(senderId:String,recipientId:String,amount:Int,senderLog:LogEntry,recipientLog:LogEntry):Pair<Int,Int>{
+        val r=transferCurrency(senderId,recipientId,amount.toLong(),CurrencyType.LUNA_COIN,senderLog,recipientLog); return r.first.toInt() to r.second.toInt()
+    }
 
-            val senderCoins = senderSnapshot.getLong("coins")?.toInt() ?: 0
-            val recipientCoins = recipientSnapshot.getLong("coins")?.toInt() ?: 0
-            if (senderCoins < amount) {
-                throw IllegalStateException("Nicht genug Luna Coins")
-            }
-
-            val newSenderCoins = senderCoins - amount
-            val newRecipientCoins = recipientCoins + amount
-            val now = Timestamp.now()
-
-            transaction.update(senderRef, mapOf("coins" to newSenderCoins, "updatedAt" to now))
-            transaction.update(recipientRef, mapOf("coins" to newRecipientCoins, "updatedAt" to now))
-            transaction.set(logsRef.document(senderLogItem.id), senderLogItem)
-            transaction.set(logsRef.document(recipientLogItem.id), recipientLogItem)
-
-            newSenderCoins to newRecipientCoins
-        }.await()
-
-        updateFamilyTimestamp()
-        return result
+    override suspend fun setChildSilver(childId:String,silver:Long):Long {
+        childrenRef.document(childId).set(mapOf("silver" to silver.coerceAtLeast(0L),"updatedAt" to Timestamp.now()),SetOptions.merge()).await(); updateFamilyTimestamp(); return silver.coerceAtLeast(0L)
+    }
+    override suspend fun changeChildSilver(childId:String,silverDelta:Long):Long {
+        val ref=childrenRef.document(childId); val value=db.runTransaction{t->val snap=t.get(ref);val updated=(snap.getLong("silver")?:0L)+silverDelta;if(updated<0)throw IllegalStateException("Nicht genug Luna Silver");t.update(ref,mapOf("silver" to updated,"updatedAt" to Timestamp.now()));updated}.await();updateFamilyTimestamp();return value
+    }
+    override suspend fun convertCoinsToSilver(childId:String,coinAmount:Int,log:LogEntry):Pair<Int,Long>{
+        require(coinAmount>0); val ref=childrenRef.document(childId); val item=prepareForSave(log); val result=db.runTransaction{t->val snap=t.get(ref);val coins=snap.getLong("coins")?.toInt()?:0;if(coins<coinAmount)throw IllegalStateException("Nicht genug Luna Coins");val silver=snap.getLong("silver")?:0L;val newCoins=coins-coinAmount;val newSilver=silver+coinAmount*100L;val now=Timestamp.now();t.update(ref,mapOf("coins" to newCoins,"silver" to newSilver,"updatedAt" to now));t.set(logsRef.document(item.id),item);newCoins to newSilver}.await();updateFamilyTimestamp();return result
     }
 
     override suspend fun setChildCoins(
