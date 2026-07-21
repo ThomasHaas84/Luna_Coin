@@ -80,6 +80,9 @@ class LunaCoinViewModel(
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
+    private val _celebrations = MutableStateFlow<List<CelebrationEvent>>(emptyList())
+    val celebrations: StateFlow<List<CelebrationEvent>> = _celebrations.asStateFlow()
+
     private var realtimeSyncStarted = false
     private var automaticHighscoreResetRunning = false
 
@@ -448,6 +451,11 @@ class LunaCoinViewModel(
                     persistedChild = persistedChild
                 )
 
+                showHighscoreCelebration(
+                    game = game,
+                    highscores = operation.newHighscores
+                )
+
                 showLevelUpIfNeeded(
                     originalData = operation.originalData,
                     persistedChild = persistedChild
@@ -543,6 +551,11 @@ class LunaCoinViewModel(
                 _data.value = gameHighscoreManager.applyPersistedChildProgress(
                     currentData = _data.value,
                     persistedChild = persistedChild
+                )
+
+                showHighscoreCelebration(
+                    game = game,
+                    highscores = listOf(operation.highscore)
                 )
 
                 showLevelUpIfNeeded(
@@ -1543,9 +1556,63 @@ class LunaCoinViewModel(
             }
         }
 
-        showMessage(
-            "🎉 Level-Up! $childName ist jetzt Level ${persistedChild.level}. $skillPointText verfügbar!"
+        enqueueCelebration(
+            CelebrationEvent(
+                id = UUID.randomUUID().toString(),
+                type = CelebrationType.LEVEL_UP,
+                title = "LEVEL AUFSTIEG!",
+                subtitle = "$childName erreicht Level ${persistedChild.level}",
+                details = skillPointText,
+                footer = "Jetzt im LunaME-Skillbereich verfügbar"
+            )
         )
+    }
+
+    fun dismissCelebration(eventId: String) {
+        _celebrations.value = _celebrations.value.filterNot { event ->
+            event.id == eventId
+        }
+    }
+
+    private fun enqueueCelebration(event: CelebrationEvent) {
+        _celebrations.value = _celebrations.value + event
+    }
+
+    private fun showHighscoreCelebration(
+        game: LunaGameType,
+        highscores: List<de.meson_labs.luna_coin.models.GameHighscore>
+    ) {
+        if (highscores.isEmpty()) return
+
+        val detailText = highscores.joinToString(separator = "\n") { highscore ->
+            when (highscore.scoreType) {
+                LunaGameScoreType.ATTEMPTS -> "${highscore.value} Versuche"
+                LunaGameScoreType.TIME_SECONDS -> formatSeconds(highscore.value)
+                else -> "${highscore.value} Punkte"
+            }
+        }
+
+        enqueueCelebration(
+            CelebrationEvent(
+                id = UUID.randomUUID().toString(),
+                type = CelebrationType.HIGHSCORE,
+                title = "NEUER HIGHSCORE!",
+                subtitle = getGameDisplayName(game),
+                details = detailText,
+                footer = "+${ProgressManager.EXPERIENCE_PER_NEW_HIGHSCORE} EP erhalten"
+            )
+        )
+    }
+
+    private fun formatSeconds(totalSeconds: Int): String {
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+
+        return if (minutes > 0) {
+            "${minutes}:${seconds.toString().padStart(2, '0')} Minuten"
+        } else {
+            "$seconds Sekunden"
+        }
     }
 
     private fun getSelectedChild(): Child? {

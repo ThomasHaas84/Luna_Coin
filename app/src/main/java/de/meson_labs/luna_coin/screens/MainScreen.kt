@@ -66,6 +66,7 @@ fun MainScreen(
     val selectedChildId by viewModel.selectedChildId.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
     val message by viewModel.message.collectAsState()
+    val celebrations by viewModel.celebrations.collectAsState()
 
     val view = LocalView.current
     val context = LocalContext.current
@@ -336,6 +337,16 @@ fun MainScreen(
                     text = text,
                     isPhone = isPhone,
                     modifier = Modifier.align(Alignment.TopCenter)
+                )
+            }
+
+            celebrations.firstOrNull()?.let { celebration ->
+                CelebrationOverlay(
+                    event = celebration,
+                    isPhone = isPhone,
+                    onFinished = {
+                        viewModel.dismissCelebration(celebration.id)
+                    }
                 )
             }
         }

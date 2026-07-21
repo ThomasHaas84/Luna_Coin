@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -855,12 +856,14 @@ private fun SkillCard(
                 modifier = Modifier
                     .padding(end = if (isPhone) 2.dp else 6.dp)
                     .size(if (isPhone) 38.dp else 52.dp),
-                contentPadding = ButtonDefaults.ContentPadding
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
             ) {
-                Text(
-                    text = "+",
-                    style = if (isPhone) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Black
+                androidx.compose.material3.Icon(
+                    imageVector = androidx.compose.material.icons.Icons.Default.Add,
+                    contentDescription = "Skill erhöhen",
+                    modifier = Modifier.size(
+                        if (isPhone) 22.dp else 28.dp
+                    )
                 )
             }
         }
