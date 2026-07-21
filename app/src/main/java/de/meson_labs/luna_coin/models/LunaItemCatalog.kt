@@ -167,6 +167,30 @@ object LunaItemCatalog {
         ),
 
         LunaItemDefinition(
+            item = LunaInventoryItem.beer_1,
+            title = "Oktoberfest",
+            priceCoins = 10,
+            iconRes = R.drawable.beer_1,
+            lunaImageRes = R.drawable.beer_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.food_1,
+            title = "Döner",
+            priceCoins = 10,
+            iconRes = R.drawable.food_1,
+            lunaImageRes = R.drawable.food_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.chef_1,
+            title = "Koch",
+            priceCoins = 20,
+            iconRes = R.drawable.chef_1,
+            lunaImageRes = R.drawable.chef_1
+        ),
+
+        LunaItemDefinition(
             item = LunaInventoryItem.hase_1,
             title = "Hase",
             priceCoins = 20,
@@ -372,6 +396,14 @@ object LunaItemCatalog {
             priceCoins = 100,
             iconRes = R.drawable.flash_1,
             lunaImageRes = R.drawable.luna_flash_1
+        ),
+
+        LunaItemDefinition(
+            item = LunaInventoryItem.texas_1,
+            title = "Texas",
+            priceCoins = 100,
+            iconRes = R.drawable.texas_1,
+            lunaImageRes = R.drawable.texas_1
         ),
 
         LunaItemDefinition(
