@@ -80,9 +80,6 @@ class LunaCoinViewModel(
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
-    private val _celebrations = MutableStateFlow<List<CelebrationEvent>>(emptyList())
-    val celebrations: StateFlow<List<CelebrationEvent>> = _celebrations.asStateFlow()
-
     private var realtimeSyncStarted = false
     private var automaticHighscoreResetRunning = false
 
@@ -451,11 +448,6 @@ class LunaCoinViewModel(
                     persistedChild = persistedChild
                 )
 
-                showHighscoreCelebration(
-                    game = game,
-                    highscores = operation.newHighscores
-                )
-
                 showLevelUpIfNeeded(
                     originalData = operation.originalData,
                     persistedChild = persistedChild
@@ -551,11 +543,6 @@ class LunaCoinViewModel(
                 _data.value = gameHighscoreManager.applyPersistedChildProgress(
                     currentData = _data.value,
                     persistedChild = persistedChild
-                )
-
-                showHighscoreCelebration(
-                    game = game,
-                    highscores = listOf(operation.highscore)
                 )
 
                 showLevelUpIfNeeded(
@@ -1176,14 +1163,10 @@ class LunaCoinViewModel(
         }
 
         val originalData = _data.value
-        val optimisticChild = if (operation.isEditing) {
-            currentUser
-        } else {
-            ProgressManager.addTaskReward(
-                child = currentUser,
-                rewardCoins = operation.rewardCoins
-            )
-        }
+        val optimisticChild = ProgressManager.addTaskReward(
+            child = currentUser,
+            rewardCoins = operation.rewardCoins
+        )
 
         _data.value = sortChildrenInData(
             originalData.copy(
@@ -1202,7 +1185,7 @@ class LunaCoinViewModel(
             try {
                 repository.saveDogPlanCompletion(operation.completion)
 
-                if (!operation.isEditing && operation.rewardCoins > 0) {
+                if (operation.rewardCoins > 0) {
                     val persistedChild = repository.changeChildCoinsAndExperience(
                         childId = currentUser.id,
                         coinDelta = operation.rewardCoins,
@@ -1244,29 +1227,17 @@ class LunaCoinViewModel(
                     timestamp = LocalDateTime.now().toString(),
                     childId = currentUser.id,
                     type = LogType.DOG_PLAN,
-                    text = if (operation.isEditing) {
-                        createDogPlanEditLogText(
-                            editorName = currentUser.name,
-                            templateTitle = template?.title ?: "Hundeplan-Aufgabe",
-                            templateType = template?.type ?: DogPlanTaskType.OTHER,
-                            peed = operation.completion.peed,
-                            pooped = operation.completion.pooped,
-                            diarrhea = operation.completion.diarrhea,
-                            comment = operation.completion.comment
-                        )
-                    } else {
-                        createDogPlanLogText(
-                            childName = currentUser.name,
-                            templateTitle = template?.title ?: "Hundeplan-Aufgabe",
-                            templateType = template?.type ?: DogPlanTaskType.OTHER,
-                            rewardCoins = operation.completion.rewardCoins,
-                            peed = operation.completion.peed,
-                            pooped = operation.completion.pooped,
-                            diarrhea = operation.completion.diarrhea,
-                            comment = operation.completion.comment
-                        )
-                    },
-                    coinChange = if (operation.isEditing) 0 else operation.completion.rewardCoins
+                    text = createDogPlanLogText(
+                        childName = currentUser.name,
+                        templateTitle = template?.title ?: "Hundeplan-Aufgabe",
+                        templateType = template?.type ?: DogPlanTaskType.OTHER,
+                        rewardCoins = operation.completion.rewardCoins,
+                        peed = operation.completion.peed,
+                        pooped = operation.completion.pooped,
+                        diarrhea = operation.completion.diarrhea,
+                        comment = operation.completion.comment
+                    ),
+                    coinChange = operation.completion.rewardCoins
                 )
 
                 repository.saveLog(log)
@@ -1275,13 +1246,7 @@ class LunaCoinViewModel(
                     logs = listOf(log) + _data.value.logs
                 )
 
-                showMessage(
-                    if (operation.isEditing) {
-                        "✅ Hundeplan-Eintrag geändert"
-                    } else {
-                        "✅ Hundeplan-Aufgabe erledigt"
-                    }
-                )
+                showMessage("✅ Hundeplan-Aufgabe erledigt")
             } catch (e: Exception) {
                 _data.value = originalData
                 println("❌ Fehler beim Erledigen der Hundeplan-Aufgabe: ${e.message}")
@@ -1432,7 +1397,7 @@ class LunaCoinViewModel(
                 append("\nSkillpunkte: ${currentChild.availableSkillPoints} → ${updatedChild.availableSkillPoints}")
                 append("\nIntelligenz: ${currentChild.intelligence} → ${updatedChild.intelligence}")
                 append("\nStärke: ${currentChild.strength} → ${updatedChild.strength}")
-                append("\nGeschicklichkeit: ${currentChild.agility} → ${updatedChild.agility}")
+                append("\nBeweglichkeit: ${currentChild.agility} → ${updatedChild.agility}")
 
                 val safeComment = comment?.trim().orEmpty()
                 if (safeComment.isNotBlank()) {
@@ -1465,7 +1430,11 @@ class LunaCoinViewModel(
                     availableSkillPoints = updatedChild.availableSkillPoints,
                     intelligence = updatedChild.intelligence,
                     strength = updatedChild.strength,
-                    agility = updatedChild.agility
+                    agility = updatedChild.agility,
+                    endurance = updatedChild.endurance,
+                    perception = updatedChild.perception,
+                    charisma = updatedChild.charisma,
+                    luck = updatedChild.luck
                 )
 
                 repository.saveLog(log)
@@ -1490,6 +1459,22 @@ class LunaCoinViewModel(
 
     fun increaseAgility() {
         increaseSkill(ProgressSkill.AGILITY)
+    }
+
+    fun increaseEndurance() {
+        increaseSkill(ProgressSkill.ENDURANCE)
+    }
+
+    fun increasePerception() {
+        increaseSkill(ProgressSkill.PERCEPTION)
+    }
+
+    fun increaseCharisma() {
+        increaseSkill(ProgressSkill.CHARISMA)
+    }
+
+    fun increaseLuck() {
+        increaseSkill(ProgressSkill.LUCK)
     }
 
     private fun increaseSkill(skillType: ProgressSkill) {
@@ -1521,7 +1506,11 @@ class LunaCoinViewModel(
                     availableSkillPoints = updatedChild.availableSkillPoints,
                     intelligence = updatedChild.intelligence,
                     strength = updatedChild.strength,
-                    agility = updatedChild.agility
+                    agility = updatedChild.agility,
+                    endurance = updatedChild.endurance,
+                    perception = updatedChild.perception,
+                    charisma = updatedChild.charisma,
+                    luck = updatedChild.luck
                 )
             } catch (e: Exception) {
                 _data.value = originalData
@@ -1556,63 +1545,9 @@ class LunaCoinViewModel(
             }
         }
 
-        enqueueCelebration(
-            CelebrationEvent(
-                id = UUID.randomUUID().toString(),
-                type = CelebrationType.LEVEL_UP,
-                title = "LEVEL AUFSTIEG!",
-                subtitle = "$childName erreicht Level ${persistedChild.level}",
-                details = skillPointText,
-                footer = "Jetzt im LunaME-Skillbereich verfügbar"
-            )
+        showMessage(
+            "🎉 Level-Up! $childName ist jetzt Level ${persistedChild.level}. $skillPointText verfügbar!"
         )
-    }
-
-    fun dismissCelebration(eventId: String) {
-        _celebrations.value = _celebrations.value.filterNot { event ->
-            event.id == eventId
-        }
-    }
-
-    private fun enqueueCelebration(event: CelebrationEvent) {
-        _celebrations.value = _celebrations.value + event
-    }
-
-    private fun showHighscoreCelebration(
-        game: LunaGameType,
-        highscores: List<de.meson_labs.luna_coin.models.GameHighscore>
-    ) {
-        if (highscores.isEmpty()) return
-
-        val detailText = highscores.joinToString(separator = "\n") { highscore ->
-            when (highscore.scoreType) {
-                LunaGameScoreType.ATTEMPTS -> "${highscore.value} Versuche"
-                LunaGameScoreType.TIME_SECONDS -> formatSeconds(highscore.value)
-                else -> "${highscore.value} Punkte"
-            }
-        }
-
-        enqueueCelebration(
-            CelebrationEvent(
-                id = UUID.randomUUID().toString(),
-                type = CelebrationType.HIGHSCORE,
-                title = "NEUER HIGHSCORE!",
-                subtitle = getGameDisplayName(game),
-                details = detailText,
-                footer = "+${ProgressManager.EXPERIENCE_PER_NEW_HIGHSCORE} EP erhalten"
-            )
-        )
-    }
-
-    private fun formatSeconds(totalSeconds: Int): String {
-        val minutes = totalSeconds / 60
-        val seconds = totalSeconds % 60
-
-        return if (minutes > 0) {
-            "${minutes}:${seconds.toString().padStart(2, '0')} Minuten"
-        } else {
-            "$seconds Sekunden"
-        }
     }
 
     private fun getSelectedChild(): Child? {
@@ -1777,43 +1712,6 @@ class LunaCoinViewModel(
         showMessage(backupManager.getImportFromJsonMessage())
     }
 
-
-    private fun createDogPlanEditLogText(
-        editorName: String,
-        templateTitle: String,
-        templateType: DogPlanTaskType,
-        peed: Boolean,
-        pooped: Boolean,
-        diarrhea: Boolean,
-        comment: String
-    ): String {
-        val icon = when (templateType) {
-            DogPlanTaskType.WALK -> "✏️🐶"
-            DogPlanTaskType.FEEDING_EARLY -> "✏️🍖"
-            DogPlanTaskType.FEEDING_LATE -> "✏️🍖"
-            DogPlanTaskType.OTHER -> "✏️🐾"
-        }
-
-        val detailLines = mutableListOf<String>()
-
-        if (templateType == DogPlanTaskType.WALK) {
-            detailLines += if (peed) "✔ Gepinkelt" else "✖ Nicht gepinkelt"
-            detailLines += if (pooped) "✔ Gekackt" else "✖ Nicht gekackt"
-            detailLines += if (diarrhea) "⚠ Durchfall" else "✔ Kein Durchfall"
-        }
-
-        if (comment.isNotBlank()) {
-            detailLines += "Kommentar: ${comment.trim()}"
-        }
-
-        val detailsText = if (detailLines.isNotEmpty()) {
-            "\n" + detailLines.joinToString("\n")
-        } else {
-            ""
-        }
-
-        return "$icon $editorName hat den Eintrag „$templateTitle“ nachträglich bearbeitet.$detailsText"
-    }
 
     private fun createDogPlanLogText(
         childName: String,

@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -24,12 +25,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -45,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
@@ -74,7 +74,11 @@ fun LunaMeScreen(
     onChildChanged: (Child) -> Unit,
     onIncreaseIntelligence: () -> Unit = {},
     onIncreaseStrength: () -> Unit = {},
-    onIncreaseAgility: () -> Unit = {}
+    onIncreaseAgility: () -> Unit = {},
+    onIncreaseEndurance: () -> Unit = {},
+    onIncreasePerception: () -> Unit = {},
+    onIncreaseCharisma: () -> Unit = {},
+    onIncreaseLuck: () -> Unit = {}
 ) {
     val configuration = LocalConfiguration.current
     val isTabletLayout = configuration.smallestScreenWidthDp >= 600
@@ -395,8 +399,32 @@ fun LunaMeScreen(
                             },
                             onIncreaseAgility = {
                                 skillToConfirm = LunaSkillConfirm(
-                                    title = "Geschicklichkeit",
+                                    title = "Beweglichkeit",
                                     onConfirm = onIncreaseAgility
+                                )
+                            },
+                            onIncreaseEndurance = {
+                                skillToConfirm = LunaSkillConfirm(
+                                    title = "Ausdauer",
+                                    onConfirm = onIncreaseEndurance
+                                )
+                            },
+                            onIncreasePerception = {
+                                skillToConfirm = LunaSkillConfirm(
+                                    title = "Wahrnehmung",
+                                    onConfirm = onIncreasePerception
+                                )
+                            },
+                            onIncreaseCharisma = {
+                                skillToConfirm = LunaSkillConfirm(
+                                    title = "Charisma",
+                                    onConfirm = onIncreaseCharisma
+                                )
+                            },
+                            onIncreaseLuck = {
+                                skillToConfirm = LunaSkillConfirm(
+                                    title = "Glück",
+                                    onConfirm = onIncreaseLuck
                                 )
                             }
                         )
@@ -614,7 +642,11 @@ private fun SkillsPanel(
     isPhone: Boolean,
     onIncreaseIntelligence: () -> Unit,
     onIncreaseStrength: () -> Unit,
-    onIncreaseAgility: () -> Unit
+    onIncreaseAgility: () -> Unit,
+    onIncreaseEndurance: () -> Unit,
+    onIncreasePerception: () -> Unit,
+    onIncreaseCharisma: () -> Unit,
+    onIncreaseLuck: () -> Unit
 ) {
     if (selectedChild == null) {
         Card(
@@ -636,111 +668,303 @@ private fun SkillsPanel(
     val currentLevelStartExperience = totalExperienceForLevel(currentLevel)
     val nextLevelExperience = totalExperienceForLevel((currentLevel + 1).coerceAtMost(MAX_LEVEL))
     val experienceInCurrentLevel = (currentExperience - currentLevelStartExperience).coerceAtLeast(0)
-    val experienceNeededForCurrentLevel = (nextLevelExperience - currentLevelStartExperience).coerceAtLeast(1)
+    val experienceNeededForCurrentLevel =
+        (nextLevelExperience - currentLevelStartExperience).coerceAtLeast(1)
     val progress = if (currentLevel >= MAX_LEVEL) {
         1f
     } else {
-        (experienceInCurrentLevel.toFloat() / experienceNeededForCurrentLevel.toFloat()).coerceIn(0f, 1f)
+        (experienceInCurrentLevel.toFloat() / experienceNeededForCurrentLevel.toFloat())
+            .coerceIn(0f, 1f)
     }
 
+    if (isPhone) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            MainLevelCard(
+                selectedChild = selectedChild,
+                currentLevel = currentLevel,
+                progress = progress,
+                experienceInCurrentLevel = experienceInCurrentLevel,
+                experienceNeededForCurrentLevel = experienceNeededForCurrentLevel,
+                isPhone = true
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            SkillsList(
+                selectedChild = selectedChild,
+                isPhone = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                onIncreaseIntelligence = onIncreaseIntelligence,
+                onIncreaseStrength = onIncreaseStrength,
+                onIncreaseAgility = onIncreaseAgility,
+                onIncreaseEndurance = onIncreaseEndurance,
+                onIncreasePerception = onIncreasePerception,
+                onIncreaseCharisma = onIncreaseCharisma,
+                onIncreaseLuck = onIncreaseLuck
+            )
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            item {
+                MainLevelCard(
+                    selectedChild = selectedChild,
+                    currentLevel = currentLevel,
+                    progress = progress,
+                    experienceInCurrentLevel = experienceInCurrentLevel,
+                    experienceNeededForCurrentLevel = experienceNeededForCurrentLevel,
+                    isPhone = false,
+                    compactTablet = true
+                )
+            }
+
+            item {
+                SkillCard(
+                    title = "Stärke",
+                    emoji = "",
+                    progressColor = STRENGTH_PROGRESS_COLOR,
+                    imageRes = R.drawable.luna_str,
+                    value = selectedChild.strength,
+                    availableSkillPoints = selectedChild.availableSkillPoints,
+                    isPhone = false,
+                    onIncrease = onIncreaseStrength
+                )
+            }
+            item {
+                SkillCard(
+                    title = "Wahrnehmung",
+                    emoji = "",
+                    progressColor = PERCEPTION_PROGRESS_COLOR,
+                    imageRes = R.drawable.luna_pers,
+                    value = selectedChild.perception,
+                    availableSkillPoints = selectedChild.availableSkillPoints,
+                    isPhone = false,
+                    onIncrease = onIncreasePerception
+                )
+            }
+            item {
+                SkillCard(
+                    title = "Ausdauer",
+                    emoji = "",
+                    progressColor = ENDURANCE_PROGRESS_COLOR,
+                    imageRes = R.drawable.luna_end,
+                    value = selectedChild.endurance,
+                    availableSkillPoints = selectedChild.availableSkillPoints,
+                    isPhone = false,
+                    onIncrease = onIncreaseEndurance
+                )
+            }
+            item {
+                SkillCard(
+                    title = "Charisma",
+                    emoji = "",
+                    progressColor = CHARISMA_PROGRESS_COLOR,
+                    imageRes = R.drawable.luna_char,
+                    value = selectedChild.charisma,
+                    availableSkillPoints = selectedChild.availableSkillPoints,
+                    isPhone = false,
+                    onIncrease = onIncreaseCharisma
+                )
+            }
+            item {
+                SkillCard(
+                    title = "Intelligenz",
+                    emoji = "",
+                    progressColor = INTELLIGENCE_PROGRESS_COLOR,
+                    imageRes = R.drawable.luna_int,
+                    value = selectedChild.intelligence,
+                    availableSkillPoints = selectedChild.availableSkillPoints,
+                    isPhone = false,
+                    onIncrease = onIncreaseIntelligence
+                )
+            }
+            item {
+                SkillCard(
+                    title = "Beweglichkeit",
+                    emoji = "",
+                    progressColor = AGILITY_PROGRESS_COLOR,
+                    imageRes = R.drawable.luna_agil,
+                    value = selectedChild.agility,
+                    availableSkillPoints = selectedChild.availableSkillPoints,
+                    isPhone = false,
+                    onIncrease = onIncreaseAgility
+                )
+            }
+            item {
+                SkillCard(
+                    title = "Glück",
+                    emoji = "",
+                    progressColor = LUCK_PROGRESS_COLOR,
+                    imageRes = R.drawable.luna_luck,
+                    value = selectedChild.luck,
+                    availableSkillPoints = selectedChild.availableSkillPoints,
+                    isPhone = false,
+                    onIncrease = onIncreaseLuck
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainLevelCard(
+    selectedChild: Child,
+    currentLevel: Int,
+    progress: Float,
+    experienceInCurrentLevel: Int,
+    experienceNeededForCurrentLevel: Int,
+    isPhone: Boolean,
+    compactTablet: Boolean = false
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    if (isPhone) {
+                        7.dp
+                    } else if (compactTablet) {
+                        8.dp
+                    } else {
+                        10.dp
+                    }
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = selectedChild.name,
+                style = if (isPhone) {
+                    MaterialTheme.typography.titleLarge
+                } else if (compactTablet) {
+                    MaterialTheme.typography.titleMedium
+                } else {
+                    MaterialTheme.typography.headlineSmall
+                },
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(
+                modifier = Modifier.height(
+                    if (isPhone) 2.dp else if (compactTablet) 1.dp else 3.dp
+                )
+            )
+
+            Text(
+                text = "LEVEL $currentLevel",
+                style = if (isPhone) {
+                    MaterialTheme.typography.titleLarge
+                } else if (compactTablet) {
+                    MaterialTheme.typography.titleLarge
+                } else {
+                    MaterialTheme.typography.headlineSmall
+                },
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(
+                modifier = Modifier.height(
+                    if (isPhone) 3.dp else if (compactTablet) 3.dp else 5.dp
+                )
+            )
+
+            LunaProgressBar(
+                progress = progress,
+                fillColor = LEVEL_PROGRESS_COLOR,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(
+                        if (isPhone) 8.dp else if (compactTablet) 8.dp else 10.dp
+                    )
+            )
+
+            Spacer(
+                modifier = Modifier.height(
+                    if (isPhone) 2.dp else if (compactTablet) 2.dp else 3.dp
+                )
+            )
+
+            Text(
+                text = if (currentLevel >= MAX_LEVEL) {
+                    "Maximallevel erreicht"
+                } else {
+                    "$experienceInCurrentLevel / $experienceNeededForCurrentLevel EP bis Level ${currentLevel + 1}"
+                },
+                style = if (isPhone || compactTablet) {
+                    MaterialTheme.typography.bodySmall
+                } else {
+                    MaterialTheme.typography.bodyMedium
+                },
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(
+                modifier = Modifier.height(
+                    if (isPhone) 3.dp else if (compactTablet) 2.dp else 4.dp
+                )
+            )
+
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Text(
+                    text = "Skillpunkte: ${selectedChild.availableSkillPoints}",
+                    modifier = Modifier.padding(
+                        horizontal = if (isPhone) 12.dp else if (compactTablet) 14.dp else 18.dp,
+                        vertical = if (isPhone) 4.dp else if (compactTablet) 3.dp else 5.dp
+                    ),
+                    style = if (isPhone || compactTablet) {
+                        MaterialTheme.typography.titleMedium
+                    } else {
+                        MaterialTheme.typography.titleLarge
+                    },
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SkillsList(
+    selectedChild: Child,
+    isPhone: Boolean,
+    modifier: Modifier = Modifier,
+    onIncreaseIntelligence: () -> Unit,
+    onIncreaseStrength: () -> Unit,
+    onIncreaseAgility: () -> Unit,
+    onIncreaseEndurance: () -> Unit,
+    onIncreasePerception: () -> Unit,
+    onIncreaseCharisma: () -> Unit,
+    onIncreaseLuck: () -> Unit
+) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(if (isPhone) 2.dp else 3.dp)
     ) {
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(if (isPhone) 7.dp else 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = selectedChild.name,
-                        style = if (isPhone) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(if (isPhone) 2.dp else 3.dp))
-
-                    Text(
-                        text = "LEVEL $currentLevel",
-                        style = if (isPhone) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Black,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(if (isPhone) 3.dp else 5.dp))
-
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(if (isPhone) 8.dp else 10.dp)
-                            .clip(RoundedCornerShape(99.dp))
-                    )
-
-                    Spacer(modifier = Modifier.height(if (isPhone) 2.dp else 3.dp))
-
-                    Text(
-                        text = if (currentLevel >= MAX_LEVEL) {
-                            "Maximallevel erreicht"
-                        } else {
-                            "$experienceInCurrentLevel / $experienceNeededForCurrentLevel EP bis Level ${currentLevel + 1}"
-                        },
-                        style = if (isPhone) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    Spacer(modifier = Modifier.height(if (isPhone) 3.dp else 4.dp))
-
-                    Card(
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
-                        )
-                    ) {
-                        Text(
-                            text = "Skillpunkte: ${selectedChild.availableSkillPoints}",
-                            modifier = Modifier.padding(
-                                horizontal = if (isPhone) 12.dp else 18.dp,
-                                vertical = if (isPhone) 4.dp else 5.dp
-                            ),
-                            style = if (isPhone) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            SkillCard(
-                title = "Intelligenz",
-                emoji = "🧠",
-                imageRes = R.drawable.luna_int,
-                value = selectedChild.intelligence,
-                availableSkillPoints = selectedChild.availableSkillPoints,
-                isPhone = isPhone,
-                onIncrease = onIncreaseIntelligence
-            )
-        }
-
-        item {
             SkillCard(
                 title = "Stärke",
-                emoji = "💪",
+                emoji = "",
+                progressColor = STRENGTH_PROGRESS_COLOR,
                 imageRes = R.drawable.luna_str,
                 value = selectedChild.strength,
                 availableSkillPoints = selectedChild.availableSkillPoints,
@@ -748,11 +972,59 @@ private fun SkillsPanel(
                 onIncrease = onIncreaseStrength
             )
         }
-
         item {
             SkillCard(
-                title = "Geschicklichkeit",
-                emoji = "🏃",
+                title = "Wahrnehmung",
+                emoji = "",
+                progressColor = PERCEPTION_PROGRESS_COLOR,
+                imageRes = R.drawable.luna_pers,
+                value = selectedChild.perception,
+                availableSkillPoints = selectedChild.availableSkillPoints,
+                isPhone = isPhone,
+                onIncrease = onIncreasePerception
+            )
+        }
+        item {
+            SkillCard(
+                title = "Ausdauer",
+                emoji = "",
+                progressColor = ENDURANCE_PROGRESS_COLOR,
+                imageRes = R.drawable.luna_end,
+                value = selectedChild.endurance,
+                availableSkillPoints = selectedChild.availableSkillPoints,
+                isPhone = isPhone,
+                onIncrease = onIncreaseEndurance
+            )
+        }
+        item {
+            SkillCard(
+                title = "Charisma",
+                emoji = "",
+                progressColor = CHARISMA_PROGRESS_COLOR,
+                imageRes = R.drawable.luna_char,
+                value = selectedChild.charisma,
+                availableSkillPoints = selectedChild.availableSkillPoints,
+                isPhone = isPhone,
+                onIncrease = onIncreaseCharisma
+            )
+        }
+        item {
+            SkillCard(
+                title = "Intelligenz",
+                emoji = "",
+                progressColor = INTELLIGENCE_PROGRESS_COLOR,
+                imageRes = R.drawable.luna_int,
+                value = selectedChild.intelligence,
+                availableSkillPoints = selectedChild.availableSkillPoints,
+                isPhone = isPhone,
+                onIncrease = onIncreaseIntelligence
+            )
+        }
+        item {
+            SkillCard(
+                title = "Beweglichkeit",
+                emoji = "",
+                progressColor = AGILITY_PROGRESS_COLOR,
                 imageRes = R.drawable.luna_agil,
                 value = selectedChild.agility,
                 availableSkillPoints = selectedChild.availableSkillPoints,
@@ -760,13 +1032,27 @@ private fun SkillsPanel(
                 onIncrease = onIncreaseAgility
             )
         }
+        item {
+            SkillCard(
+                title = "Glück",
+                emoji = "",
+                progressColor = LUCK_PROGRESS_COLOR,
+                imageRes = R.drawable.luna_luck,
+                value = selectedChild.luck,
+                availableSkillPoints = selectedChild.availableSkillPoints,
+                isPhone = isPhone,
+                onIncrease = onIncreaseLuck
+            )
+        }
     }
 }
+
 
 @Composable
 private fun SkillCard(
     title: String,
     emoji: String,
+    progressColor: Color,
     imageRes: Int,
     value: Int,
     availableSkillPoints: Int,
@@ -778,7 +1064,6 @@ private fun SkillCard(
 
     val cardHeight = if (isPhone) 150.dp else 235.dp
     val imageWindowWidth = if (isPhone) 200.dp else 350.dp
-    val imageSize = if (isPhone) 205.dp else 350.dp
 
     Card(
         modifier = Modifier
@@ -810,43 +1095,64 @@ private fun SkillCard(
                     painter = painterResource(id = imageRes),
                     contentDescription = title,
                     modifier = Modifier
-                        .size(imageSize)
+                        .fillMaxSize()
                         .clip(RoundedCornerShape(16.dp)),
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Crop
                 )
             }
 
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(vertical = if (isPhone) 4.dp else 8.dp),
+                    .padding(
+                        start = if (isPhone) 8.dp else 12.dp,
+                        top = if (isPhone) 4.dp else 8.dp,
+                        bottom = if (isPhone) 4.dp else 8.dp
+                    ),
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = "$emoji $title",
+                    modifier = Modifier.fillMaxWidth(),
                     style = if (isPhone) MaterialTheme.typography.labelLarge else MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(if (isPhone) 1.dp else 2.dp))
+                Spacer(modifier = Modifier.height(if (isPhone) 4.dp else 6.dp))
 
-                Text(
-                    text = "$safeValue / $MAX_SKILL_VALUE",
-                    style = if (isPhone) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Spacer(modifier = Modifier.height(if (isPhone) 2.dp else 4.dp))
-
-                LinearProgressIndicator(
-                    progress = { safeValue.toFloat() / MAX_SKILL_VALUE.toFloat() },
+                LunaProgressBar(
+                    progress = safeValue.toFloat() / MAX_SKILL_VALUE.toFloat(),
+                    fillColor = if (safeValue >= MAX_SKILL_VALUE) {
+                        MAX_SKILL_PROGRESS_COLOR
+                    } else {
+                        progressColor
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(if (isPhone) 6.dp else 8.dp)
-                        .clip(RoundedCornerShape(99.dp))
+                )
+
+                Spacer(modifier = Modifier.height(if (isPhone) 4.dp else 6.dp))
+
+                Text(
+                    text = if (safeValue >= MAX_SKILL_VALUE) {
+                        "LVL $safeValue ⭐"
+                    } else {
+                        "LVL $safeValue"
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    style = if (isPhone) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (safeValue >= MAX_SKILL_VALUE) {
+                        MAX_SKILL_PROGRESS_COLOR
+                    } else {
+                        progressColor
+                    },
+                    textAlign = TextAlign.Center,
+                    maxLines = 1
                 )
             }
 
@@ -856,17 +1162,43 @@ private fun SkillCard(
                 modifier = Modifier
                     .padding(end = if (isPhone) 2.dp else 6.dp)
                     .size(if (isPhone) 38.dp else 52.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
+                contentPadding = PaddingValues(0.dp)
             ) {
-                androidx.compose.material3.Icon(
-                    imageVector = androidx.compose.material.icons.Icons.Default.Add,
-                    contentDescription = "Skill erhöhen",
-                    modifier = Modifier.size(
-                        if (isPhone) 22.dp else 28.dp
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "+",
+                        style = if (isPhone) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1
                     )
-                )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun LunaProgressBar(
+    progress: Float,
+    fillColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(99.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(progress.coerceIn(0f, 1f))
+                .clip(RoundedCornerShape(99.dp))
+                .background(fillColor)
+        )
     }
 }
 
@@ -1011,3 +1343,13 @@ private enum class LunaMeArea {
 
 private const val MAX_LEVEL = 100
 private const val MAX_SKILL_VALUE = 100
+
+private val LEVEL_PROGRESS_COLOR = Color(0xFFF4C542)
+private val STRENGTH_PROGRESS_COLOR = Color(0xFFE53935)
+private val PERCEPTION_PROGRESS_COLOR = Color(0xFF00BCD4)
+private val ENDURANCE_PROGRESS_COLOR = Color(0xFF43A047)
+private val CHARISMA_PROGRESS_COLOR = Color(0xFFFF9800)
+private val INTELLIGENCE_PROGRESS_COLOR = Color(0xFF1E88E5)
+private val AGILITY_PROGRESS_COLOR = Color(0xFF8E24AA)
+private val LUCK_PROGRESS_COLOR = Color(0xFFFFC107)
+private val MAX_SKILL_PROGRESS_COLOR = Color(0xFFFFD700)

@@ -657,7 +657,11 @@ class FirestoreRepository : DataRepository {
         availableSkillPoints: Int,
         intelligence: Int,
         strength: Int,
-        agility: Int
+        agility: Int,
+        endurance: Int,
+        perception: Int,
+        charisma: Int,
+        luck: Int
     ) {
         childrenRef.document(childId)
             .set(
@@ -668,6 +672,10 @@ class FirestoreRepository : DataRepository {
                     "intelligence" to intelligence,
                     "strength" to strength,
                     "agility" to agility,
+                    "endurance" to endurance,
+                    "perception" to perception,
+                    "charisma" to charisma,
+                    "luck" to luck,
                     "updatedAt" to Timestamp.now()
                 ),
                 SetOptions.merge()

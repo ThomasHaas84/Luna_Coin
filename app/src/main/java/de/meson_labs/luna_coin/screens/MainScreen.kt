@@ -66,7 +66,6 @@ fun MainScreen(
     val selectedChildId by viewModel.selectedChildId.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
     val message by viewModel.message.collectAsState()
-    val celebrations by viewModel.celebrations.collectAsState()
 
     val view = LocalView.current
     val context = LocalContext.current
@@ -273,7 +272,11 @@ fun MainScreen(
                             onChildChanged = viewModel::updateChild,
                             onIncreaseIntelligence = viewModel::increaseIntelligence,
                             onIncreaseStrength = viewModel::increaseStrength,
-                            onIncreaseAgility = viewModel::increaseAgility
+                            onIncreaseAgility = viewModel::increaseAgility,
+                            onIncreaseEndurance = viewModel::increaseEndurance,
+                            onIncreasePerception = viewModel::increasePerception,
+                            onIncreaseCharisma = viewModel::increaseCharisma,
+                            onIncreaseLuck = viewModel::increaseLuck
                         )
 
                         4 -> SettingsScreen(
@@ -337,16 +340,6 @@ fun MainScreen(
                     text = text,
                     isPhone = isPhone,
                     modifier = Modifier.align(Alignment.TopCenter)
-                )
-            }
-
-            celebrations.firstOrNull()?.let { celebration ->
-                CelebrationOverlay(
-                    event = celebration,
-                    isPhone = isPhone,
-                    onFinished = {
-                        viewModel.dismissCelebration(celebration.id)
-                    }
                 )
             }
         }
