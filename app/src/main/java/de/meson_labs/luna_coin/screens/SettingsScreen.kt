@@ -43,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +65,7 @@ import de.meson_labs.luna_coin.components.dialogs.TaskEditorDialog
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.LunaCoinData
+import de.meson_labs.luna_coin.models.LunaGameType
 import de.meson_labs.luna_coin.models.TaskAssignmentType
 import de.meson_labs.luna_coin.models.TaskCompletionMode
 import de.meson_labs.luna_coin.models.TaskItem
@@ -104,10 +106,37 @@ fun SettingsScreen(
     onRestoreFromBackup: () -> Unit,
     onImportFromJson: () -> Unit,
 
+    autoWeeklyHighscoreResetEnabled: Boolean = false,
+    lastAutomaticHighscoreResetDate: String? = null,
+    onAutoWeeklyHighscoreResetChanged: (Boolean) -> Unit = {},
+    onResetMemoryHighscores: () -> Unit = {},
+    onResetNumberGuessHighscores: () -> Unit = {},
+    onResetMultiplicationHighscores: () -> Unit = {},
+    onResetWordGuessHighscores: () -> Unit = {},
+    onResetAllHighscores: () -> Unit = {},
+
     onKlingonModeChanged: (Boolean) -> Unit = {},
     onLogout: () -> Unit,
 ) {
     val currentMessage by viewModel.message.collectAsState()
+
+    val context = LocalContext.current
+    val navigationPreferences = remember(context) {
+        context.getSharedPreferences(
+            NAVIGATION_PREFERENCES_NAME,
+            android.content.Context.MODE_PRIVATE
+        )
+    }
+    var selectedLoginDestination by remember {
+        mutableStateOf(
+            LoginDestination.fromStoredValue(
+                navigationPreferences.getString(
+                    NAVIGATION_DESTINATION_KEY,
+                    LoginDestination.HOUSEHOLD_TASKS.storedValue
+                )
+            )
+        )
+    }
 
     val configuration = LocalConfiguration.current
     val isTabletLayout = configuration.smallestScreenWidthDp >= 600
@@ -151,6 +180,8 @@ fun SettingsScreen(
     var showDogPlanEditor by remember { mutableStateOf(false) }
     var showTaskEditor by remember { mutableStateOf(false) }
     var showAdminBackup by remember { mutableStateOf(false) }
+    var showGameSettings by remember { mutableStateOf(false) }
+    var pendingHighscoreReset by remember { mutableStateOf<HighscoreResetTarget?>(null) }
 
     var showUserEditorDialog by remember { mutableStateOf(false) }
     var userForEdit by remember { mutableStateOf<Child?>(null) }
@@ -203,6 +234,23 @@ fun SettingsScreen(
     }
 
     val watchlistTasks = data.tasks.filter { it.watchlist }
+
+    val memoryRecordHolders = getGameRecordHolderText(
+        data = data,
+        game = LunaGameType.MEMORY
+    )
+    val numberGuessRecordHolders = getGameRecordHolderText(
+        data = data,
+        game = LunaGameType.NUMBER_GUESS
+    )
+    val multiplicationRecordHolders = getGameRecordHolderText(
+        data = data,
+        game = LunaGameType.MULTIPLICATION
+    )
+    val wordGuessRecordHolders = getGameRecordHolderText(
+        data = data,
+        game = LunaGameType.WORD_GUESS
+    )
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
@@ -316,6 +364,63 @@ fun SettingsScreen(
                                     )
                                 }
                             }
+
+                            Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
+
+                            HorizontalDivider()
+
+                            Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
+
+                            Text(
+                                text = if (klingonModeEnabled) "ghoS:" else "Navigation:",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Text(
+                                text = if (klingonModeEnabled) {
+                                    "login DI' nuqDaq ghoS 'e' wIv."
+                                } else {
+                                    "Wähle aus, welcher Bereich nach dem Login geöffnet wird."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            NavigationDestinationOption(
+                                text = if (klingonModeEnabled) "juH Qu'mey" else "Haushaltsaufgaben",
+                                selected = selectedLoginDestination == LoginDestination.HOUSEHOLD_TASKS,
+                                onClick = {
+                                    selectedLoginDestination = LoginDestination.HOUSEHOLD_TASKS
+                                    navigationPreferences.edit()
+                                        .putString(
+                                            NAVIGATION_DESTINATION_KEY,
+                                            LoginDestination.HOUSEHOLD_TASKS.storedValue
+                                        )
+                                        .apply()
+                                }
+                            )
+
+                            NavigationDestinationOption(
+                                text = if (klingonModeEnabled) "targh nab" else "Hundeplan",
+                                selected = selectedLoginDestination == LoginDestination.DOG_PLAN,
+                                onClick = {
+                                    selectedLoginDestination = LoginDestination.DOG_PLAN
+                                    navigationPreferences.edit()
+                                        .putString(
+                                            NAVIGATION_DESTINATION_KEY,
+                                            LoginDestination.DOG_PLAN.storedValue
+                                        )
+                                        .apply()
+                                }
+                            )
+
+                            Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
+
+                            HorizontalDivider()
 
                             Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
 
@@ -528,6 +633,143 @@ fun SettingsScreen(
             if (canEdit) {
                 item {
                     SettingsSectionHeader(
+                        title = if (klingonModeEnabled) "Quj" else "Spiele",
+                        isPhone = isPhone,
+                        largeTopSpacing = true
+                    )
+
+                    Button(
+                        onClick = { showGameSettings = !showGameSettings },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            if (showGameSettings) {
+                                "Spiele-Einstellungen ausblenden"
+                            } else {
+                                "Spiele-Einstellungen anzeigen"
+                            }
+                        )
+                    }
+
+                    if (showGameSettings) {
+                        Spacer(modifier = Modifier.height(if (isPhone) 12.dp else 16.dp))
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Automatische wöchentliche Rücksetzung",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+
+                                        Text(
+                                            text = "Beim ersten App-Start einer neuen Kalenderwoche werden alle Highscores zurückgesetzt.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                    Switch(
+                                        checked = autoWeeklyHighscoreResetEnabled,
+                                        onCheckedChange = onAutoWeeklyHighscoreResetChanged
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Text(
+                                    text = "Letzte automatische Rücksetzung:",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Text(
+                                    text = lastAutomaticHighscoreResetDate ?: "Noch keine",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+                                HorizontalDivider()
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Text(
+                                    text = "Highscores manuell zurücksetzen",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                HighscoreResetButton(
+                                    title = "Memory zurücksetzen",
+                                    recordHolderText = memoryRecordHolders,
+                                    onClick = {
+                                        pendingHighscoreReset = HighscoreResetTarget.MEMORY
+                                    }
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                HighscoreResetButton(
+                                    title = "Zahlenraten zurücksetzen",
+                                    recordHolderText = numberGuessRecordHolders,
+                                    onClick = {
+                                        pendingHighscoreReset = HighscoreResetTarget.NUMBER_GUESS
+                                    }
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                HighscoreResetButton(
+                                    title = "Einmaleins zurücksetzen",
+                                    recordHolderText = multiplicationRecordHolders,
+                                    onClick = {
+                                        pendingHighscoreReset = HighscoreResetTarget.MULTIPLICATION
+                                    }
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                HighscoreResetButton(
+                                    title = "Wort-Raten zurücksetzen",
+                                    recordHolderText = wordGuessRecordHolders,
+                                    onClick = {
+                                        pendingHighscoreReset = HighscoreResetTarget.WORD_GUESS
+                                    }
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Button(
+                                    onClick = { pendingHighscoreReset = HighscoreResetTarget.ALL },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                        contentColor = MaterialTheme.colorScheme.onError
+                                    )
+                                ) {
+                                    Text("Alle Highscores zurücksetzen")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (canEdit) {
+                item {
+                    SettingsSectionHeader(
                         title = if (klingonModeEnabled) "loH" else "Verwaltung",
                         isPhone = isPhone,
                         largeTopSpacing = true
@@ -628,6 +870,28 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    pendingHighscoreReset?.let { resetTarget ->
+        ConfirmationDialog(
+            title = resetTarget.dialogTitle,
+            message = resetTarget.dialogMessage,
+            confirmText = "Zurücksetzen",
+            dismissText = "Abbrechen",
+            onConfirm = {
+                when (resetTarget) {
+                    HighscoreResetTarget.MEMORY -> onResetMemoryHighscores()
+                    HighscoreResetTarget.NUMBER_GUESS -> onResetNumberGuessHighscores()
+                    HighscoreResetTarget.MULTIPLICATION -> onResetMultiplicationHighscores()
+                    HighscoreResetTarget.WORD_GUESS -> onResetWordGuessHighscores()
+                    HighscoreResetTarget.ALL -> onResetAllHighscores()
+                }
+                pendingHighscoreReset = null
+            },
+            onDismiss = {
+                pendingHighscoreReset = null
+            }
+        )
     }
 
     if (showResetDialog) {
@@ -809,6 +1073,129 @@ fun SettingsScreen(
             }
         )
     }
+}
+
+private const val NAVIGATION_PREFERENCES_NAME = "luna_navigation_preferences"
+private const val NAVIGATION_DESTINATION_KEY = "login_destination"
+
+private enum class LoginDestination(
+    val storedValue: String
+) {
+    HOUSEHOLD_TASKS("household_tasks"),
+    DOG_PLAN("dog_plan");
+
+    companion object {
+        fun fromStoredValue(value: String?): LoginDestination {
+            return entries.firstOrNull { it.storedValue == value } ?: HOUSEHOLD_TASKS
+        }
+    }
+}
+
+@Composable
+private fun NavigationDestinationOption(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onClick
+        )
+
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge
+        )
+    }
+}
+
+@Composable
+private fun HighscoreResetButton(
+    title: String,
+    recordHolderText: String,
+    onClick: () -> Unit
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = title,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(3.dp))
+
+            Text(
+                text = recordHolderText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+private fun getGameRecordHolderText(
+    data: LunaCoinData,
+    game: LunaGameType
+): String {
+    val holderNames = data.gameHighscores
+        .asSequence()
+        .filter { highscore -> highscore.game == game }
+        .mapNotNull { highscore ->
+            data.children.firstOrNull { child ->
+                child.id == highscore.childId
+            }?.name?.trim()
+        }
+        .filter { name -> name.isNotBlank() }
+        .distinct()
+        .sorted()
+        .toList()
+
+    return when {
+        holderNames.isEmpty() -> "🏆 Noch kein Rekord"
+        holderNames.size == 1 -> "🏆 Rekordhalter: ${holderNames.first()}"
+        else -> "🏆 Rekordhalter: ${holderNames.joinToString(", ")}"
+    }
+}
+
+private enum class HighscoreResetTarget(
+    val dialogTitle: String,
+    val dialogMessage: String
+) {
+    MEMORY(
+        dialogTitle = "Memory-Highscores zurücksetzen?",
+        dialogMessage = "Alle gespeicherten Memory-Highscores werden gelöscht. Dies kann nicht rückgängig gemacht werden."
+    ),
+    NUMBER_GUESS(
+        dialogTitle = "Zahlenraten-Highscores zurücksetzen?",
+        dialogMessage = "Alle gespeicherten Zahlenraten-Highscores werden gelöscht. Dies kann nicht rückgängig gemacht werden."
+    ),
+    MULTIPLICATION(
+        dialogTitle = "Einmaleins-Highscores zurücksetzen?",
+        dialogMessage = "Alle gespeicherten Einmaleins-Highscores werden gelöscht. Dies kann nicht rückgängig gemacht werden."
+    ),
+    WORD_GUESS(
+        dialogTitle = "Wort-Raten-Highscores zurücksetzen?",
+        dialogMessage = "Alle gespeicherten Wort-Raten-Highscores werden gelöscht. Dies kann nicht rückgängig gemacht werden."
+    ),
+    ALL(
+        dialogTitle = "Alle Highscores zurücksetzen?",
+        dialogMessage = "Alle Highscores aller Spiele werden gelöscht. Dies kann nicht rückgängig gemacht werden."
+    )
 }
 
 @Composable

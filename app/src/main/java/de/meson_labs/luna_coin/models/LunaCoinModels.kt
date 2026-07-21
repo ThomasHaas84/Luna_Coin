@@ -14,7 +14,15 @@ data class LunaCoinData(
     val dogSchedule: List<DogScheduleItem> = emptyList(),
     val logs: List<LogEntry> = emptyList(),
     val luckyWheelUsage: List<LuckyWheelUsage> = emptyList(),
-    val gameHighscores: List<GameHighscore> = emptyList()
+    val gameHighscores: List<GameHighscore> = emptyList(),
+    val gameDailyRewards: List<GameDailyReward> = emptyList(),
+    val gameSettings: GameSettings = GameSettings()
+)
+
+@Serializable
+data class GameSettings(
+    val autoWeeklyHighscoreResetEnabled: Boolean = false,
+    val lastAutomaticHighscoreResetDate: String? = null
 )
 
 @Serializable
@@ -139,6 +147,19 @@ data class GameHighscore(
 ) : FirebaseModel()
 
 @Serializable
+data class GameDailyReward(
+    override var id: String = "",
+    override var familyId: String = "",
+    val childId: String = "",
+    val game: LunaGameType = LunaGameType.MEMORY,
+    val date: String = "",
+    val timestamp: String = "",
+
+    @Contextual override var createdAt: Date? = null,
+    @Contextual override var updatedAt: Date? = null
+) : FirebaseModel()
+
+@Serializable
 data class TaskCompletion(
     val childId: String = "",
     val date: String = "",
@@ -158,7 +179,8 @@ enum class LunaInventoryItem {
     jedi_1, hotdog_1, plume_1, greenlantern_1, greenarrow_1, unicorn_1, deadpool_1,
     spiderman_1, krypto_1, captainunderpants_1, cyber_1, cyber_2, perry_1, perry_2,
     ca_1, ca_2, fledermaus_1, rochen_1, toolshed_1, deutschland_1, niederlande_1,
-    portugal_1, virgil_1, dante_1, blade_1, rich_1, buffy_1, teeth_1, owl_1, doc_1, beer_1, food_1, chef_1, texas_1,
+    portugal_1, virgil_1, dante_1, blade_1, rich_1, buffy_1, teeth_1, owl_1, doc_1,
+    beer_1, food_1, chef_1, texas_1,
 }
 
 @Serializable

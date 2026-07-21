@@ -12,10 +12,13 @@ import de.meson_labs.luna_coin.models.DogPlanShift
 import de.meson_labs.luna_coin.models.DogPlanTaskCompletion
 import de.meson_labs.luna_coin.models.DogPlanTaskTemplate
 import de.meson_labs.luna_coin.models.DogScheduleItem
+import de.meson_labs.luna_coin.models.GameDailyReward
 import de.meson_labs.luna_coin.models.GameHighscore
+import de.meson_labs.luna_coin.models.GameSettings
 import de.meson_labs.luna_coin.models.LogEntry
 import de.meson_labs.luna_coin.models.LuckyWheelUsage
 import de.meson_labs.luna_coin.models.LunaCoinData
+import de.meson_labs.luna_coin.models.LunaGameType
 import de.meson_labs.luna_coin.models.LunaInventoryItem
 import de.meson_labs.luna_coin.models.ShopItem
 import de.meson_labs.luna_coin.models.TaskItem
@@ -42,6 +45,8 @@ class FirestoreRepository : DataRepository {
     private val logsRef = familyRef.collection("logs")
     private val luckyWheelUsageRef = familyRef.collection("luckyWheelUsage")
     private val gameHighscoresRef = familyRef.collection("gameHighscores")
+    private val gameDailyRewardsRef = familyRef.collection("gameDailyRewards")
+    private val gameSettingsRef = familyRef.collection("settings").document("games")
 
     private val backupDocumentRef = familyRef.collection("backups").document("current")
     private val backupChildrenRef = backupDocumentRef.collection("children")
@@ -54,6 +59,8 @@ class FirestoreRepository : DataRepository {
     private val backupLogsRef = backupDocumentRef.collection("logs")
     private val backupLuckyWheelUsageRef = backupDocumentRef.collection("luckyWheelUsage")
     private val backupGameHighscoresRef = backupDocumentRef.collection("gameHighscores")
+    private val backupGameDailyRewardsRef = backupDocumentRef.collection("gameDailyRewards")
+    private val backupGameSettingsRef = backupDocumentRef.collection("settings").document("games")
 
     private val listenerRegistrations = mutableListOf<ListenerRegistration>()
 
@@ -67,6 +74,8 @@ class FirestoreRepository : DataRepository {
     private var realtimeLogs: List<LogEntry>? = null
     private var realtimeLuckyWheelUsage: List<LuckyWheelUsage>? = null
     private var realtimeGameHighscores: List<GameHighscore>? = null
+    private var realtimeGameDailyRewards: List<GameDailyReward>? = null
+    private var realtimeGameSettings: GameSettings? = null
 
     override suspend fun loadData(): LunaCoinData? {
         return try {
@@ -85,7 +94,9 @@ class FirestoreRepository : DataRepository {
                 dogPlan = loadDogPlan(),
                 logs = loadLogs(),
                 luckyWheelUsage = loadLuckyWheelUsage(),
-                gameHighscores = loadGameHighscores()
+                gameHighscores = loadGameHighscores(),
+                gameDailyRewards = loadGameDailyRewards(),
+                gameSettings = loadGameSettings()
             )
         } catch (e: Exception) {
             println("❌ Fehler beim Laden aus Firestore: ${e.message}")
@@ -108,6 +119,8 @@ class FirestoreRepository : DataRepository {
             replaceCollection(logsRef, data.logs.map { prepareForSave(it) })
             replaceCollection(luckyWheelUsageRef, data.luckyWheelUsage.map { prepareForSave(it) })
             replaceCollection(gameHighscoresRef, data.gameHighscores.map { prepareForSave(it) })
+            replaceCollection(gameDailyRewardsRef, data.gameDailyRewards.map { prepareForSave(it) })
+            saveGameSettings(data.gameSettings)
 
             println("✅ Firestore Collections komplett gespeichert (Coins: ${data.children.sumOf { it.coins }})")
         } catch (e: Exception) {
@@ -132,7 +145,10 @@ class FirestoreRepository : DataRepository {
                     "dogPlanShiftCount" to data.dogPlan.shifts.size,
                     "logsCount" to data.logs.size,
                     "luckyWheelUsageCount" to data.luckyWheelUsage.size,
-                    "gameHighscoresCount" to data.gameHighscores.size
+                    "gameHighscoresCount" to data.gameHighscores.size,
+                    "gameDailyRewardsCount" to data.gameDailyRewards.size,
+                    "autoWeeklyHighscoreResetEnabled" to data.gameSettings.autoWeeklyHighscoreResetEnabled,
+                    "lastAutomaticHighscoreResetDate" to data.gameSettings.lastAutomaticHighscoreResetDate
                 ),
                 SetOptions.merge()
             ).await()
@@ -147,6 +163,8 @@ class FirestoreRepository : DataRepository {
             replaceCollection(backupLogsRef, data.logs.map { prepareForSave(it) })
             replaceCollection(backupLuckyWheelUsageRef, data.luckyWheelUsage.map { prepareForSave(it) })
             replaceCollection(backupGameHighscoresRef, data.gameHighscores.map { prepareForSave(it) })
+            replaceCollection(backupGameDailyRewardsRef, data.gameDailyRewards.map { prepareForSave(it) })
+            backupGameSettingsRef.set(data.gameSettings).await()
 
             println("✅ Cloud-Backup erfolgreich erstellt")
         } catch (e: Exception) {
@@ -197,7 +215,10 @@ class FirestoreRepository : DataRepository {
                     .await()
                     .toObjects(LogEntry::class.java),
                 luckyWheelUsage = backupLuckyWheelUsageRef.get().await().toObjects(LuckyWheelUsage::class.java),
-                gameHighscores = backupGameHighscoresRef.get().await().toObjects(GameHighscore::class.java)
+                gameHighscores = backupGameHighscoresRef.get().await().toObjects(GameHighscore::class.java),
+                gameDailyRewards = backupGameDailyRewardsRef.get().await().toObjects(GameDailyReward::class.java),
+                gameSettings = backupGameSettingsRef.get().await().toObject(GameSettings::class.java)
+                    ?: GameSettings()
             )
 
             println("✅ Cloud-Backup erfolgreich geladen")
@@ -225,6 +246,8 @@ class FirestoreRepository : DataRepository {
         realtimeLogs = null
         realtimeLuckyWheelUsage = null
         realtimeGameHighscores = null
+        realtimeGameDailyRewards = null
+        realtimeGameSettings = null
 
         listenerRegistrations += childrenRef
             .orderBy("age", Query.Direction.ASCENDING)
@@ -343,6 +366,28 @@ class FirestoreRepository : DataRepository {
             emitRealtimeDataIfReady(onDataChanged)
         }
 
+        listenerRegistrations += gameDailyRewardsRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                println("❌ Realtime gameDailyRewards Fehler: ${error.message}")
+                onError(error)
+                return@addSnapshotListener
+            }
+
+            realtimeGameDailyRewards = snapshot?.toObjects(GameDailyReward::class.java).orEmpty()
+            emitRealtimeDataIfReady(onDataChanged)
+        }
+
+        listenerRegistrations += gameSettingsRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                println("❌ Realtime gameSettings Fehler: ${error.message}")
+                onError(error)
+                return@addSnapshotListener
+            }
+
+            realtimeGameSettings = snapshot?.toObject(GameSettings::class.java) ?: GameSettings()
+            emitRealtimeDataIfReady(onDataChanged)
+        }
+
         println("✅ Firestore Realtime-Synchronisation gestartet")
     }
 
@@ -369,6 +414,8 @@ class FirestoreRepository : DataRepository {
         val logs = realtimeLogs ?: return
         val luckyWheelUsage = realtimeLuckyWheelUsage ?: return
         val gameHighscores = realtimeGameHighscores ?: return
+        val gameDailyRewards = realtimeGameDailyRewards ?: return
+        val gameSettings = realtimeGameSettings ?: return
 
         val realtimeData = LunaCoinData(
             children = ensureBuiltInAdmin(children),
@@ -382,7 +429,9 @@ class FirestoreRepository : DataRepository {
             ),
             logs = logs,
             luckyWheelUsage = luckyWheelUsage,
-            gameHighscores = gameHighscores
+            gameHighscores = gameHighscores,
+            gameDailyRewards = gameDailyRewards,
+            gameSettings = gameSettings
         )
 
         onDataChanged(realtimeData)
@@ -457,6 +506,18 @@ class FirestoreRepository : DataRepository {
         return gameHighscoresRef.get().await().toObjects(GameHighscore::class.java)
     }
 
+    override suspend fun loadGameDailyRewards(): List<GameDailyReward> {
+        return gameDailyRewardsRef.get().await().toObjects(GameDailyReward::class.java)
+    }
+
+    override suspend fun loadGameSettings(): GameSettings {
+        return gameSettingsRef
+            .get()
+            .await()
+            .toObject(GameSettings::class.java)
+            ?: GameSettings()
+    }
+
     override suspend fun saveChild(child: Child) {
         val item = prepareForSave(child)
         childrenRef.document(item.id).set(item).await()
@@ -521,6 +582,17 @@ class FirestoreRepository : DataRepository {
     override suspend fun saveGameHighscore(highscore: GameHighscore) {
         val item = prepareForSave(highscore)
         gameHighscoresRef.document(item.id).set(item).await()
+        updateFamilyTimestamp()
+    }
+
+    override suspend fun saveGameDailyReward(reward: GameDailyReward) {
+        val item = prepareForSave(reward)
+        gameDailyRewardsRef.document(item.id).set(item).await()
+        updateFamilyTimestamp()
+    }
+
+    override suspend fun saveGameSettings(settings: GameSettings) {
+        gameSettingsRef.set(settings, SetOptions.merge()).await()
         updateFamilyTimestamp()
     }
 
@@ -710,6 +782,54 @@ class FirestoreRepository : DataRepository {
 
     override suspend fun deleteGameHighscore(highscoreId: String) {
         gameHighscoresRef.document(highscoreId).delete().await()
+        updateFamilyTimestamp()
+    }
+
+    override suspend fun deleteGameDailyReward(rewardId: String) {
+        gameDailyRewardsRef.document(rewardId).delete().await()
+        updateFamilyTimestamp()
+    }
+
+    override suspend fun deleteGameHighscoresByGame(game: LunaGameType) {
+        val snapshot = gameHighscoresRef
+            .whereEqualTo("game", game.name)
+            .get()
+            .await()
+
+        if (snapshot.isEmpty) {
+            return
+        }
+
+        snapshot.documents
+            .chunked(FIRESTORE_BATCH_LIMIT)
+            .forEach { documents ->
+                val batch = db.batch()
+                documents.forEach { document ->
+                    batch.delete(document.reference)
+                }
+                batch.commit().await()
+            }
+
+        updateFamilyTimestamp()
+    }
+
+    override suspend fun deleteAllGameHighscores() {
+        val snapshot = gameHighscoresRef.get().await()
+
+        if (snapshot.isEmpty) {
+            return
+        }
+
+        snapshot.documents
+            .chunked(FIRESTORE_BATCH_LIMIT)
+            .forEach { documents ->
+                val batch = db.batch()
+                documents.forEach { document ->
+                    batch.delete(document.reference)
+                }
+                batch.commit().await()
+            }
+
         updateFamilyTimestamp()
     }
 
@@ -1007,6 +1127,20 @@ class FirestoreRepository : DataRepository {
         )
     }
 
+    private fun prepareForSave(reward: GameDailyReward): GameDailyReward {
+        val now = Date()
+        val rewardId = reward.id.ifBlank {
+            "${reward.game}_${reward.childId}_${reward.date}"
+        }
+
+        return reward.copy(
+            id = rewardId,
+            familyId = familyId,
+            createdAt = reward.createdAt ?: now,
+            updatedAt = now
+        )
+    }
+
     private fun getDocumentId(item: Any): String {
         return when (item) {
             is Child -> item.id
@@ -1030,6 +1164,7 @@ class FirestoreRepository : DataRepository {
             is LogEntry -> item.id
             is LuckyWheelUsage -> item.id.ifBlank { "${item.childId}_${item.date}" }
             is GameHighscore -> item.id.ifBlank { "${item.game}_${item.childId}_${item.level}_${item.scoreType}" }
+            is GameDailyReward -> item.id.ifBlank { "${item.game}_${item.childId}_${item.date}" }
             else -> throw IllegalArgumentException("Unbekannter Firestore-Typ: ${item::class.java.simpleName}")
         }
     }
@@ -1072,6 +1207,7 @@ class FirestoreRepository : DataRepository {
 
     companion object {
         private const val MAX_ACTIVE_LOGS = 2000L
+        private const val FIRESTORE_BATCH_LIMIT = 450
         const val BUILT_IN_ADMIN_ID = "built_in_admin"
     }
 }

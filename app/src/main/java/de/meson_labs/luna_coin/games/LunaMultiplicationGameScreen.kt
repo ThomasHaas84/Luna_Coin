@@ -2,8 +2,10 @@
 package de.meson_labs.luna_coin.games
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -16,8 +18,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -37,10 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -67,6 +64,7 @@ fun LunaMultiplicationGameScreen(
     val children = data.children
 
     var missingFields by remember { mutableStateOf(setOf<Pair<Int, Int>>()) }
+    var selectedField by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     val answers = remember { mutableStateMapOf<Pair<Int, Int>, String>() }
 
     var elapsedSeconds by remember { mutableLongStateOf(0L) }
@@ -93,9 +91,51 @@ fun LunaMultiplicationGameScreen(
             answers[field] = ""
         }
 
+        selectedField = missingFields
+            .sortedWith(compareBy<Pair<Int, Int>> { it.first }.thenBy { it.second })
+            .firstOrNull()
+
         elapsedSeconds = 0L
         timerStarted = false
         highscoreSaved = false
+    }
+
+    fun startTimerIfNeeded() {
+        if (!timerStarted) {
+            timerStarted = true
+        }
+    }
+
+    fun appendDigit(digit: Int) {
+        val field = selectedField ?: return
+        startTimerIfNeeded()
+
+        val currentValue = answers[field].orEmpty()
+        answers[field] = (currentValue + digit.toString()).take(3)
+    }
+
+    fun removeLastDigit() {
+        val field = selectedField ?: return
+        val currentValue = answers[field].orEmpty()
+
+        if (currentValue.isNotEmpty()) {
+            startTimerIfNeeded()
+            answers[field] = currentValue.dropLast(1)
+        }
+    }
+
+    fun selectNextField() {
+        val orderedFields = missingFields
+            .sortedWith(compareBy<Pair<Int, Int>> { it.first }.thenBy { it.second })
+
+        if (orderedFields.isEmpty()) {
+            selectedField = null
+            return
+        }
+
+        val currentIndex = orderedFields.indexOf(selectedField)
+        selectedField = orderedFields.getOrNull(currentIndex + 1)
+            ?: orderedFields.firstOrNull()
     }
 
     fun finishGame() {
@@ -175,15 +215,15 @@ fun LunaMultiplicationGameScreen(
                 allCorrect = allCorrect,
                 missingFields = missingFields,
                 answers = answers,
+                selectedField = selectedField,
+                onFieldSelected = { field ->
+                    selectedField = field
+                },
+                onDigitClick = ::appendDigit,
+                onBackClick = ::removeLastDigit,
+                onEnterClick = ::selectNextField,
                 onExitClick = { showExitConfirmation = true },
-                onRestartClick = { showRestartConfirmation = true },
-                onAnswerChanged = { field, value ->
-                    if (!timerStarted) {
-                        timerStarted = true
-                    }
-
-                    answers[field] = value.filter { it.isDigit() }.take(3)
-                }
+                onRestartClick = { showRestartConfirmation = true }
             )
         } else {
             PhoneMultiplicationLayout(
@@ -198,15 +238,15 @@ fun LunaMultiplicationGameScreen(
                 allCorrect = allCorrect,
                 missingFields = missingFields,
                 answers = answers,
+                selectedField = selectedField,
+                onFieldSelected = { field ->
+                    selectedField = field
+                },
+                onDigitClick = ::appendDigit,
+                onBackClick = ::removeLastDigit,
+                onEnterClick = ::selectNextField,
                 onExitClick = { showExitConfirmation = true },
-                onRestartClick = { showRestartConfirmation = true },
-                onAnswerChanged = { field, value ->
-                    if (!timerStarted) {
-                        timerStarted = true
-                    }
-
-                    answers[field] = value.filter { it.isDigit() }.take(3)
-                }
+                onRestartClick = { showRestartConfirmation = true }
             )
         }
     }
@@ -248,49 +288,59 @@ private fun TabletMultiplicationLayout(
     allCorrect: Boolean,
     missingFields: Set<Pair<Int, Int>>,
     answers: MutableMap<Pair<Int, Int>, String>,
+    selectedField: Pair<Int, Int>?,
+    onFieldSelected: (Pair<Int, Int>) -> Unit,
+    onDigitClick: (Int) -> Unit,
+    onBackClick: () -> Unit,
+    onEnterClick: () -> Unit,
     onExitClick: () -> Unit,
-    onRestartClick: () -> Unit,
-    onAnswerChanged: (Pair<Int, Int>, String) -> Unit
+    onRestartClick: () -> Unit
 ) {
-    BoxWithConstraints(
-        modifier = Modifier.fillMaxSize()
+    Row(
+        modifier = Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        val spacing = 4.dp
-        val leftPanelWidth = 210.dp
-        val safetySpace = 16.dp
+        MultiplicationInfoPanel(
+            modifier = Modifier.width(200.dp),
+            elapsedSeconds = elapsedSeconds,
+            personalHighscoreText = personalHighscoreText,
+            globalHighscoreText = globalHighscoreText,
+            allCorrect = allCorrect,
+            compact = false,
+            onExitClick = onExitClick,
+            onRestartClick = onRestartClick
+        )
 
-        val cellSizeByWidth = (maxWidth - spacing * 9) / 10
-        val cellSizeByHeight = (maxHeight - spacing * 9 - safetySpace) / 10
-        val cellSize = min(cellSizeByWidth.value, cellSizeByHeight.value).dp
-
-        Box(
-            modifier = Modifier.fillMaxSize()
+        BoxWithConstraints(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            MultiplicationInfoPanel(
-                modifier = Modifier
-                    .width(leftPanelWidth)
-                    .align(Alignment.CenterStart),
-                elapsedSeconds = elapsedSeconds,
-                personalHighscoreText = personalHighscoreText,
-                globalHighscoreText = globalHighscoreText,
-                allCorrect = allCorrect,
-                compact = false,
-                onExitClick = onExitClick,
-                onRestartClick = onRestartClick
-            )
+            val spacing = 4.dp
+            val cellSizeByWidth = (maxWidth - spacing * 9) / 10
+            val cellSizeByHeight = (maxHeight - spacing * 9 - 16.dp) / 10
+            val cellSize = min(cellSizeByWidth.value, cellSizeByHeight.value).dp
 
             MultiplicationGrid(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .offset(y = (-4).dp),
                 spacing = spacing,
                 cellSize = cellSize,
                 missingFields = missingFields,
                 answers = answers,
+                selectedField = selectedField,
                 compact = false,
-                onAnswerChanged = onAnswerChanged
+                onFieldSelected = onFieldSelected
             )
         }
+
+        NumberPad(
+            modifier = Modifier.width(220.dp),
+            compact = false,
+            onDigitClick = onDigitClick,
+            onBackClick = onBackClick,
+            onEnterClick = onEnterClick
+        )
     }
 }
 
@@ -303,9 +353,13 @@ private fun PhoneMultiplicationLayout(
     allCorrect: Boolean,
     missingFields: Set<Pair<Int, Int>>,
     answers: MutableMap<Pair<Int, Int>, String>,
+    selectedField: Pair<Int, Int>?,
+    onFieldSelected: (Pair<Int, Int>) -> Unit,
+    onDigitClick: (Int) -> Unit,
+    onBackClick: () -> Unit,
+    onEnterClick: () -> Unit,
     onExitClick: () -> Unit,
-    onRestartClick: () -> Unit,
-    onAnswerChanged: (Pair<Int, Int>, String) -> Unit
+    onRestartClick: () -> Unit
 ) {
     if (isLandscape) {
         Row(
@@ -315,7 +369,7 @@ private fun PhoneMultiplicationLayout(
         ) {
             MultiplicationInfoPanel(
                 modifier = Modifier
-                    .width(150.dp)
+                    .width(140.dp)
                     .fillMaxSize(),
                 elapsedSeconds = elapsedSeconds,
                 personalHighscoreText = personalHighscoreText,
@@ -342,10 +396,19 @@ private fun PhoneMultiplicationLayout(
                     cellSize = cellSize,
                     missingFields = missingFields,
                     answers = answers,
+                    selectedField = selectedField,
                     compact = true,
-                    onAnswerChanged = onAnswerChanged
+                    onFieldSelected = onFieldSelected
                 )
             }
+
+            PhoneNumberPad(
+                modifier = Modifier.width(190.dp),
+                buttonHeight = 34.dp,
+                onDigitClick = onDigitClick,
+                onBackClick = onBackClick,
+                onEnterClick = onEnterClick
+            )
         }
     } else {
         Column(
@@ -362,7 +425,7 @@ private fun PhoneMultiplicationLayout(
                 onRestartClick = onRestartClick
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             BoxWithConstraints(
                 modifier = Modifier
@@ -380,10 +443,21 @@ private fun PhoneMultiplicationLayout(
                     cellSize = cellSize,
                     missingFields = missingFields,
                     answers = answers,
+                    selectedField = selectedField,
                     compact = true,
-                    onAnswerChanged = onAnswerChanged
+                    onFieldSelected = onFieldSelected
                 )
             }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            PhoneNumberPad(
+                modifier = Modifier.fillMaxWidth(),
+                buttonHeight = 40.dp,
+                onDigitClick = onDigitClick,
+                onBackClick = onBackClick,
+                onEnterClick = onEnterClick
+            )
         }
     }
 }
@@ -549,8 +623,9 @@ private fun MultiplicationGrid(
     cellSize: Dp,
     missingFields: Set<Pair<Int, Int>>,
     answers: MutableMap<Pair<Int, Int>, String>,
+    selectedField: Pair<Int, Int>?,
     compact: Boolean = false,
-    onAnswerChanged: (Pair<Int, Int>, String) -> Unit
+    onFieldSelected: (Pair<Int, Int>) -> Unit
 ) {
     Column(
         modifier = modifier,
@@ -578,9 +653,12 @@ private fun MultiplicationGrid(
                         answer = answer,
                         hasAnswer = hasAnswer,
                         isCorrect = isCorrect,
+                        isSelected = selectedField == field,
                         compact = compact,
-                        onAnswerChanged = { value ->
-                            onAnswerChanged(field, value)
+                        onClick = {
+                            if (isMissing) {
+                                onFieldSelected(field)
+                            }
                         }
                     )
                 }
@@ -597,8 +675,9 @@ private fun MultiplicationCell(
     answer: String,
     hasAnswer: Boolean,
     isCorrect: Boolean,
+    isSelected: Boolean,
     compact: Boolean = false,
-    onAnswerChanged: (String) -> Unit
+    onClick: () -> Unit
 ) {
     val correctGreen = Color(0xFF2E7D32)
     val normalCellBackground = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
@@ -615,6 +694,7 @@ private fun MultiplicationCell(
     }
 
     val borderColor = when {
+        isSelected -> MaterialTheme.colorScheme.tertiary
         isMissing && hasAnswer && isCorrect -> correctGreen
         isMissing && hasAnswer && !isCorrect -> MaterialTheme.colorScheme.error
         isMissing -> MaterialTheme.colorScheme.primary
@@ -626,42 +706,30 @@ private fun MultiplicationCell(
             .clip(MaterialTheme.shapes.small)
             .background(backgroundColor)
             .border(
-                width = if (isMissing && hasAnswer) 3.dp else 1.dp,
+                width = if (isSelected || (isMissing && hasAnswer)) 3.dp else 1.dp,
                 color = borderColor,
                 shape = MaterialTheme.shapes.small
+            )
+            .clickable(
+                enabled = isMissing,
+                onClick = onClick
             )
             .padding(1.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         if (isMissing) {
-            BasicTextField(
-                value = answer,
-                onValueChange = onAnswerChanged,
-                singleLine = true,
-                textStyle = TextStyle(
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = cellTextStyle.fontSize,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                ),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number
-                ),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                decorationBox = { innerTextField ->
-                    if (answer.isEmpty()) {
-                        Text(
-                            text = "?",
-                            style = cellTextStyle,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-
-                    innerTextField()
-                }
+            Text(
+                text = answer.ifEmpty { "?" },
+                style = cellTextStyle,
+                fontWeight = FontWeight.Bold,
+                color = if (answer.isEmpty()) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                textAlign = TextAlign.Center,
+                maxLines = 1
             )
         } else {
             Text(
@@ -671,6 +739,149 @@ private fun MultiplicationCell(
                 textAlign = TextAlign.Center,
                 maxLines = 1
             )
+        }
+    }
+}
+
+@Composable
+private fun PhoneNumberPad(
+    modifier: Modifier = Modifier,
+    buttonHeight: Dp,
+    onDigitClick: (Int) -> Unit,
+    onBackClick: () -> Unit,
+    onEnterClick: () -> Unit
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        listOf(
+            listOf(1, 2, 3, 4, 5),
+            listOf(6, 7, 8, 9, 0)
+        ).forEach { digits ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                digits.forEach { digit ->
+                    Button(
+                        onClick = { onDigitClick(digit) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(buttonHeight),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 0.dp,
+                            vertical = 0.dp
+                        )
+                    ) {
+                        Text(
+                            text = digit.toString(),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Button(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(buttonHeight),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = 4.dp,
+                    vertical = 0.dp
+                )
+            ) {
+                Text(
+                    text = "Back",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+            }
+
+            Button(
+                onClick = onEnterClick,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(buttonHeight),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = 4.dp,
+                    vertical = 0.dp
+                )
+            ) {
+                Text(
+                    text = "Enter",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NumberPad(
+    modifier: Modifier = Modifier,
+    compact: Boolean,
+    onDigitClick: (Int) -> Unit,
+    onBackClick: () -> Unit,
+    onEnterClick: () -> Unit
+) {
+    val rows = listOf(
+        listOf("1", "2", "3"),
+        listOf("4", "5", "6"),
+        listOf("7", "8", "9"),
+        listOf("Back", "0", "Enter")
+    )
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp)
+    ) {
+        rows.forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp)
+            ) {
+                rowItems.forEach { label ->
+                    Button(
+                        onClick = {
+                            when (label) {
+                                "Back" -> onBackClick()
+                                "Enter" -> onEnterClick()
+                                else -> onDigitClick(label.toInt())
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(if (compact) 1.25f else 1.15f),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 2.dp,
+                            vertical = 2.dp
+                        )
+                    ) {
+                        Text(
+                            text = label,
+                            style = if (compact) {
+                                MaterialTheme.typography.labelLarge
+                            } else {
+                                MaterialTheme.typography.titleMedium
+                            },
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
         }
     }
 }

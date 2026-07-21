@@ -61,7 +61,8 @@ fun TasksScreen(
     onClearDogPlanLateShift: (date: String) -> Unit = {},
     onLogout: () -> Unit,
     canGoToPreviousDay: Boolean,
-    canGoToNextDay: Boolean
+    canGoToNextDay: Boolean,
+    startAtDogPlan: Boolean = false
 ) {
     val configuration = LocalConfiguration.current
     val isTabletLayout = configuration.smallestScreenWidthDp >= 600
@@ -87,8 +88,19 @@ fun TasksScreen(
         }
     }
 
-    var selectedArea by remember { mutableStateOf(TaskArea.HOUSEHOLD) }
-    var taskToComplete by remember { mutableStateOf<TaskItem?>(null) }
+    var selectedArea by remember(startAtDogPlan) {
+        mutableStateOf(
+            if (startAtDogPlan) {
+                TaskArea.DOG_PLAN
+            } else {
+                TaskArea.HOUSEHOLD
+            }
+        )
+    }
+
+    var taskToComplete by remember {
+        mutableStateOf<TaskItem?>(null)
+    }
 
     Column(
         modifier = modifier

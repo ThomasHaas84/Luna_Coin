@@ -6,10 +6,13 @@ import de.meson_labs.luna_coin.models.DogPlanShift
 import de.meson_labs.luna_coin.models.DogPlanTaskCompletion
 import de.meson_labs.luna_coin.models.DogPlanTaskTemplate
 import de.meson_labs.luna_coin.models.DogScheduleItem
+import de.meson_labs.luna_coin.models.GameDailyReward
 import de.meson_labs.luna_coin.models.GameHighscore
+import de.meson_labs.luna_coin.models.GameSettings
 import de.meson_labs.luna_coin.models.LogEntry
 import de.meson_labs.luna_coin.models.LuckyWheelUsage
 import de.meson_labs.luna_coin.models.LunaCoinData
+import de.meson_labs.luna_coin.models.LunaGameType
 import de.meson_labs.luna_coin.models.LunaInventoryItem
 import de.meson_labs.luna_coin.models.ShopItem
 import de.meson_labs.luna_coin.models.TaskItem
@@ -41,6 +44,8 @@ interface DataRepository {
     suspend fun loadLogs(limit: Long = 2000): List<LogEntry>
     suspend fun loadLuckyWheelUsage(): List<LuckyWheelUsage>
     suspend fun loadGameHighscores(): List<GameHighscore>
+    suspend fun loadGameDailyRewards(): List<GameDailyReward>
+    suspend fun loadGameSettings(): GameSettings
 
     suspend fun saveChild(child: Child)
     suspend fun saveTask(task: TaskItem)
@@ -53,6 +58,8 @@ interface DataRepository {
     suspend fun saveLog(log: LogEntry)
     suspend fun saveLuckyWheelUsage(usage: LuckyWheelUsage)
     suspend fun saveGameHighscore(highscore: GameHighscore)
+    suspend fun saveGameDailyReward(reward: GameDailyReward)
+    suspend fun saveGameSettings(settings: GameSettings)
 
     suspend fun updateChildInventory(
         childId: String,
@@ -114,6 +121,10 @@ interface DataRepository {
     suspend fun deleteLog(logId: String)
     suspend fun deleteLuckyWheelUsage(usageId: String)
     suspend fun deleteGameHighscore(highscoreId: String)
+    suspend fun deleteGameDailyReward(rewardId: String)
+
+    suspend fun deleteGameHighscoresByGame(game: LunaGameType)
+    suspend fun deleteAllGameHighscores()
 
     suspend fun setChildCoins(
         childId: String,
@@ -132,6 +143,8 @@ interface DataRepository {
         senderLog: LogEntry,
         recipientLog: LogEntry
     ): Pair<Int, Int> {
-        throw UnsupportedOperationException("Coin-Übertragungen werden von diesem Repository nicht unterstützt")
+        throw UnsupportedOperationException(
+            "Coin-Übertragungen werden von diesem Repository nicht unterstützt"
+        )
     }
 }

@@ -81,6 +81,7 @@ class LunaCoinViewModel(
     val message: StateFlow<String?> = _message.asStateFlow()
 
     private var realtimeSyncStarted = false
+    private var automaticHighscoreResetRunning = false
 
     private val minSelectableDate = LocalDate.now().minusDays(14)
     private val maxSelectableDate = LocalDate.now().plusDays(14)
@@ -134,11 +135,14 @@ class LunaCoinViewModel(
                             dogPlan = safeDogPlan,
                             logs = repository.loadLogs(),
                             luckyWheelUsage = repository.loadLuckyWheelUsage(),
-                            gameHighscores = repository.loadGameHighscores()
+                            gameHighscores = repository.loadGameHighscores(),
+                            gameDailyRewards = repository.loadGameDailyRewards(),
+                            gameSettings = repository.loadGameSettings()
                         )
                     )
 
                     _data.value = sortChildrenInData(loadedData)
+                    checkAutomaticWeeklyHighscoreReset()
 
                     println(
                         "✅ Firestore Collections geladen: " +
@@ -184,6 +188,7 @@ class LunaCoinViewModel(
                     val safeData = sortChildrenInData(ensureBuiltInAdmin(realtimeDataWithDogPlan))
 
                     _data.value = safeData
+                    checkAutomaticWeeklyHighscoreReset()
 
                     if (
                         currentSelectedChildId != null &&
@@ -282,6 +287,139 @@ class LunaCoinViewModel(
 
     fun today() {
         _selectedDate.value = LocalDate.now()
+    }
+
+    fun setAutomaticWeeklyHighscoreReset(enabled: Boolean) {
+        val originalData = _data.value
+        val updatedSettings = originalData.gameSettings.copy(
+            autoWeeklyHighscoreResetEnabled = enabled
+        )
+
+        _data.value = originalData.copy(
+            gameSettings = updatedSettings
+        )
+
+        viewModelScope.launch {
+            try {
+                repository.saveGameSettings(updatedSettings)
+
+                if (enabled) {
+                    checkAutomaticWeeklyHighscoreReset()
+                }
+
+                showMessage(
+                    if (enabled) {
+                        "✅ Automatischer Wochen-Reset aktiviert"
+                    } else {
+                        "✅ Automatischer Wochen-Reset deaktiviert"
+                    }
+                )
+            } catch (e: Exception) {
+                _data.value = originalData
+                println("❌ Fehler beim Speichern der Highscore-Einstellungen: ${e.message}")
+                e.printStackTrace()
+                showMessage("❌ Einstellung konnte nicht gespeichert werden")
+            }
+        }
+    }
+
+    fun resetHighscoresForGame(game: LunaGameType) {
+        val originalData = _data.value
+        val remainingHighscores = originalData.gameHighscores.filterNot { highscore ->
+            highscore.game == game
+        }
+
+        _data.value = originalData.copy(
+            gameHighscores = remainingHighscores
+        )
+
+        viewModelScope.launch {
+            try {
+                repository.deleteGameHighscoresByGame(game)
+                showMessage("✅ ${getGameDisplayName(game)}-Highscores gelöscht")
+            } catch (e: Exception) {
+                _data.value = originalData
+                println("❌ Fehler beim Löschen der ${game.name}-Highscores: ${e.message}")
+                e.printStackTrace()
+                showMessage("❌ Highscores konnten nicht gelöscht werden")
+            }
+        }
+    }
+
+    fun resetAllHighscores() {
+        val originalData = _data.value
+
+        _data.value = originalData.copy(
+            gameHighscores = emptyList()
+        )
+
+        viewModelScope.launch {
+            try {
+                repository.deleteAllGameHighscores()
+                showMessage("✅ Alle Highscores gelöscht")
+            } catch (e: Exception) {
+                _data.value = originalData
+                println("❌ Fehler beim Löschen aller Highscores: ${e.message}")
+                e.printStackTrace()
+                showMessage("❌ Highscores konnten nicht gelöscht werden")
+            }
+        }
+    }
+
+    fun checkAutomaticWeeklyHighscoreReset() {
+        if (automaticHighscoreResetRunning) return
+
+        val currentData = _data.value
+        val settings = currentData.gameSettings
+
+        if (!settings.autoWeeklyHighscoreResetEnabled) return
+
+        val today = LocalDate.now()
+        val currentWeekMonday = today.minusDays((today.dayOfWeek.value - 1).toLong())
+        val lastResetDate = settings.lastAutomaticHighscoreResetDate
+            ?.let { storedDate ->
+                runCatching { LocalDate.parse(storedDate) }.getOrNull()
+            }
+
+        if (lastResetDate != null && !lastResetDate.isBefore(currentWeekMonday)) {
+            return
+        }
+
+        automaticHighscoreResetRunning = true
+
+        val originalData = _data.value
+        val updatedSettings = originalData.gameSettings.copy(
+            lastAutomaticHighscoreResetDate = today.toString()
+        )
+
+        _data.value = originalData.copy(
+            gameHighscores = emptyList(),
+            gameSettings = updatedSettings
+        )
+
+        viewModelScope.launch {
+            try {
+                repository.deleteAllGameHighscores()
+                repository.saveGameSettings(updatedSettings)
+                showMessage("✅ Wöchentlicher Highscore-Reset durchgeführt")
+            } catch (e: Exception) {
+                _data.value = originalData
+                println("❌ Automatischer Highscore-Reset fehlgeschlagen: ${e.message}")
+                e.printStackTrace()
+                showMessage("❌ Automatischer Highscore-Reset fehlgeschlagen")
+            } finally {
+                automaticHighscoreResetRunning = false
+            }
+        }
+    }
+
+    private fun getGameDisplayName(game: LunaGameType): String {
+        return when (game) {
+            LunaGameType.MEMORY -> "Memory"
+            LunaGameType.NUMBER_GUESS -> "Zahlenraten"
+            LunaGameType.MULTIPLICATION -> "Einmaleins"
+            LunaGameType.WORD_GUESS -> "Wort-Raten"
+        }
     }
 
 

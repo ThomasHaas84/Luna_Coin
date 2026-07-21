@@ -3,11 +3,13 @@ package de.meson_labs.luna_coin.manager
 import de.meson_labs.luna_coin.data.repository.DataRepository
 import de.meson_labs.luna_coin.games.upsertHighscore
 import de.meson_labs.luna_coin.models.Child
+import de.meson_labs.luna_coin.models.GameDailyReward
 import de.meson_labs.luna_coin.models.GameHighscore
 import de.meson_labs.luna_coin.models.LunaCoinData
 import de.meson_labs.luna_coin.models.LunaGameLevel
 import de.meson_labs.luna_coin.models.LunaGameScoreType
 import de.meson_labs.luna_coin.models.LunaGameType
+import java.time.LocalDate
 
 class GameHighscoreManager(
     private val repository: DataRepository
@@ -48,9 +50,42 @@ class GameHighscoreManager(
             }
         }
 
+        val today = LocalDate.now().toString()
+
+        val hasAlreadyReceivedDailyGameExperience =
+            currentData.gameDailyRewards.any { reward ->
+                reward.childId == childId &&
+                        reward.game == game &&
+                        reward.date == today
+            }
+
+        val dailyReward = if (hasAlreadyReceivedDailyGameExperience) {
+            null
+        } else {
+            GameDailyReward(
+                id = "${game}_${childId}_$today",
+                childId = childId,
+                game = game,
+                date = today,
+                timestamp = System.currentTimeMillis().toString()
+            )
+        }
+
         val hasNewHighscore = newHighscores.isNotEmpty()
-        val experienceDelta = ProgressManager.EXPERIENCE_PER_GAME_FINISHED +
-                if (hasNewHighscore) ProgressManager.EXPERIENCE_PER_NEW_HIGHSCORE else 0
+
+        val gameFinishedExperience = if (dailyReward != null) {
+            ProgressManager.EXPERIENCE_PER_GAME_FINISHED
+        } else {
+            0
+        }
+
+        val highscoreExperience = if (hasNewHighscore) {
+            ProgressManager.EXPERIENCE_PER_NEW_HIGHSCORE
+        } else {
+            0
+        }
+
+        val experienceDelta = gameFinishedExperience + highscoreExperience
 
         val optimisticChild = ProgressManager.addExperience(
             child = child,
@@ -62,7 +97,12 @@ class GameHighscoreManager(
                 children = currentData.children.map { currentChild ->
                     if (currentChild.id == childId) optimisticChild else currentChild
                 },
-                gameHighscores = updatedHighscores
+                gameHighscores = updatedHighscores,
+                gameDailyRewards = if (dailyReward != null) {
+                    currentData.gameDailyRewards + dailyReward
+                } else {
+                    currentData.gameDailyRewards
+                }
             )
         )
 
@@ -71,6 +111,7 @@ class GameHighscoreManager(
             optimisticData = optimisticData,
             childId = childId,
             newHighscores = newHighscores,
+            dailyReward = dailyReward,
             experienceDelta = experienceDelta
         )
     }
@@ -78,6 +119,10 @@ class GameHighscoreManager(
     suspend fun persistFinishGame(operation: FinishGameOperation): Child {
         operation.newHighscores.forEach { highscore ->
             repository.saveGameHighscore(highscore)
+        }
+
+        operation.dailyReward?.let { reward ->
+            repository.saveGameDailyReward(reward)
         }
 
         return repository.changeChildCoinsAndExperience(
@@ -181,6 +226,7 @@ data class FinishGameOperation(
     val optimisticData: LunaCoinData,
     val childId: String,
     val newHighscores: List<GameHighscore>,
+    val dailyReward: GameDailyReward?,
     val experienceDelta: Int
 )
 

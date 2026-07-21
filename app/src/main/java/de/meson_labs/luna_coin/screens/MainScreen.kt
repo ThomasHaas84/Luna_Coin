@@ -1,6 +1,7 @@
 // screens/MainScreen.kt
 package de.meson_labs.luna_coin.screens
 
+import android.content.Context
 import android.content.res.Configuration
 import android.view.SoundEffectConstants
 import androidx.compose.foundation.layout.Box
@@ -33,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -41,8 +43,14 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.meson_labs.luna_coin.models.Child
+import de.meson_labs.luna_coin.models.LunaGameType
 import de.meson_labs.luna_coin.screens.settings.SettingsScreen
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
+
+private const val NAVIGATION_PREFERENCES_NAME = "luna_navigation_preferences"
+private const val NAVIGATION_DESTINATION_KEY = "login_destination"
+private const val LOGIN_DESTINATION_HOUSEHOLD_TASKS = "household_tasks"
+private const val LOGIN_DESTINATION_DOG_PLAN = "dog_plan"
 
 private data class LunaBottomNavItem(
     val title: String,
@@ -60,6 +68,7 @@ fun MainScreen(
     val message by viewModel.message.collectAsState()
 
     val view = LocalView.current
+    val context = LocalContext.current
     val configuration = LocalConfiguration.current
 
     val screenWidthDp = configuration.screenWidthDp
@@ -87,7 +96,17 @@ fun MainScreen(
                     child.id == selectedChildId
                 }
 
-                var selectedTab by remember {
+                val startAtDogPlan = remember(selectedChildId, context) {
+                    context.getSharedPreferences(
+                        NAVIGATION_PREFERENCES_NAME,
+                        Context.MODE_PRIVATE
+                    ).getString(
+                        NAVIGATION_DESTINATION_KEY,
+                        LOGIN_DESTINATION_HOUSEHOLD_TASKS
+                    ) == LOGIN_DESTINATION_DOG_PLAN
+                }
+
+                var selectedTab by remember(selectedChildId) {
                     mutableIntStateOf(0)
                 }
 
@@ -211,7 +230,8 @@ fun MainScreen(
                             onClearDogPlanLateShift = viewModel::clearDogPlanLateShift,
                             onLogout = viewModel::logout,
                             canGoToPreviousDay = viewModel.canGoToPreviousDay,
-                            canGoToNextDay = viewModel.canGoToNextDay
+                            canGoToNextDay = viewModel.canGoToNextDay,
+                            startAtDogPlan = startAtDogPlan
                         )
 
                         1 -> ShopScreen(
@@ -276,6 +296,25 @@ fun MainScreen(
                             onCreateCloudBackup = viewModel::createCloudBackup,
                             onRestoreFromBackup = viewModel::restoreFromBackup,
                             onImportFromJson = viewModel::importFromJson,
+                            autoWeeklyHighscoreResetEnabled =
+                                data.gameSettings.autoWeeklyHighscoreResetEnabled,
+                            lastAutomaticHighscoreResetDate =
+                                data.gameSettings.lastAutomaticHighscoreResetDate,
+                            onAutoWeeklyHighscoreResetChanged =
+                                viewModel::setAutomaticWeeklyHighscoreReset,
+                            onResetMemoryHighscores = {
+                                viewModel.resetHighscoresForGame(LunaGameType.MEMORY)
+                            },
+                            onResetNumberGuessHighscores = {
+                                viewModel.resetHighscoresForGame(LunaGameType.NUMBER_GUESS)
+                            },
+                            onResetMultiplicationHighscores = {
+                                viewModel.resetHighscoresForGame(LunaGameType.MULTIPLICATION)
+                            },
+                            onResetWordGuessHighscores = {
+                                viewModel.resetHighscoresForGame(LunaGameType.WORD_GUESS)
+                            },
+                            onResetAllHighscores = viewModel::resetAllHighscores,
                             onKlingonModeChanged = { enabled ->
                                 klingonNavEnabled = enabled
                             },

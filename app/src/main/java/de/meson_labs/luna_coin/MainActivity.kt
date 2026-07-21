@@ -17,18 +17,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        LunaSoundManager.init(context = applicationContext)
+        LunaSoundManager.init(applicationContext)
 
-        // Nur noch Firestore Repository
         val repository: DataRepository = FirestoreRepository()
 
         setContent {
             LunaCoinTheme {
-                val viewModel: LunaCoinViewModel = viewModel(
+                val lunaCoinViewModel: LunaCoinViewModel = viewModel(
                     factory = LunaCoinViewModelFactory(repository)
                 )
 
-                MainScreen(viewModel = viewModel)
+                MainScreen(viewModel = lunaCoinViewModel)
             }
         }
     }

@@ -12,10 +12,13 @@ import de.meson_labs.luna_coin.models.DogPlanData
 import de.meson_labs.luna_coin.models.DogPlanShift
 import de.meson_labs.luna_coin.models.DogPlanTaskCompletion
 import de.meson_labs.luna_coin.models.DogPlanTaskTemplate
+import de.meson_labs.luna_coin.models.GameDailyReward
 import de.meson_labs.luna_coin.models.GameHighscore
+import de.meson_labs.luna_coin.models.GameSettings
 import de.meson_labs.luna_coin.models.LogEntry
 import de.meson_labs.luna_coin.models.LuckyWheelUsage
 import de.meson_labs.luna_coin.models.LunaCoinData
+import de.meson_labs.luna_coin.models.LunaGameType
 import de.meson_labs.luna_coin.models.LunaInventoryItem
 import de.meson_labs.luna_coin.models.ShopItem
 import de.meson_labs.luna_coin.models.TaskItem
@@ -251,6 +254,14 @@ class FakeDataRepository(
         return demoData.gameHighscores
     }
 
+    override suspend fun loadGameDailyRewards(): List<GameDailyReward> {
+        return demoData.gameDailyRewards
+    }
+
+    override suspend fun loadGameSettings(): GameSettings {
+        return demoData.gameSettings
+    }
+
     override suspend fun saveChild(child: Child) {
         demoData = demoData.copy(
             children = if (demoData.children.any { it.id == child.id }) {
@@ -383,6 +394,24 @@ class FakeDataRepository(
         )
     }
 
+    override suspend fun saveGameDailyReward(reward: GameDailyReward) {
+        demoData = demoData.copy(
+            gameDailyRewards = if (demoData.gameDailyRewards.any { it.id == reward.id }) {
+                demoData.gameDailyRewards.map {
+                    if (it.id == reward.id) reward else it
+                }
+            } else {
+                demoData.gameDailyRewards + reward
+            }
+        )
+    }
+
+    override suspend fun saveGameSettings(settings: GameSettings) {
+        demoData = demoData.copy(
+            gameSettings = settings
+        )
+    }
+
     override suspend fun updateChildInventory(
         childId: String,
         inventory: List<LunaInventoryItem>,
@@ -504,6 +533,26 @@ class FakeDataRepository(
     override suspend fun deleteGameHighscore(highscoreId: String) {
         demoData = demoData.copy(
             gameHighscores = demoData.gameHighscores.filterNot { it.id == highscoreId }
+        )
+    }
+
+    override suspend fun deleteGameDailyReward(rewardId: String) {
+        demoData = demoData.copy(
+            gameDailyRewards = demoData.gameDailyRewards.filterNot { it.id == rewardId }
+        )
+    }
+
+    override suspend fun deleteGameHighscoresByGame(game: LunaGameType) {
+        demoData = demoData.copy(
+            gameHighscores = demoData.gameHighscores.filterNot { highscore ->
+                highscore.game == game
+            }
+        )
+    }
+
+    override suspend fun deleteAllGameHighscores() {
+        demoData = demoData.copy(
+            gameHighscores = emptyList()
         )
     }
 
