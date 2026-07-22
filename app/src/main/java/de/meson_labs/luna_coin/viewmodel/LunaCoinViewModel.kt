@@ -26,6 +26,7 @@ import de.meson_labs.luna_coin.manager.ProgressSkill
 import de.meson_labs.luna_coin.manager.ensureBuiltInAdmin
 import de.meson_labs.luna_coin.manager.sortChildrenInData
 import de.meson_labs.luna_coin.models.Child
+import de.meson_labs.luna_coin.models.CurrencyType
 import de.meson_labs.luna_coin.models.DayOfWeekName
 import de.meson_labs.luna_coin.models.DogPlanTaskTemplate
 import de.meson_labs.luna_coin.models.DogPlanTaskType
@@ -214,46 +215,19 @@ class LunaCoinViewModel(
         super.onCleared()
     }
 
-    fun transferCoins(
-        senderId: String,
-        recipientId: String,
-        amount: Int,
-        comment: String,
-        onResult: (Boolean, String?) -> Unit = { _, _ -> }
-    ) {
-        val sender = _data.value.children.firstOrNull { it.id == senderId }
-        val recipient = _data.value.children.firstOrNull { it.id == recipientId }
-
-        if (sender == null || recipient == null) {
-            val error = "Sender oder Empfänger wurde nicht gefunden."
-            showMessage(error)
-            onResult(false, error)
-            return
-        }
-
-        viewModelScope.launch {
-            try {
-                val result = coinTransferManager.transfer(sender, recipient, amount, comment)
-                _data.value = _data.value.copy(
-                    children = _data.value.children.map { child ->
-                        when (child.id) {
-                            sender.id -> child.copy(coins = result.newSenderCoins)
-                            recipient.id -> child.copy(coins = result.newRecipientCoins)
-                            else -> child
-                        }
-                    },
-                    logs = listOf(result.senderLog, result.recipientLog) + _data.value.logs
-                )
-                val text = "$amount Luna Coin${if (amount == 1) "" else "s"} wurden an ${recipient.name} gesendet."
-                showMessage(text)
-                onResult(true, null)
-            } catch (error: Exception) {
-                val text = error.message ?: "Coins konnten nicht gesendet werden."
-                showMessage(text)
-                onResult(false, text)
-            }
-        }
+    fun transferCoins(senderId:String,recipientId:String,amount:Long,comment:String,currency:CurrencyType=CurrencyType.LUNA_COIN,onResult:(Boolean,String?)->Unit={_,_->}) {
+        val sender=_data.value.children.firstOrNull{it.id==senderId}; val recipient=_data.value.children.firstOrNull{it.id==recipientId}
+        if(sender==null||recipient==null){val e="Sender oder Empfänger wurde nicht gefunden.";showMessage(e);onResult(false,e);return}
+        viewModelScope.launch{try{val r=coinTransferManager.transfer(sender,recipient,amount,comment,currency);_data.value=_data.value.copy(children=_data.value.children.map{c->when(c.id){sender.id->if(currency==CurrencyType.LUNA_COIN)c.copy(coins=r.newSenderBalance.toInt())else c.copy(silver=r.newSenderBalance);recipient.id->if(currency==CurrencyType.LUNA_COIN)c.copy(coins=r.newRecipientBalance.toInt())else c.copy(silver=r.newRecipientBalance);else->c}},logs=listOf(r.senderLog,r.recipientLog)+_data.value.logs);val name=if(currency==CurrencyType.LUNA_COIN)"Luna Coins" else "Luna Silver";showMessage("$amount $name wurden an ${recipient.name} gesendet.");onResult(true,null)}catch(e:Exception){val text=e.message?:"Coins konnten nicht gesendet werden.";showMessage(text);onResult(false,text)}}
     }
+
+    fun convertCoinsToSilver(childId:String,coinAmount:Int,onResult:(Boolean)->Unit={}) {
+        val child=_data.value.children.firstOrNull{it.id==childId}?:return; if(coinAmount<=0||child.coins<coinAmount){showMessage("Nicht genug Luna Coins");onResult(false);return}
+        val log=LogEntry(id=UUID.randomUUID().toString(),familyId=child.familyId,timestamp=LocalDateTime.now().toString(),childId=childId,type=LogType.SYSTEM,text="$coinAmount Luna Coin${if(coinAmount==1)"" else "s"} in ${coinAmount*100L} Luna Silver umgewandelt.",coinChange=-coinAmount,silverChange=coinAmount*100L)
+        viewModelScope.launch{try{val result=repository.convertCoinsToSilver(childId,coinAmount,log);_data.value=_data.value.copy(children=_data.value.children.map{if(it.id==childId)it.copy(coins=result.first,silver=result.second)else it},logs=listOf(log)+_data.value.logs);showMessage("✅ ${coinAmount*100L} Luna Silver erhalten");onResult(true)}catch(e:Exception){showMessage(e.message?:"Umwandlung fehlgeschlagen");onResult(false)}}
+    }
+
+    fun updateChildSilver(childId:String,newSilver:Long,comment:String?){val op=coinManager.prepareSetChildSilver(_data.value,childId,newSilver,comment)?:return;_data.value=op.optimisticData;viewModelScope.launch{try{val real=coinManager.persistSetChildSilver(op);_data.value=coinManager.applyRealSilverValue(_data.value,childId,real)}catch(e:Exception){_data.value=op.originalData;showMessage("❌ Luna Silver konnten nicht gespeichert werden")}}}
 
     fun showMessage(text: String) {
         _message.value = text
@@ -1361,11 +1335,16 @@ class LunaCoinViewModel(
     fun updateChildProgressAsAdmin(
         childId: String,
         coins: Int,
+        silver: Long,
         experience: Int,
         availableSkillPoints: Int,
         intelligence: Int,
         strength: Int,
         agility: Int,
+        endurance: Int,
+        perception: Int,
+        charisma: Int,
+        luck: Int,
         comment: String?
     ) {
         val currentChild = _data.value.children.firstOrNull { child ->
@@ -1375,11 +1354,16 @@ class LunaCoinViewModel(
         val updatedChild = ProgressManager.setAdminProgress(
             child = currentChild,
             coins = coins,
+            silver = silver,
             experience = experience,
             availableSkillPoints = availableSkillPoints,
             intelligence = intelligence,
             strength = strength,
-            agility = agility
+            agility = agility,
+            endurance = endurance,
+            perception = perception,
+            charisma = charisma,
+            luck = luck
         )
 
         val originalData = _data.value
@@ -1392,19 +1376,25 @@ class LunaCoinViewModel(
             text = buildString {
                 append("Admin hat den Fortschritt von ${currentChild.name} angepasst.")
                 append("\nCoins: ${currentChild.coins} → ${updatedChild.coins}")
+                append("\nLuna Silver: ${currentChild.silver} → ${updatedChild.silver}")
                 append("\nEP: ${currentChild.experience} → ${updatedChild.experience}")
                 append("\nLevel: ${currentChild.level} → ${updatedChild.level}")
                 append("\nSkillpunkte: ${currentChild.availableSkillPoints} → ${updatedChild.availableSkillPoints}")
                 append("\nIntelligenz: ${currentChild.intelligence} → ${updatedChild.intelligence}")
                 append("\nStärke: ${currentChild.strength} → ${updatedChild.strength}")
                 append("\nBeweglichkeit: ${currentChild.agility} → ${updatedChild.agility}")
+                append("\nAusdauer: ${currentChild.endurance} → ${updatedChild.endurance}")
+                append("\nWahrnehmung: ${currentChild.perception} → ${updatedChild.perception}")
+                append("\nCharisma: ${currentChild.charisma} → ${updatedChild.charisma}")
+                append("\nGlück: ${currentChild.luck} → ${updatedChild.luck}")
 
                 val safeComment = comment?.trim().orEmpty()
                 if (safeComment.isNotBlank()) {
                     append("\nKommentar: $safeComment")
                 }
             },
-            coinChange = updatedChild.coins - currentChild.coins
+            coinChange = updatedChild.coins - currentChild.coins,
+            silverChange = updatedChild.silver - currentChild.silver
         )
 
         _data.value = sortChildrenInData(
@@ -1422,6 +1412,7 @@ class LunaCoinViewModel(
                     childId = updatedChild.id,
                     coins = updatedChild.coins
                 )
+                repository.setChildSilver(updatedChild.id, updatedChild.silver)
 
                 repository.updateChildProgress(
                     childId = updatedChild.id,

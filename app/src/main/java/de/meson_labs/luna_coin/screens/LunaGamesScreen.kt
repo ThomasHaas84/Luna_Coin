@@ -210,12 +210,19 @@ fun LunaGamesScreen(
                 child.id != selectedChild.id
             },
             onDismiss = { showCoinTransferDialog = false },
-            onSend = { recipientId, amount, comment, onResult ->
-                viewModel.transferCoins(
-                    selectedChild.id,
+            onSend = {
                     recipientId,
                     amount,
-                    comment
+                    comment,
+                    currency,
+                    onResult ->
+
+                viewModel.transferCoins(
+                    senderId = selectedChild.id,
+                    recipientId = recipientId,
+                    amount = amount,
+                    comment = comment,
+                    currency = currency
                 ) { success, _ ->
                     onResult(success)
                 }

@@ -592,4 +592,9 @@ class FakeDataRepository(
 
         return newCoins
     }
+    override suspend fun setChildSilver(childId:String,silver:Long):Long { demoData=demoData.copy(children=demoData.children.map{if(it.id==childId)it.copy(silver=silver)else it});return silver }
+    override suspend fun changeChildSilver(childId:String,silverDelta:Long):Long { val old=demoData.children.firstOrNull{it.id==childId}?.silver?:0L;val value=old+silverDelta;demoData=demoData.copy(children=demoData.children.map{if(it.id==childId)it.copy(silver=value)else it});return value }
+    override suspend fun convertCoinsToSilver(childId:String,coinAmount:Int,log:LogEntry):Pair<Int,Long>{val c=demoData.children.first{it.id==childId};val nc=c.coins-coinAmount;val ns=c.silver+coinAmount*100L;demoData=demoData.copy(children=demoData.children.map{if(it.id==childId)it.copy(coins=nc,silver=ns)else it},logs=listOf(log)+demoData.logs);return nc to ns}
+    override suspend fun transferCurrency(senderId:String,recipientId:String,amount:Long,currency:de.meson_labs.luna_coin.models.CurrencyType,senderLog:LogEntry,recipientLog:LogEntry):Pair<Long,Long>{val s=demoData.children.first{it.id==senderId};val r=demoData.children.first{it.id==recipientId};val sb=if(currency==de.meson_labs.luna_coin.models.CurrencyType.LUNA_COIN)s.coins.toLong()else s.silver;val rb=if(currency==de.meson_labs.luna_coin.models.CurrencyType.LUNA_COIN)r.coins.toLong()else r.silver;val ns=sb-amount;val nr=rb+amount;demoData=demoData.copy(children=demoData.children.map{when(it.id){senderId->if(currency==de.meson_labs.luna_coin.models.CurrencyType.LUNA_COIN)it.copy(coins=ns.toInt())else it.copy(silver=ns);recipientId->if(currency==de.meson_labs.luna_coin.models.CurrencyType.LUNA_COIN)it.copy(coins=nr.toInt())else it.copy(silver=nr);else->it}},logs=listOf(senderLog,recipientLog)+demoData.logs);return ns to nr}
+
 }

@@ -40,7 +40,9 @@ object ProgressManager {
 
     fun experienceProgressInCurrentLevel(child: Child): Int {
         val totalForCurrentLevel = experienceNeededForCurrentLevel(child.level)
-        return (child.experience - totalForCurrentLevel).coerceAtLeast(0)
+
+        return (child.experience - totalForCurrentLevel)
+            .coerceAtLeast(0)
     }
 
     fun experienceNeededInCurrentLevel(child: Child): Int {
@@ -48,22 +50,32 @@ object ProgressManager {
     }
 
     fun experienceUntilNextLevel(child: Child): Int {
-        if (child.level >= MAX_LEVEL) return 0
+        if (child.level >= MAX_LEVEL) {
+            return 0
+        }
 
         val currentProgress = experienceProgressInCurrentLevel(child)
-        return (experienceNeededInCurrentLevel(child) - currentProgress).coerceAtLeast(0)
+
+        return (experienceNeededInCurrentLevel(child) - currentProgress)
+            .coerceAtLeast(0)
     }
 
     fun progressFraction(child: Child): Float {
-        if (child.level >= MAX_LEVEL) return 1f
+        if (child.level >= MAX_LEVEL) {
+            return 1f
+        }
 
         val needed = experienceNeededInCurrentLevel(child)
-        if (needed <= 0) return 0f
 
-        return (experienceProgressInCurrentLevel(child).toFloat() / needed.toFloat())
-            .coerceIn(0f, 1f)
+        if (needed <= 0) {
+            return 0f
+        }
+
+        return (
+                experienceProgressInCurrentLevel(child).toFloat() /
+                        needed.toFloat()
+                ).coerceIn(0f, 1f)
     }
-
 
     fun levelForExperience(
         experience: Int
@@ -90,17 +102,48 @@ object ProgressManager {
         strength: Int,
         agility: Int
     ): Child {
+        return setAdminProgress(
+            child = child,
+            coins = coins,
+            silver = child.silver,
+            experience = experience,
+            availableSkillPoints = availableSkillPoints,
+            intelligence = intelligence,
+            strength = strength,
+            agility = agility
+        )
+    }
+
+    fun setAdminProgress(
+        child: Child,
+        coins: Int,
+        silver: Long,
+        experience: Int,
+        availableSkillPoints: Int,
+        intelligence: Int,
+        strength: Int,
+        agility: Int,
+        endurance: Int = child.endurance,
+        perception: Int = child.perception,
+        charisma: Int = child.charisma,
+        luck: Int = child.luck
+    ): Child {
         val safeExperience = experience.coerceAtLeast(0)
 
         return sanitizeProgress(
             child.copy(
                 coins = coins.coerceAtLeast(0),
+                silver = silver.coerceAtLeast(0L),
                 level = levelForExperience(safeExperience),
                 experience = safeExperience,
                 availableSkillPoints = availableSkillPoints.coerceAtLeast(0),
                 intelligence = intelligence,
                 strength = strength,
-                agility = agility
+                agility = agility,
+                endurance = endurance,
+                perception = perception,
+                charisma = charisma,
+                luck = luck
             )
         )
     }
@@ -109,7 +152,9 @@ object ProgressManager {
         child: Child,
         experienceDelta: Int
     ): Child {
-        if (experienceDelta <= 0) return sanitizeProgress(child)
+        if (experienceDelta <= 0) {
+            return sanitizeProgress(child)
+        }
 
         val sanitizedChild = sanitizeProgress(child)
 
@@ -120,7 +165,7 @@ object ProgressManager {
             )
         }
 
-        var newExperience = sanitizedChild.experience + experienceDelta
+        val newExperience = sanitizedChild.experience + experienceDelta
         var newLevel = sanitizedChild.level
         var newSkillPoints = sanitizedChild.availableSkillPoints
 
@@ -184,31 +229,52 @@ object ProgressManager {
     }
 
     fun increaseIntelligence(child: Child): Child {
-        return increaseSkill(child, ProgressSkill.INTELLIGENCE)
+        return increaseSkill(
+            child = child,
+            skill = ProgressSkill.INTELLIGENCE
+        )
     }
 
     fun increaseStrength(child: Child): Child {
-        return increaseSkill(child, ProgressSkill.STRENGTH)
+        return increaseSkill(
+            child = child,
+            skill = ProgressSkill.STRENGTH
+        )
     }
 
     fun increaseAgility(child: Child): Child {
-        return increaseSkill(child, ProgressSkill.AGILITY)
+        return increaseSkill(
+            child = child,
+            skill = ProgressSkill.AGILITY
+        )
     }
 
     fun increaseEndurance(child: Child): Child {
-        return increaseSkill(child, ProgressSkill.ENDURANCE)
+        return increaseSkill(
+            child = child,
+            skill = ProgressSkill.ENDURANCE
+        )
     }
 
     fun increasePerception(child: Child): Child {
-        return increaseSkill(child, ProgressSkill.PERCEPTION)
+        return increaseSkill(
+            child = child,
+            skill = ProgressSkill.PERCEPTION
+        )
     }
 
     fun increaseCharisma(child: Child): Child {
-        return increaseSkill(child, ProgressSkill.CHARISMA)
+        return increaseSkill(
+            child = child,
+            skill = ProgressSkill.CHARISMA
+        )
     }
 
     fun increaseLuck(child: Child): Child {
-        return increaseSkill(child, ProgressSkill.LUCK)
+        return increaseSkill(
+            child = child,
+            skill = ProgressSkill.LUCK
+        )
     }
 
     fun increaseSkill(
@@ -217,7 +283,9 @@ object ProgressManager {
     ): Child {
         val sanitizedChild = sanitizeProgress(child)
 
-        if (sanitizedChild.availableSkillPoints <= 0) return sanitizedChild
+        if (sanitizedChild.availableSkillPoints <= 0) {
+            return sanitizedChild
+        }
 
         return when (skill) {
             ProgressSkill.INTELLIGENCE -> {
@@ -226,7 +294,8 @@ object ProgressManager {
                 } else {
                     sanitizedChild.copy(
                         intelligence = sanitizedChild.intelligence + 1,
-                        availableSkillPoints = sanitizedChild.availableSkillPoints - 1
+                        availableSkillPoints =
+                            sanitizedChild.availableSkillPoints - 1
                     )
                 }
             }
@@ -237,7 +306,8 @@ object ProgressManager {
                 } else {
                     sanitizedChild.copy(
                         strength = sanitizedChild.strength + 1,
-                        availableSkillPoints = sanitizedChild.availableSkillPoints - 1
+                        availableSkillPoints =
+                            sanitizedChild.availableSkillPoints - 1
                     )
                 }
             }
@@ -248,33 +318,58 @@ object ProgressManager {
                 } else {
                     sanitizedChild.copy(
                         agility = sanitizedChild.agility + 1,
-                        availableSkillPoints = sanitizedChild.availableSkillPoints - 1
+                        availableSkillPoints =
+                            sanitizedChild.availableSkillPoints - 1
                     )
                 }
             }
+
             ProgressSkill.ENDURANCE -> {
-                if (sanitizedChild.endurance >= MAX_SKILL_VALUE) sanitizedChild else sanitizedChild.copy(
-                    endurance = sanitizedChild.endurance + 1,
-                    availableSkillPoints = sanitizedChild.availableSkillPoints - 1
-                )
+                if (sanitizedChild.endurance >= MAX_SKILL_VALUE) {
+                    sanitizedChild
+                } else {
+                    sanitizedChild.copy(
+                        endurance = sanitizedChild.endurance + 1,
+                        availableSkillPoints =
+                            sanitizedChild.availableSkillPoints - 1
+                    )
+                }
             }
+
             ProgressSkill.PERCEPTION -> {
-                if (sanitizedChild.perception >= MAX_SKILL_VALUE) sanitizedChild else sanitizedChild.copy(
-                    perception = sanitizedChild.perception + 1,
-                    availableSkillPoints = sanitizedChild.availableSkillPoints - 1
-                )
+                if (sanitizedChild.perception >= MAX_SKILL_VALUE) {
+                    sanitizedChild
+                } else {
+                    sanitizedChild.copy(
+                        perception = sanitizedChild.perception + 1,
+                        availableSkillPoints =
+                            sanitizedChild.availableSkillPoints - 1
+                    )
+                }
             }
+
             ProgressSkill.CHARISMA -> {
-                if (sanitizedChild.charisma >= MAX_SKILL_VALUE) sanitizedChild else sanitizedChild.copy(
-                    charisma = sanitizedChild.charisma + 1,
-                    availableSkillPoints = sanitizedChild.availableSkillPoints - 1
-                )
+                if (sanitizedChild.charisma >= MAX_SKILL_VALUE) {
+                    sanitizedChild
+                } else {
+                    sanitizedChild.copy(
+                        charisma = sanitizedChild.charisma + 1,
+                        availableSkillPoints =
+                            sanitizedChild.availableSkillPoints - 1
+                    )
+                }
             }
+
             ProgressSkill.LUCK -> {
-                if (sanitizedChild.luck >= MAX_SKILL_VALUE) sanitizedChild else sanitizedChild.copy(
-                    luck = sanitizedChild.luck + 1,
-                    availableSkillPoints = sanitizedChild.availableSkillPoints - 1
-                )
+                if (sanitizedChild.luck >= MAX_SKILL_VALUE) {
+                    sanitizedChild
+                } else {
+                    sanitizedChild.copy(
+                        luck = sanitizedChild.luck + 1,
+                        availableSkillPoints =
+                            sanitizedChild.availableSkillPoints - 1
+                    )
+                }
             }
         }
     }
@@ -286,7 +381,11 @@ object ProgressManager {
         return sortChildrenInData(
             currentData.copy(
                 children = currentData.children.map { child ->
-                    if (child.id == updatedChild.id) updatedChild else child
+                    if (child.id == updatedChild.id) {
+                        updatedChild
+                    } else {
+                        child
+                    }
                 }
             )
         )
@@ -294,16 +393,40 @@ object ProgressManager {
 
     fun sanitizeProgress(child: Child): Child {
         return child.copy(
+            coins = child.coins.coerceAtLeast(0),
+            silver = child.silver.coerceAtLeast(0L),
             level = child.level.coerceIn(MIN_LEVEL, MAX_LEVEL),
             experience = child.experience.coerceAtLeast(0),
-            availableSkillPoints = child.availableSkillPoints.coerceAtLeast(0),
-            intelligence = child.intelligence.coerceIn(MIN_SKILL_VALUE, MAX_SKILL_VALUE),
-            strength = child.strength.coerceIn(MIN_SKILL_VALUE, MAX_SKILL_VALUE),
-            agility = child.agility.coerceIn(MIN_SKILL_VALUE, MAX_SKILL_VALUE),
-            endurance = child.endurance.coerceIn(MIN_SKILL_VALUE, MAX_SKILL_VALUE),
-            perception = child.perception.coerceIn(MIN_SKILL_VALUE, MAX_SKILL_VALUE),
-            charisma = child.charisma.coerceIn(MIN_SKILL_VALUE, MAX_SKILL_VALUE),
-            luck = child.luck.coerceIn(MIN_SKILL_VALUE, MAX_SKILL_VALUE)
+            availableSkillPoints =
+                child.availableSkillPoints.coerceAtLeast(0),
+            intelligence = child.intelligence.coerceIn(
+                MIN_SKILL_VALUE,
+                MAX_SKILL_VALUE
+            ),
+            strength = child.strength.coerceIn(
+                MIN_SKILL_VALUE,
+                MAX_SKILL_VALUE
+            ),
+            agility = child.agility.coerceIn(
+                MIN_SKILL_VALUE,
+                MAX_SKILL_VALUE
+            ),
+            endurance = child.endurance.coerceIn(
+                MIN_SKILL_VALUE,
+                MAX_SKILL_VALUE
+            ),
+            perception = child.perception.coerceIn(
+                MIN_SKILL_VALUE,
+                MAX_SKILL_VALUE
+            ),
+            charisma = child.charisma.coerceIn(
+                MIN_SKILL_VALUE,
+                MAX_SKILL_VALUE
+            ),
+            luck = child.luck.coerceIn(
+                MIN_SKILL_VALUE,
+                MAX_SKILL_VALUE
+            )
         )
     }
 }

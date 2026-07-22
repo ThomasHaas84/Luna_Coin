@@ -31,6 +31,7 @@ data class Child(
     override var familyId: String = "",
     val name: String = "",
     var coins: Int = 0,
+    var silver: Long = 0L,
     val role: UserRole = UserRole.CHILD,
     var password: String = "",
     val age: Int = 0,
@@ -102,6 +103,7 @@ data class LogEntry(
     val type: LogType = LogType.SYSTEM,
     val text: String = "",
     val coinChange: Int = 0,
+    val silverChange: Long = 0L,
 
     @Contextual override var createdAt: Date? = null,
     @Contextual override var updatedAt: Date? = null
@@ -172,6 +174,12 @@ data class TaskCompletion(
 
 @Serializable
 enum class UserRole { CHILD, PARENT, ADMIN }
+
+@Serializable
+enum class CurrencyType {
+    LUNA_COIN,
+    LUNA_SILVER
+}
 
 @Serializable
 enum class LunaInventoryItem {
