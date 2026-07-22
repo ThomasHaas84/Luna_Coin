@@ -42,6 +42,7 @@ import de.meson_labs.luna_coin.games.LunaMemoryGameScreen
 import de.meson_labs.luna_coin.games.LunaMultiplicationGameScreen
 import de.meson_labs.luna_coin.games.LunaNumberGuessGameScreen
 import de.meson_labs.luna_coin.games.LunaWordGuessGameScreen
+import de.meson_labs.luna_coin.lunarim.LunarimMainScreen
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.tools.LunaPasswordGenerator
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel
@@ -52,7 +53,8 @@ private enum class LunaGamesDestination {
     NUMBER_GUESS,
     MULTIPLICATION,
     WORD_GUESS,
-    PASSWORD_GENERATOR
+    PASSWORD_GENERATOR,
+    LUNARIM
 }
 
 private enum class GamesToolsTab {
@@ -74,6 +76,11 @@ fun LunaGamesScreen(
     var selectedTab by remember { mutableStateOf(GamesToolsTab.GAMES) }
     var showCoinTransferDialog by remember { mutableStateOf(false) }
 
+    fun leaveFullscreenDestination() {
+        onFullscreenChanged(false)
+        activeGame = LunaGamesDestination.NONE
+    }
+
     when (activeGame) {
         LunaGamesDestination.MEMORY -> {
             LunaMemoryGameScreen(
@@ -81,10 +88,7 @@ fun LunaGamesScreen(
                 selectedChild = selectedChild,
                 viewModel = viewModel,
                 onLogout = onLogout,
-                onBack = {
-                    onFullscreenChanged(false)
-                    activeGame = LunaGamesDestination.NONE
-                },
+                onBack = ::leaveFullscreenDestination,
                 onFullscreenChanged = onFullscreenChanged
             )
         }
@@ -95,10 +99,7 @@ fun LunaGamesScreen(
                 selectedChild = selectedChild,
                 viewModel = viewModel,
                 onLogout = onLogout,
-                onBack = {
-                    onFullscreenChanged(false)
-                    activeGame = LunaGamesDestination.NONE
-                },
+                onBack = ::leaveFullscreenDestination,
                 onFullscreenChanged = onFullscreenChanged
             )
         }
@@ -109,10 +110,7 @@ fun LunaGamesScreen(
                 selectedChild = selectedChild,
                 viewModel = viewModel,
                 onLogout = onLogout,
-                onBack = {
-                    onFullscreenChanged(false)
-                    activeGame = LunaGamesDestination.NONE
-                },
+                onBack = ::leaveFullscreenDestination,
                 onFullscreenChanged = onFullscreenChanged
             )
         }
@@ -123,10 +121,7 @@ fun LunaGamesScreen(
                 selectedChild = selectedChild,
                 viewModel = viewModel,
                 onLogout = onLogout,
-                onBack = {
-                    onFullscreenChanged(false)
-                    activeGame = LunaGamesDestination.NONE
-                },
+                onBack = ::leaveFullscreenDestination,
                 onFullscreenChanged = onFullscreenChanged
             )
         }
@@ -136,7 +131,17 @@ fun LunaGamesScreen(
                 modifier = modifier,
                 selectedChild = selectedChild,
                 onLogout = onLogout,
-                onBack = { activeGame = LunaGamesDestination.NONE }
+                onBack = {
+                    activeGame = LunaGamesDestination.NONE
+                }
+            )
+        }
+
+        LunaGamesDestination.LUNARIM -> {
+            LunarimMainScreen(
+                modifier = modifier,
+                selectedChild = selectedChild,
+                onExit = ::leaveFullscreenDestination
             )
         }
 
@@ -175,7 +180,12 @@ fun LunaGamesScreen(
                         isPhone = isPhone,
                         cardSpacing = cardSpacing,
                         sectionSpacing = sectionSpacing,
-                        onGameSelected = { activeGame = it }
+                        onGameSelected = { destination ->
+                            if (destination == LunaGamesDestination.LUNARIM) {
+                                onFullscreenChanged(true)
+                            }
+                            activeGame = destination
+                        }
                     )
 
                     GamesToolsTab.TOOLS -> ToolsContent(
@@ -201,7 +211,12 @@ fun LunaGamesScreen(
             },
             onDismiss = { showCoinTransferDialog = false },
             onSend = { recipientId, amount, comment, onResult ->
-                viewModel.transferCoins(selectedChild.id, recipientId, amount, comment) { success, _ ->
+                viewModel.transferCoins(
+                    selectedChild.id,
+                    recipientId,
+                    amount,
+                    comment
+                ) { success, _ ->
                     onResult(success)
                 }
             }
@@ -336,7 +351,22 @@ private fun GamesContent(
     Spacer(modifier = Modifier.height(sectionSpacing))
 
     Text(
-        text = "Coming soon:",
+        text = "Spiele:",
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    LunarimGameCard(
+        isPhone = isPhone,
+        onClick = { onGameSelected(LunaGamesDestination.LUNARIM) }
+    )
+
+    Spacer(modifier = Modifier.height(sectionSpacing))
+
+    Text(
+        text = "Coming Soon:",
         style = MaterialTheme.typography.titleLarge,
         fontWeight = FontWeight.Bold
     )
@@ -348,6 +378,50 @@ private fun GamesContent(
         spacing = cardSpacing,
         isPhone = isPhone
     )
+}
+
+@Composable
+private fun LunarimGameCard(
+    isPhone: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(if (isPhone) 230.dp else 360.dp),
+        shape = RoundedCornerShape(if (isPhone) 16.dp else 20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isPhone) 10.dp else 14.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.lunarim),
+                contentDescription = "Lunarim",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentScale = ContentScale.Fit
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Lunarim starten",
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -379,7 +453,6 @@ private fun ToolsContent(
             GameToolItem(
                 title = "Coins senden",
                 description = "Coins mit Kommentar senden",
-                infoText = "",
                 symbol = "",
                 imageRes = R.drawable.luna_coin_small,
                 buttonText = "Öffnen",
@@ -554,7 +627,6 @@ private fun ComingSoonGrid(
     val images = listOf(
         R.drawable.cyberluna,
         R.drawable.gtl,
-        R.drawable.lunarim,
         R.drawable.reddeadluna,
         R.drawable.witcher_luna
     )

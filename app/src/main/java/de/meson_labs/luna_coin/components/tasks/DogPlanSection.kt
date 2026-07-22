@@ -1,5 +1,7 @@
 package de.meson_labs.luna_coin.components.tasks
 
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -102,6 +104,7 @@ fun DogPlanSection(
     val shift = dogPlan.shifts.firstOrNull { it.date == selectedDateText }
 
     var templateForCompletion by remember { mutableStateOf<DogPlanTaskTemplate?>(null) }
+    var completionForEditing by remember { mutableStateOf<DogPlanTaskCompletion?>(null) }
     var shiftDialogMode by remember { mutableStateOf<DogPlanShiftMode?>(null) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -147,7 +150,14 @@ fun DogPlanSection(
                         ),
                         children = children,
                         canComplete = canCompleteTemplate(template),
-                        onClick = { templateForCompletion = template }
+                        onClick = {
+                            completionForEditing = null
+                            templateForCompletion = template
+                        },
+                        onLongClick = { completion ->
+                            completionForEditing = completion
+                            templateForCompletion = template
+                        }
                     )
                 }
 
@@ -166,7 +176,14 @@ fun DogPlanSection(
                         ),
                         children = children,
                         canComplete = canCompleteTemplate(template),
-                        onClick = { templateForCompletion = template }
+                        onClick = {
+                            completionForEditing = null
+                            templateForCompletion = template
+                        },
+                        onLongClick = { completion ->
+                            completionForEditing = completion
+                            templateForCompletion = template
+                        }
                     )
                 }
 
@@ -185,7 +202,14 @@ fun DogPlanSection(
                         ),
                         children = children,
                         canComplete = canCompleteTemplate(template),
-                        onClick = { templateForCompletion = template }
+                        onClick = {
+                            completionForEditing = null
+                            templateForCompletion = template
+                        },
+                        onLongClick = { completion ->
+                            completionForEditing = completion
+                            templateForCompletion = template
+                        }
                     )
                 }
             }
@@ -195,7 +219,11 @@ fun DogPlanSection(
     templateForCompletion?.let { template ->
         DogPlanCompletionDialog(
             template = template,
-            onDismiss = { templateForCompletion = null },
+            existingCompletion = completionForEditing,
+            onDismiss = {
+                templateForCompletion = null
+                completionForEditing = null
+            },
             onConfirm = { peed, pooped, diarrhea, comment ->
                 onCompleteDogPlanTask(
                     template.id,
@@ -207,6 +235,7 @@ fun DogPlanSection(
                 )
 
                 templateForCompletion = null
+                completionForEditing = null
             }
         )
     }
@@ -316,13 +345,15 @@ private fun DogPlanGroupTitle(text: String) {
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DogPlanTaskRow(
     template: DogPlanTaskTemplate,
     completion: DogPlanTaskCompletion?,
     children: List<Child>,
     canComplete: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (DogPlanTaskCompletion) -> Unit
 ) {
     val completedByName = completion?.completedByChildId?.let { id ->
         children.firstOrNull { it.id == id }?.name
@@ -333,7 +364,18 @@ private fun DogPlanTaskRow(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 4.dp)
+            .combinedClickable(
+                enabled = enabled || completion != null,
+                onClick = {
+                    if (enabled) {
+                        onClick()
+                    }
+                },
+                onLongClick = {
+                    completion?.let(onLongClick)
+                }
+            ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(

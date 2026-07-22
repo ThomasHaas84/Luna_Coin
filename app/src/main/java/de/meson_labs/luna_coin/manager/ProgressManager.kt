@@ -195,6 +195,22 @@ object ProgressManager {
         return increaseSkill(child, ProgressSkill.AGILITY)
     }
 
+    fun increaseEndurance(child: Child): Child {
+        return increaseSkill(child, ProgressSkill.ENDURANCE)
+    }
+
+    fun increasePerception(child: Child): Child {
+        return increaseSkill(child, ProgressSkill.PERCEPTION)
+    }
+
+    fun increaseCharisma(child: Child): Child {
+        return increaseSkill(child, ProgressSkill.CHARISMA)
+    }
+
+    fun increaseLuck(child: Child): Child {
+        return increaseSkill(child, ProgressSkill.LUCK)
+    }
+
     fun increaseSkill(
         child: Child,
         skill: ProgressSkill
@@ -236,6 +252,30 @@ object ProgressManager {
                     )
                 }
             }
+            ProgressSkill.ENDURANCE -> {
+                if (sanitizedChild.endurance >= MAX_SKILL_VALUE) sanitizedChild else sanitizedChild.copy(
+                    endurance = sanitizedChild.endurance + 1,
+                    availableSkillPoints = sanitizedChild.availableSkillPoints - 1
+                )
+            }
+            ProgressSkill.PERCEPTION -> {
+                if (sanitizedChild.perception >= MAX_SKILL_VALUE) sanitizedChild else sanitizedChild.copy(
+                    perception = sanitizedChild.perception + 1,
+                    availableSkillPoints = sanitizedChild.availableSkillPoints - 1
+                )
+            }
+            ProgressSkill.CHARISMA -> {
+                if (sanitizedChild.charisma >= MAX_SKILL_VALUE) sanitizedChild else sanitizedChild.copy(
+                    charisma = sanitizedChild.charisma + 1,
+                    availableSkillPoints = sanitizedChild.availableSkillPoints - 1
+                )
+            }
+            ProgressSkill.LUCK -> {
+                if (sanitizedChild.luck >= MAX_SKILL_VALUE) sanitizedChild else sanitizedChild.copy(
+                    luck = sanitizedChild.luck + 1,
+                    availableSkillPoints = sanitizedChild.availableSkillPoints - 1
+                )
+            }
         }
     }
 
@@ -259,7 +299,11 @@ object ProgressManager {
             availableSkillPoints = child.availableSkillPoints.coerceAtLeast(0),
             intelligence = child.intelligence.coerceIn(MIN_SKILL_VALUE, MAX_SKILL_VALUE),
             strength = child.strength.coerceIn(MIN_SKILL_VALUE, MAX_SKILL_VALUE),
-            agility = child.agility.coerceIn(MIN_SKILL_VALUE, MAX_SKILL_VALUE)
+            agility = child.agility.coerceIn(MIN_SKILL_VALUE, MAX_SKILL_VALUE),
+            endurance = child.endurance.coerceIn(MIN_SKILL_VALUE, MAX_SKILL_VALUE),
+            perception = child.perception.coerceIn(MIN_SKILL_VALUE, MAX_SKILL_VALUE),
+            charisma = child.charisma.coerceIn(MIN_SKILL_VALUE, MAX_SKILL_VALUE),
+            luck = child.luck.coerceIn(MIN_SKILL_VALUE, MAX_SKILL_VALUE)
         )
     }
 }
@@ -267,5 +311,9 @@ object ProgressManager {
 enum class ProgressSkill {
     INTELLIGENCE,
     STRENGTH,
-    AGILITY
+    AGILITY,
+    ENDURANCE,
+    PERCEPTION,
+    CHARISMA,
+    LUCK
 }

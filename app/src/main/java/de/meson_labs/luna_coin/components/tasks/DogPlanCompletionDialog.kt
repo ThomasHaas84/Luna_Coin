@@ -21,11 +21,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import de.meson_labs.luna_coin.models.DogPlanTaskCompletion
 import de.meson_labs.luna_coin.models.DogPlanTaskTemplate
 
 @Composable
 fun DogPlanCompletionDialog(
     template: DogPlanTaskTemplate,
+    existingCompletion: DogPlanTaskCompletion? = null,
     onDismiss: () -> Unit,
     onConfirm: (
         peed: Boolean,
@@ -34,16 +36,34 @@ fun DogPlanCompletionDialog(
         comment: String
     ) -> Unit
 ) {
-    var peed by remember(template.id) { mutableStateOf(false) }
-    var pooped by remember(template.id) { mutableStateOf(false) }
-    var diarrhea by remember(template.id) { mutableStateOf(false) }
-    var comment by remember(template.id) { mutableStateOf("") }
-    var errorText by remember(template.id) { mutableStateOf<String?>(null) }
+    val isEditing = existingCompletion != null
+
+    var peed by remember(template.id, existingCompletion?.id) {
+        mutableStateOf(existingCompletion?.peed ?: false)
+    }
+    var pooped by remember(template.id, existingCompletion?.id) {
+        mutableStateOf(existingCompletion?.pooped ?: false)
+    }
+    var diarrhea by remember(template.id, existingCompletion?.id) {
+        mutableStateOf(existingCompletion?.diarrhea ?: false)
+    }
+    var comment by remember(template.id, existingCompletion?.id) {
+        mutableStateOf(existingCompletion?.comment.orEmpty())
+    }
+    var errorText by remember(template.id, existingCompletion?.id) {
+        mutableStateOf<String?>(null)
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(template.title)
+            Text(
+                text = if (isEditing) {
+                    "${template.title} bearbeiten"
+                } else {
+                    template.title
+                }
+            )
         },
         text = {
             LazyColumn {
@@ -57,7 +77,12 @@ fun DogPlanCompletionDialog(
                                     append("Uhrzeit: ${template.time}")
                                     append("\n")
                                 }
-                                append("Belohnung: ${template.rewardCoins} Luna Coins")
+
+                                if (isEditing) {
+                                    append("Vorhandenen Eintrag nachträglich bearbeiten")
+                                } else {
+                                    append("Belohnung: ${template.rewardCoins} Luna Coins")
+                                }
                             },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -139,7 +164,7 @@ fun DogPlanCompletionDialog(
                     )
                 }
             ) {
-                Text("Speichern")
+                Text(if (isEditing) "Änderungen speichern" else "Speichern")
             }
         }
     )

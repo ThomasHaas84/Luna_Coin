@@ -272,7 +272,11 @@ fun MainScreen(
                             onChildChanged = viewModel::updateChild,
                             onIncreaseIntelligence = viewModel::increaseIntelligence,
                             onIncreaseStrength = viewModel::increaseStrength,
-                            onIncreaseAgility = viewModel::increaseAgility
+                            onIncreaseAgility = viewModel::increaseAgility,
+                            onIncreaseEndurance = viewModel::increaseEndurance,
+                            onIncreasePerception = viewModel::increasePerception,
+                            onIncreaseCharisma = viewModel::increaseCharisma,
+                            onIncreaseLuck = viewModel::increaseLuck
                         )
 
                         4 -> SettingsScreen(

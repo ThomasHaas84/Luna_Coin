@@ -14,7 +14,8 @@ import java.util.UUID
 data class DogPlanCompleteTaskResult(
     val dogPlanData: DogPlanData,
     val completion: DogPlanTaskCompletion,
-    val rewardCoins: Int
+    val rewardCoins: Int,
+    val isEditing: Boolean
 )
 
 data class DogPlanSaveTemplateResult(
@@ -204,45 +205,56 @@ class DogPlanManager {
             return null
         }
 
-        val alreadyCompleted = isTaskCompletedForDate(
-            dogPlanData = currentDogPlanData,
-            templateId = templateId,
-            date = date
-        )
-
-        if (alreadyCompleted) {
-            return null
-        }
-
         val safeComment = comment.trim()
 
         if (template.requiresComment && safeComment.isBlank()) {
             return null
         }
 
-        val completion = DogPlanTaskCompletion(
-            id = createCompletionId(
-                date = date,
-                templateId = template.id
-            ),
-            familyId = template.familyId,
-            templateId = template.id,
-            date = date,
-            completedByChildId = child.id,
-            completedAt = LocalDateTime.now().toString(),
-            rewardCoins = template.rewardCoins.coerceAtLeast(0),
-            peed = if (template.requiresWalkDetails) peed else false,
-            pooped = if (template.requiresWalkDetails) pooped else false,
-            diarrhea = if (template.requiresWalkDetails) diarrhea else false,
-            comment = safeComment
+        val existingCompletion = getCompletionForTemplateAndDate(
+            dogPlanData = currentDogPlanData,
+            templateId = templateId,
+            date = date
         )
+
+        val isEditing = existingCompletion != null
+
+        val completion = if (existingCompletion != null) {
+            existingCompletion.copy(
+                peed = if (template.requiresWalkDetails) peed else false,
+                pooped = if (template.requiresWalkDetails) pooped else false,
+                diarrhea = if (template.requiresWalkDetails) diarrhea else false,
+                comment = safeComment
+            )
+        } else {
+            DogPlanTaskCompletion(
+                id = createCompletionId(
+                    date = date,
+                    templateId = template.id
+                ),
+                familyId = template.familyId,
+                templateId = template.id,
+                date = date,
+                completedByChildId = child.id,
+                completedAt = LocalDateTime.now().toString(),
+                rewardCoins = template.rewardCoins.coerceAtLeast(0),
+                peed = if (template.requiresWalkDetails) peed else false,
+                pooped = if (template.requiresWalkDetails) pooped else false,
+                diarrhea = if (template.requiresWalkDetails) diarrhea else false,
+                comment = safeComment
+            )
+        }
+
+        val updatedCompletions = currentDogPlanData.completions
+            .filterNot { it.id == completion.id } + completion
 
         return DogPlanCompleteTaskResult(
             dogPlanData = currentDogPlanData.copy(
-                completions = currentDogPlanData.completions + completion
+                completions = updatedCompletions
             ),
             completion = completion,
-            rewardCoins = completion.rewardCoins
+            rewardCoins = if (isEditing) 0 else completion.rewardCoins,
+            isEditing = isEditing
         )
     }
 

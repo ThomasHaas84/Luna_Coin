@@ -87,7 +87,11 @@ interface DataRepository {
         availableSkillPoints: Int,
         intelligence: Int,
         strength: Int,
-        agility: Int
+        agility: Int,
+        endurance: Int,
+        perception: Int,
+        charisma: Int,
+        luck: Int
     ) {
         // Default no-op for Preview/Fake repositories.
     }

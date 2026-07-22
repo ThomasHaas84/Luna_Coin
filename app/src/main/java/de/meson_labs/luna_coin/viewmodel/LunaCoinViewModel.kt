@@ -1397,7 +1397,7 @@ class LunaCoinViewModel(
                 append("\nSkillpunkte: ${currentChild.availableSkillPoints} → ${updatedChild.availableSkillPoints}")
                 append("\nIntelligenz: ${currentChild.intelligence} → ${updatedChild.intelligence}")
                 append("\nStärke: ${currentChild.strength} → ${updatedChild.strength}")
-                append("\nGeschicklichkeit: ${currentChild.agility} → ${updatedChild.agility}")
+                append("\nBeweglichkeit: ${currentChild.agility} → ${updatedChild.agility}")
 
                 val safeComment = comment?.trim().orEmpty()
                 if (safeComment.isNotBlank()) {
@@ -1430,7 +1430,11 @@ class LunaCoinViewModel(
                     availableSkillPoints = updatedChild.availableSkillPoints,
                     intelligence = updatedChild.intelligence,
                     strength = updatedChild.strength,
-                    agility = updatedChild.agility
+                    agility = updatedChild.agility,
+                    endurance = updatedChild.endurance,
+                    perception = updatedChild.perception,
+                    charisma = updatedChild.charisma,
+                    luck = updatedChild.luck
                 )
 
                 repository.saveLog(log)
@@ -1455,6 +1459,22 @@ class LunaCoinViewModel(
 
     fun increaseAgility() {
         increaseSkill(ProgressSkill.AGILITY)
+    }
+
+    fun increaseEndurance() {
+        increaseSkill(ProgressSkill.ENDURANCE)
+    }
+
+    fun increasePerception() {
+        increaseSkill(ProgressSkill.PERCEPTION)
+    }
+
+    fun increaseCharisma() {
+        increaseSkill(ProgressSkill.CHARISMA)
+    }
+
+    fun increaseLuck() {
+        increaseSkill(ProgressSkill.LUCK)
     }
 
     private fun increaseSkill(skillType: ProgressSkill) {
@@ -1486,7 +1506,11 @@ class LunaCoinViewModel(
                     availableSkillPoints = updatedChild.availableSkillPoints,
                     intelligence = updatedChild.intelligence,
                     strength = updatedChild.strength,
-                    agility = updatedChild.agility
+                    agility = updatedChild.agility,
+                    endurance = updatedChild.endurance,
+                    perception = updatedChild.perception,
+                    charisma = updatedChild.charisma,
+                    luck = updatedChild.luck
                 )
             } catch (e: Exception) {
                 _data.value = originalData
