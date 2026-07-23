@@ -1,4 +1,4 @@
-package de.meson_labs.luna_coin.lunarim
+package de.meson_labs.luna_coin.lunarim.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

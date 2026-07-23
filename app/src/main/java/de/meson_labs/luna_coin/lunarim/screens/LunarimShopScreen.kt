@@ -1,4 +1,4 @@
-package de.meson_labs.luna_coin.lunarim
+package de.meson_labs.luna_coin.lunarim.screens
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable

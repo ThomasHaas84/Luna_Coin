@@ -1,4 +1,4 @@
-package de.meson_labs.luna_coin.lunarim
+package de.meson_labs.luna_coin.lunarim.screens
 
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.meson_labs.luna_coin.lunarim.screens.LunarimDestination
 
 @Composable
 internal fun LunarimBottomBar(

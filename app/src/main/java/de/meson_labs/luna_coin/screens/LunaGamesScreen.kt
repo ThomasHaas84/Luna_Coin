@@ -42,7 +42,7 @@ import de.meson_labs.luna_coin.games.LunaMemoryGameScreen
 import de.meson_labs.luna_coin.games.LunaMultiplicationGameScreen
 import de.meson_labs.luna_coin.games.LunaNumberGuessGameScreen
 import de.meson_labs.luna_coin.games.LunaWordGuessGameScreen
-import de.meson_labs.luna_coin.lunarim.LunarimMainScreen
+import de.meson_labs.luna_coin.lunarim.screens.LunarimMainScreen
 import de.meson_labs.luna_coin.models.Child
 import de.meson_labs.luna_coin.tools.LunaPasswordGenerator
 import de.meson_labs.luna_coin.viewmodel.LunaCoinViewModel

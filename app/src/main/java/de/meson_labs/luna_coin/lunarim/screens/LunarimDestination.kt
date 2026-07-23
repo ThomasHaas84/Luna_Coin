@@ -1,4 +1,4 @@
-package de.meson_labs.luna_coin.lunarim
+package de.meson_labs.luna_coin.lunarim.screens
 
 internal enum class LunarimDestination(
     val title: String,
