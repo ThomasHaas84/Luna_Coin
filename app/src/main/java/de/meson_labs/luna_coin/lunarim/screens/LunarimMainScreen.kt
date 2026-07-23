@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import de.meson_labs.luna_coin.R
+import de.meson_labs.luna_coin.lunarim.LunarimBottomBar
 import de.meson_labs.luna_coin.lunarim.data.LunarimGameStorage
 import de.meson_labs.luna_coin.lunarim.models.LunarimGameState
 import de.meson_labs.luna_coin.models.Child
