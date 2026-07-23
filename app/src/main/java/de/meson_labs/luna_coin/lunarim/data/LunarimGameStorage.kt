@@ -2,16 +2,14 @@ package de.meson_labs.luna_coin.lunarim.data
 
 import android.content.Context
 import de.meson_labs.luna_coin.lunarim.models.LunarimGameState
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 /**
  * Lokaler Lunarim-Spielstand pro Luna-Coin-Benutzer.
  *
- * Die Speicherung ist bewusst vom restlichen Luna-Coin-Speicher getrennt,
- * damit Lunarim schrittweise erweitert werden kann. Sobald später eine
- * Firestore-Synchronisierung hinzukommt, kann diese Klasse intern ersetzt
- * werden, ohne die Screens erneut umzubauen.
+ * Jeder Benutzer erhält über seine Child-ID einen eigenen Eintrag.
  */
 class LunarimGameStorage(context: Context) {
 
@@ -23,49 +21,58 @@ class LunarimGameStorage(context: Context) {
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
-        prettyPrint = false
     }
 
-    fun hasGame(childId: String): Boolean {
-        val key = gameKey(childId)
-        return preferences.contains(key) && loadGame(childId)?.hasStarted == true
-    }
+    fun load(childId: String): LunarimGameState? {
+        if (childId.isBlank()) return null
 
-    fun loadGame(childId: String): LunarimGameState? {
-        val rawJson = preferences.getString(gameKey(childId), null)
-            ?: return null
+        val storedJson = preferences.getString(
+            saveKey(childId),
+            null
+        ) ?: return null
 
         return runCatching {
-            json.decodeFromString<LunarimGameState>(rawJson)
+            json.decodeFromString<LunarimGameState>(storedJson)
         }.getOrNull()
     }
 
+    fun hasStartedGame(childId: String): Boolean =
+        load(childId)?.hasStarted == true
+
     fun createNewGame(childId: String): LunarimGameState {
-        val gameState = LunarimGameState.newGame(childId)
-        saveGame(gameState)
-        return gameState
+        require(childId.isNotBlank()) {
+            "Für einen Lunarim-Spielstand wird eine gültige Child-ID benötigt."
+        }
+
+        return LunarimGameState
+            .newGame(childId)
+            .also(::save)
     }
 
-    fun saveGame(gameState: LunarimGameState) {
+    fun save(gameState: LunarimGameState) {
+        if (gameState.childId.isBlank()) return
+
         preferences.edit()
             .putString(
-                gameKey(gameState.childId),
+                saveKey(gameState.childId),
                 json.encodeToString(gameState)
             )
-            .apply()
+            .commit()
     }
 
-    fun deleteGame(childId: String) {
+    fun delete(childId: String) {
+        if (childId.isBlank()) return
+
         preferences.edit()
-            .remove(gameKey(childId))
-            .apply()
+            .remove(saveKey(childId))
+            .commit()
     }
 
-    private fun gameKey(childId: String): String =
-        "$GAME_KEY_PREFIX${childId.trim()}"
+    private fun saveKey(childId: String): String =
+        "$SAVE_KEY_PREFIX$childId"
 
     private companion object {
         const val PREFERENCES_NAME = "lunarim_game_saves"
-        const val GAME_KEY_PREFIX = "lunarim_game_"
+        const val SAVE_KEY_PREFIX = "lunarim_save_"
     }
 }

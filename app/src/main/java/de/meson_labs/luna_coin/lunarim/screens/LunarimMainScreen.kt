@@ -1,25 +1,60 @@
 package de.meson_labs.luna_coin.lunarim.screens
 
+import android.media.MediaPlayer
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import de.meson_labs.luna_coin.R
+import de.meson_labs.luna_coin.lunarim.data.LunarimGameStorage
+import de.meson_labs.luna_coin.lunarim.models.LunarimGameState
 import de.meson_labs.luna_coin.models.Child
 import kotlinx.coroutines.delay
 
@@ -30,27 +65,36 @@ fun LunarimMainScreen(
     modifier: Modifier = Modifier,
     selectedChild: Child?,
     onExit: () -> Unit,
-    onSave: () -> Unit = {},
-    onCreateCharacter: () -> Unit = {},
-    onReset: () -> Unit = {},
-    hasExistingGame: Boolean = false
+    onSave: () -> Unit = {}
 ) {
-    var currentDestination by rememberSaveable {
-        mutableStateOf(LunarimDestination.CAMP)
+    val context = LocalContext.current
+    val storage = remember(context) {
+        LunarimGameStorage(context)
     }
 
     /*
-     * Dieser lokale Zustand sorgt dafür, dass die Oberfläche direkt reagiert,
-     * nachdem ein Charakter erstellt oder zurückgesetzt wurde.
-     *
-     * Später sollte hasExistingGame aus ViewModel/Repository kommen.
+     * Im aktuellen LunaGamesScreen wird bereits der echte ausgewählte
+     * Child-Datensatz übergeben. Für den Spielstand wird ausschließlich
+     * dessen stabile ID verwendet.
      */
-    var sessionHasGame by rememberSaveable(hasExistingGame) {
-        mutableStateOf(hasExistingGame)
+    val childId = selectedChild?.id.orEmpty()
+
+    var gameState by remember(childId) {
+        mutableStateOf(
+            if (childId.isBlank()) {
+                null
+            } else {
+                storage.load(childId)
+            }
+        )
     }
 
-    var showStartDialog by rememberSaveable {
+    var showStartDialog by rememberSaveable(childId) {
         mutableStateOf(true)
+    }
+
+    var currentDestination by rememberSaveable(childId) {
+        mutableStateOf(LunarimDestination.CAMP)
     }
 
     var showExitDialog by rememberSaveable {
@@ -69,70 +113,93 @@ fun LunarimMainScreen(
         mutableIntStateOf(RESET_COUNTDOWN_SECONDS)
     }
 
-    var resetButtonEnabled by remember {
-        mutableStateOf(false)
+    val hasSavedCharacter = gameState?.hasStarted == true
+
+    /*
+     * Die Menü-Musik läuft ausschließlich auf dem Lunarim-Hauptbildschirm.
+     * Sobald das Spiel begonnen/fortgesetzt oder Lunarim verlassen wird,
+     * wird der MediaPlayer automatisch beendet und freigegeben.
+     */
+    DisposableEffect(showStartDialog) {
+        val menuMusicPlayer = if (showStartDialog) {
+            MediaPlayer.create(context, R.raw.lunarim)?.apply {
+                isLooping = true
+                setVolume(1f, 1f)
+                start()
+            }
+        } else {
+            null
+        }
+
+        onDispose {
+            runCatching {
+                menuMusicPlayer?.stop()
+            }
+            menuMusicPlayer?.release()
+        }
     }
 
     LaunchedEffect(showResetDialog) {
         if (!showResetDialog) {
             resetCountdown = RESET_COUNTDOWN_SECONDS
-            resetButtonEnabled = false
             return@LaunchedEffect
         }
 
         resetCountdown = RESET_COUNTDOWN_SECONDS
-        resetButtonEnabled = false
 
         while (resetCountdown > 0 && showResetDialog) {
             delay(1_000L)
             resetCountdown--
         }
-
-        if (showResetDialog) {
-            resetButtonEnabled = true
-        }
     }
 
-    fun requestExit() {
+    fun createCharacter() {
+        if (childId.isBlank()) return
+
+        /*
+         * createNewGame() speichert synchron mit commit().
+         * Erst danach wird die Oberfläche geöffnet.
+         */
+        val createdGame = storage.createNewGame(childId)
+        gameState = createdGame
+
+        currentDestination = LunarimDestination.CHARACTER
         showStartDialog = false
-        showExitDialog = true
+    }
+
+    fun continueGame() {
+        if (!hasSavedCharacter) return
+
+        /*
+         * Beim Fortsetzen immer im Lager starten.
+         */
+        currentDestination = LunarimDestination.CAMP
+        showStartDialog = false
+    }
+
+    fun saveCurrentGame() {
+        gameState?.let(storage::save)
+        onSave()
     }
 
     fun saveAndExit() {
-        if (sessionHasGame) {
-            onSave()
-        }
-
+        saveCurrentGame()
         showExitDialog = false
         onExit()
     }
 
-    fun createCharacter() {
-        onCreateCharacter()
-        sessionHasGame = true
-        showStartDialog = false
-        currentDestination = LunarimDestination.CHARACTER
-    }
+    fun deleteCharacter() {
+        storage.delete(childId)
+        gameState = null
 
-    fun continueGame() {
-        showStartDialog = false
         currentDestination = LunarimDestination.CAMP
-    }
-
-    fun requestReset() {
-        showStartDialog = false
-        showResetDialog = true
-    }
-
-    fun resetLunarimFinally() {
-        onReset()
-
-        sessionHasGame = false
-        currentDestination = LunarimDestination.CAMP
-
         showFinalResetDialog = false
         showResetDialog = false
         showStartDialog = true
+    }
+
+    fun requestExit() {
+        showExitDialog = true
     }
 
     BackHandler {
@@ -149,11 +216,10 @@ fun LunarimMainScreen(
 
             showExitDialog -> {
                 showExitDialog = false
-                showStartDialog = true
             }
 
             showStartDialog -> {
-                requestExit()
+                showExitDialog = true
             }
 
             else -> {
@@ -162,262 +228,592 @@ fun LunarimMainScreen(
         }
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        bottomBar = {
-            LunarimBottomBar(
-                currentDestination = currentDestination,
-                onDestinationSelected = { destination ->
-                    currentDestination = destination
-                }
-            )
-        }
-    ) { innerPadding ->
-        val contentModifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding)
-
-        when (currentDestination) {
-            LunarimDestination.CAMP -> {
-                LunarimCampScreen(
-                    modifier = contentModifier,
-                    selectedChild = selectedChild
-                )
-            }
-
-            LunarimDestination.CHARACTER -> {
-                /*
-                 * Die drei Callbacks bleiben vorerst erhalten, damit dein
-                 * aktueller LunarimCharacterScreen weiter kompiliert.
-                 *
-                 * Wenn das Drei-Punkte-Menü später dort entfernt wird,
-                 * können diese Parameter ebenfalls entfernt werden.
-                 */
-                LunarimCharacterScreen(
-                    modifier = contentModifier,
-                    selectedChild = selectedChild
-                )
-            }
-
-            LunarimDestination.SHOP -> {
-                LunarimShopScreen(
-                    modifier = contentModifier,
-                    selectedChild = selectedChild
-                )
-            }
-
-            LunarimDestination.MAP -> {
-                LunarimMapScreen(
-                    modifier = contentModifier,
-                    selectedChild = selectedChild
-                )
-            }
-        }
-    }
-
+    /*
+     * Der Lunarim-Startbildschirm ist ein eigener schwarzer Fullscreen-Screen.
+     * Spielinhalt und BottomBar werden dahinter nicht aufgebaut.
+     */
     if (showStartDialog) {
-        AlertDialog(
-            modifier = Modifier.widthIn(max = 480.dp),
-            onDismissRequest = {
-                // Das Startmenü soll nicht durch Tippen außerhalb verschwinden.
+        LunarimStartScreen(
+            modifier = modifier,
+            hasSavedCharacter = hasSavedCharacter,
+            canCreateCharacter = childId.isNotBlank(),
+            onCreateCharacter = ::createCharacter,
+            onContinueGame = ::continueGame,
+            onResetCharacter = {
+                showResetDialog = true
             },
-            title = {
-                Text(
-                    if (sessionHasGame) {
-                        "Lunarim"
-                    } else {
-                        "Willkommen in Lunarim"
-                    }
-                )
-            },
-            text = {
-                Column {
-                    Text(
-                        if (sessionHasGame) {
-                            "Für ${selectedChild?.name ?: "diesen Benutzer"} ist bereits ein Lunarim-Spielstand vorhanden."
-                        } else {
-                            "Für ${selectedChild?.name ?: "diesen Benutzer"} wurde noch kein Lunarim-Charakter erstellt."
-                        }
-                    )
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 12.dp)
-                    )
-
-                    Text(
-                        if (sessionHasGame) {
-                            "Du kannst das Spiel fortsetzen, den Lunarim-Charakter zurücksetzen oder Lunarim verlassen."
-                        } else {
-                            "Erstelle jetzt einen Charakter oder verlasse Lunarim."
-                        }
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (sessionHasGame) {
-                            continueGame()
-                        } else {
-                            createCharacter()
-                        }
-                    }
-                ) {
-                    Text(
-                        if (sessionHasGame) {
-                            "Spiel fortsetzen"
-                        } else {
-                            "Charakter erstellen"
-                        }
-                    )
-                }
-            },
-            dismissButton = {
-                Column {
-                    if (sessionHasGame) {
-                        TextButton(
-                            onClick = ::requestReset
-                        ) {
-                            Text("Charakter zurücksetzen")
-                        }
-                    }
-
-                    TextButton(
-                        onClick = ::requestExit
-                    ) {
-                        Text("Spiel verlassen")
-                    }
-                }
+            onExit = {
+                showExitDialog = true
             }
         )
+    } else {
+        Scaffold(
+            modifier = modifier.fillMaxSize(),
+            bottomBar = {
+                LunarimBottomBar(
+                    currentDestination = currentDestination,
+                    onDestinationSelected = { destination ->
+                        currentDestination = destination
+                    }
+                )
+            }
+        ) { innerPadding ->
+            val contentModifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+
+            when (currentDestination) {
+                LunarimDestination.CAMP -> {
+                    LunarimCampScreen(
+                        modifier = contentModifier,
+                        selectedChild = selectedChild
+                    )
+                }
+
+                LunarimDestination.CHARACTER -> {
+                    LunarimCharacterScreen(
+                        modifier = contentModifier,
+                        selectedChild = selectedChild,
+                        gameState = gameState
+                    )
+                }
+
+                LunarimDestination.SHOP -> {
+                    LunarimShopScreen(
+                        modifier = contentModifier,
+                        selectedChild = selectedChild
+                    )
+                }
+
+                LunarimDestination.MAP -> {
+                    LunarimMapScreen(
+                        modifier = contentModifier,
+                        selectedChild = selectedChild
+                    )
+                }
+            }
+        }
     }
 
     if (showResetDialog) {
-        AlertDialog(
-            modifier = Modifier.widthIn(max = 480.dp),
-            onDismissRequest = {
+        LunarimResetDialog(
+            selectedChild = selectedChild,
+            resetCountdown = resetCountdown,
+            onConfirm = {
                 showResetDialog = false
-                showStartDialog = true
+                showFinalResetDialog = true
             },
-            title = {
-                Text("Lunarim-Charakter zurücksetzen?")
-            },
-            text = {
-                Text(
-                    "Der gesamte Lunarim-Spielstand dieses Charakters wird gelöscht.\n\n" +
-                            "Luna Coins, Luna Silver, Luna-Level und LunaME-Skills bleiben erhalten.\n\n" +
-                            "Der Vorgang kann nach der endgültigen Bestätigung nicht rückgängig gemacht werden."
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = resetButtonEnabled,
-                    onClick = {
-                        showResetDialog = false
-                        showFinalResetDialog = true
-                    }
-                ) {
-                    Text(
-                        if (resetButtonEnabled) {
-                            "Zurücksetzen"
-                        } else {
-                            "Zurücksetzen ($resetCountdown)"
-                        }
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showResetDialog = false
-                        showStartDialog = true
-                    }
-                ) {
-                    Text("Abbrechen")
-                }
+            onDismiss = {
+                showResetDialog = false
             }
         )
     }
 
     if (showFinalResetDialog) {
-        AlertDialog(
-            modifier = Modifier.widthIn(max = 480.dp),
-            onDismissRequest = {
+        LunarimFinalResetDialog(
+            selectedChild = selectedChild,
+            onConfirm = ::deleteCharacter,
+            onDismiss = {
                 showFinalResetDialog = false
-                showStartDialog = true
-            },
-            title = {
-                Text("Wirklich endgültig zurücksetzen?")
-            },
-            text = {
-                Text(
-                    "Dieser Vorgang kann nicht rückgängig gemacht werden.\n\n" +
-                            "Der komplette Lunarim-Spielstand von " +
-                            "${selectedChild?.name ?: "diesem Benutzer"} wird gelöscht."
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = ::resetLunarimFinally
-                ) {
-                    Text("Ja, endgültig zurücksetzen")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showFinalResetDialog = false
-                        showStartDialog = true
-                    }
-                ) {
-                    Text("Abbrechen")
-                }
             }
         )
     }
 
     if (showExitDialog) {
-        AlertDialog(
-            modifier = Modifier.widthIn(max = 480.dp),
-            onDismissRequest = {
+        LunarimExitDialog(
+            hasSavedCharacter = hasSavedCharacter,
+            onConfirm = {
+                if (hasSavedCharacter) {
+                    saveAndExit()
+                } else {
+                    showExitDialog = false
+                    onExit()
+                }
+            },
+            onDismiss = {
                 showExitDialog = false
-                showStartDialog = true
-            },
-            title = {
-                Text("Lunarim verlassen?")
-            },
-            text = {
-                Text(
-                    if (sessionHasGame) {
-                        "Möchtest du Lunarim wirklich verlassen? Dein aktueller Spielstand wird vorher gespeichert."
-                    } else {
-                        "Möchtest du Lunarim wirklich verlassen?"
-                    }
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = ::saveAndExit
-                ) {
-                    Text(
-                        if (sessionHasGame) {
-                            "Speichern und verlassen"
-                        } else {
-                            "Spiel verlassen"
-                        }
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showExitDialog = false
-                        showStartDialog = true
-                    }
-                ) {
-                    Text("Zurück")
-                }
             }
         )
+    }
+
+}
+
+@Composable
+private fun LunarimExitDialog(
+    hasSavedCharacter: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    LunarimRpgDialogFrame(
+        icon = Icons.Default.ExitToApp,
+        title = "LUNARIM VERLASSEN",
+        message = if (hasSavedCharacter) {
+            "Deine Reise wird an dieser Stelle bewahrt. Beim nächsten Betreten von Lunarim erwachst du wieder in deinem Lager."
+        } else {
+            "Möchtest du Lunarim verlassen, bevor deine Reise begonnen hat?"
+        }
+    ) {
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onConfirm,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = LunarimDialogColors.runeGold,
+                contentColor = LunarimDialogColors.buttonText
+            )
+        ) {
+            Icon(
+                imageVector = if (hasSavedCharacter) {
+                    Icons.Default.Save
+                } else {
+                    Icons.Default.ExitToApp
+                },
+                contentDescription = null
+            )
+
+            Text(
+                modifier = Modifier.padding(start = 8.dp),
+                text = if (hasSavedCharacter) {
+                    "Speichern und verlassen"
+                } else {
+                    "Spiel verlassen"
+                },
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        OutlinedButton(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onDismiss,
+            border = BorderStroke(
+                width = 1.dp,
+                color = LunarimDialogColors.runeGoldMuted.copy(alpha = 0.65f)
+            ),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = LunarimDialogColors.parchment
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.ArrowBack,
+                contentDescription = null
+            )
+
+            Text(
+                modifier = Modifier.padding(start = 8.dp),
+                text = "Zurück nach Lunarim"
+            )
+        }
+    }
+}
+
+@Composable
+private fun LunarimResetDialog(
+    selectedChild: Child?,
+    resetCountdown: Int,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    LunarimRpgDialogFrame(
+        icon = Icons.Default.WarningAmber,
+        title = "CHRONIK ZURÜCKSETZEN",
+        message = buildString {
+            append(
+                "Der vollständige Lunarim-Spielstand von "
+            )
+            append(selectedChild?.name ?: "diesem Charakter")
+            append(
+                " wird zum Löschen vorbereitet.\n\n"
+            )
+            append(
+                "Luna Coins, Luna Silver, LunaME-Level und LunaME-Skills bleiben erhalten."
+            )
+        },
+        accentColor = LunarimDialogColors.warningGold
+    ) {
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            enabled = resetCountdown <= 0,
+            onClick = onConfirm,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = LunarimDialogColors.warningGold,
+                contentColor = LunarimDialogColors.buttonText,
+                disabledContainerColor =
+                    LunarimDialogColors.warningGold.copy(alpha = 0.30f),
+                disabledContentColor =
+                    LunarimDialogColors.parchment.copy(alpha = 0.45f)
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.DeleteOutline,
+                contentDescription = null
+            )
+
+            Text(
+                modifier = Modifier.padding(start = 8.dp),
+                text = if (resetCountdown > 0) {
+                    "Zurücksetzen ($resetCountdown)"
+                } else {
+                    "Weiter zur Bestätigung"
+                },
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        OutlinedButton(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onDismiss,
+            border = BorderStroke(
+                width = 1.dp,
+                color = LunarimDialogColors.runeGoldMuted.copy(alpha = 0.65f)
+            ),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = LunarimDialogColors.parchment
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.ArrowBack,
+                contentDescription = null
+            )
+
+            Text(
+                modifier = Modifier.padding(start = 8.dp),
+                text = "Abbrechen"
+            )
+        }
+    }
+}
+
+@Composable
+private fun LunarimFinalResetDialog(
+    selectedChild: Child?,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    LunarimRpgDialogFrame(
+        icon = Icons.Default.WarningAmber,
+        title = "ENDGÜLTIG LÖSCHEN?",
+        message = buildString {
+            append("Die Chronik von ")
+            append(selectedChild?.name ?: "diesem Charakter")
+            append(
+                " wird unwiderruflich vernichtet.\n\nDieser Schritt kann nicht rückgängig gemacht werden."
+            )
+        },
+        accentColor = LunarimDialogColors.dangerRed
+    ) {
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onConfirm,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = LunarimDialogColors.dangerRed,
+                contentColor = Color.White
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.DeleteOutline,
+                contentDescription = null
+            )
+
+            Text(
+                modifier = Modifier.padding(start = 8.dp),
+                text = "Chronik endgültig löschen",
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        OutlinedButton(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onDismiss,
+            border = BorderStroke(
+                width = 1.dp,
+                color = LunarimDialogColors.runeGoldMuted.copy(alpha = 0.65f)
+            ),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = LunarimDialogColors.parchment
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.ArrowBack,
+                contentDescription = null
+            )
+
+            Text(
+                modifier = Modifier.padding(start = 8.dp),
+                text = "Abbrechen"
+            )
+        }
+    }
+}
+
+@Composable
+private fun LunarimRpgDialogFrame(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    message: String,
+    accentColor: Color = LunarimDialogColors.runeGold,
+    buttons: @Composable ColumnScope.() -> Unit
+) {
+    Dialog(
+        onDismissRequest = {
+            // Wird ausschließlich über die sichtbaren Schaltflächen geschlossen.
+        },
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false
+        )
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 22.dp)
+                .widthIn(max = 460.dp),
+            shape = MaterialTheme.shapes.extraLarge,
+            border = BorderStroke(
+                width = 1.dp,
+                color = accentColor.copy(alpha = 0.78f)
+            ),
+            colors = CardDefaults.cardColors(
+                containerColor = LunarimDialogColors.darkStone
+            ),
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 18.dp
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                LunarimDialogColors.darkStoneRaised,
+                                LunarimDialogColors.darkStone
+                            )
+                        )
+                    )
+                    .padding(
+                        horizontal = 22.dp,
+                        vertical = 20.dp
+                    ),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = accentColor
+                )
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = LunarimDialogColors.parchment
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    color = accentColor.copy(alpha = 0.48f)
+                )
+
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = LunarimDialogColors.secondaryText
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    content = buttons
+                )
+            }
+        }
+    }
+}
+
+private object LunarimDialogColors {
+    val darkStone = Color(0xFF17191C)
+    val darkStoneRaised = Color(0xFF22262A)
+    val runeGold = Color(0xFFD1AC62)
+    val runeGoldMuted = Color(0xFF9F824C)
+    val warningGold = Color(0xFFC58B45)
+    val dangerRed = Color(0xFF9F4742)
+    val parchment = Color(0xFFE8E0CF)
+    val secondaryText = Color(0xFFB8B1A4)
+    val dangerText = Color(0xFFD9A09A)
+    val buttonText = Color(0xFF1A1712)
+}
+
+@Composable
+private fun LunarimStartScreen(
+    modifier: Modifier = Modifier,
+    hasSavedCharacter: Boolean,
+    canCreateCharacter: Boolean,
+    onCreateCharacter: () -> Unit,
+    onContinueGame: () -> Unit,
+    onResetCharacter: () -> Unit,
+    onExit: () -> Unit
+) {
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = Color.Black
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .padding(
+                    horizontal = 18.dp,
+                    vertical = 22.dp
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 470.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.lunarim_logo),
+                    contentDescription = "Lunarim-Wappen",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(190.dp),
+                    contentScale = ContentScale.Fit
+                )
+
+                Text(
+                    text = "LUNARIM",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = LunarimDialogColors.parchment
+                )
+
+                LunarimMenuButton(
+                    title = if (hasSavedCharacter) {
+                        "SPIEL FORTSETZEN"
+                    } else {
+                        "SPIEL BEGINNEN"
+                    },
+                    subtitle = if (hasSavedCharacter) {
+                        "Im Lager erwachen und die Reise fortsetzen."
+                    } else {
+                        "Deine Reise durch Lunarim beginnt."
+                    },
+                    icon = Icons.Default.PlayArrow,
+                    enabled = hasSavedCharacter || canCreateCharacter,
+                    emphasized = true,
+                    onClick = {
+                        if (hasSavedCharacter) {
+                            onContinueGame()
+                        } else {
+                            onCreateCharacter()
+                        }
+                    }
+                )
+
+                if (hasSavedCharacter) {
+                    LunarimMenuButton(
+                        title = "CHARAKTER ZURÜCKSETZEN",
+                        subtitle = "Die aktuelle Chronik löschen und neu beginnen.",
+                        icon = Icons.Default.DeleteOutline,
+                        onClick = onResetCharacter
+                    )
+                }
+
+                LunarimMenuButton(
+                    title = "SPIEL VERLASSEN",
+                    subtitle = "Zurück nach Luna Coin.",
+                    icon = Icons.Default.ExitToApp,
+                    danger = true,
+                    onClick = onExit
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LunarimMenuButton(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    emphasized: Boolean = false,
+    danger: Boolean = false
+) {
+    val borderColor = when {
+        danger -> LunarimDialogColors.dangerRed.copy(alpha = 0.78f)
+        emphasized -> LunarimDialogColors.runeGold.copy(alpha = 0.90f)
+        else -> LunarimDialogColors.runeGoldMuted.copy(alpha = 0.62f)
+    }
+
+    val containerColor = when {
+        danger -> LunarimDialogColors.dangerRed.copy(alpha = 0.15f)
+        emphasized -> Color(0xFF243746)
+        else -> Color(0xFF1C2024)
+    }
+
+    val contentColor = when {
+        danger -> LunarimDialogColors.dangerText
+        else -> LunarimDialogColors.parchment
+    }
+
+    OutlinedButton(
+        modifier = Modifier.fillMaxWidth(),
+        enabled = enabled,
+        onClick = onClick,
+        border = BorderStroke(
+            width = if (emphasized) 1.5.dp else 1.dp,
+            color = borderColor
+        ),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = containerColor,
+            contentColor = contentColor,
+            disabledContainerColor = containerColor.copy(alpha = 0.35f),
+            disabledContentColor = contentColor.copy(alpha = 0.40f)
+        ),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            horizontal = 14.dp,
+            vertical = 12.dp
+        )
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(30.dp),
+            tint = if (danger) {
+                LunarimDialogColors.dangerText
+            } else {
+                LunarimDialogColors.runeGold
+            }
+        )
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp),
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = contentColor.copy(alpha = 0.74f)
+            )
+        }
     }
 }
