@@ -1,17 +1,20 @@
 package de.meson_labs.luna_coin.lunarim.screens
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -27,6 +30,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -44,48 +49,96 @@ internal fun LunarimCharacterScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        LunarimCharacterColors.backgroundTop,
+                        LunarimCharacterColors.backgroundBottom
+                    )
+                )
+            )
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(
+                horizontal = 16.dp,
+                vertical = 18.dp
+            ),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        CharacterAvatarCard(
-            selectedChild = selectedChild
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 860.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            CharacterScreenHeader()
+
+            CharacterAvatarCard(
+                selectedChild = selectedChild
+            )
+
+            CharacterLevelCard(
+                selectedChild = selectedChild
+            )
+
+            CharacterSkillsCard(
+                selectedChild = selectedChild
+            )
+
+            LunarimStatusCard(
+                gameState = gameState
+            )
+
+            CharacterInfoCard(
+                title = "AUSRÜSTUNG",
+                text = "Hier werden angelegte Waffen, Rüstungen, Schilde, Schmuck und ihr Zustand angezeigt."
+            )
+
+            CharacterInfoCard(
+                title = "RESISTENZEN",
+                text = "Physische, elementare und magische Widerstände werden aus Attributen, Ausrüstung und aktiven Effekten berechnet."
+            )
+
+            CharacterInfoCard(
+                title = "AKTIVE EFFEKTE",
+                text = if (gameState?.character?.activeEffects.isNullOrEmpty()) {
+                    "Aktuell sind keine positiven oder negativen Effekte aktiv."
+                } else {
+                    "${gameState?.character?.activeEffects?.size ?: 0} aktive Effekte"
+                }
+            )
+
+            CharacterInfoCard(
+                title = "LUNARIM-SKILLS",
+                text = "Kampf-, Handwerks-, Überlebens- und Magiefähigkeiten werden hier ergänzt."
+            )
+        }
+    }
+}
+
+@Composable
+private fun CharacterScreenHeader() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                top = 2.dp,
+                bottom = 4.dp
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        Text(
+            text = "CHARAKTER",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = LunarimCharacterColors.parchment
         )
 
-        CharacterLevelCard(
-            selectedChild = selectedChild
-        )
-
-        CharacterSkillsCard(
-            selectedChild = selectedChild
-        )
-
-        LunarimStatusCard(
-            gameState = gameState
-        )
-
-        CharacterInfoCard(
-            title = "Ausrüstung",
-            text = "Hier werden angelegte Waffen, Rüstungen, Schilde, Schmuck und ihr Zustand angezeigt."
-        )
-
-        CharacterInfoCard(
-            title = "Resistenzen",
-            text = "Physische, elementare und magische Widerstände werden aus Attributen, Ausrüstung und aktiven Effekten berechnet."
-        )
-
-        CharacterInfoCard(
-            title = "Aktive Effekte",
-            text = if (gameState?.character?.activeEffects.isNullOrEmpty()) {
-                "Aktuell sind keine positiven oder negativen Effekte aktiv."
-            } else {
-                "${gameState?.character?.activeEffects?.size ?: 0} aktive Effekte"
-            }
-        )
-
-        CharacterInfoCard(
-            title = "Lunarim-Skills",
-            text = "Kampf-, Handwerks-, Überlebens- und Magiefähigkeiten werden hier ergänzt."
+        HorizontalDivider(
+            modifier = Modifier.fillMaxWidth(0.72f),
+            thickness = 1.dp,
+            color = LunarimCharacterColors.runeGold.copy(alpha = 0.66f)
         )
     }
 }
@@ -102,19 +155,18 @@ private fun CharacterAvatarCard(
             }.getOrNull()
         }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        )
+    LunarimCharacterCard(
+        accentColor = LunarimCharacterColors.runeGold
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(
+                    horizontal = 14.dp,
+                    vertical = 16.dp
+                ),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             CharacterImage(
                 avatarRes = avatarRes,
@@ -126,13 +178,15 @@ private fun CharacterAvatarCard(
                     ?.ifBlank { "Kein Benutzer ausgewählt" }
                     ?: "Kein Benutzer ausgewählt",
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = LunarimCharacterColors.parchment
             )
 
             Text(
-                text = "Lunarim-Charakter",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "LUNARIM-CHARAKTER",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = LunarimCharacterColors.runeGold
             )
         }
     }
@@ -143,28 +197,47 @@ private fun CharacterImage(
     @DrawableRes avatarRes: Int?,
     characterName: String
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(max = 320.dp)
-            .aspectRatio(1.25f)
-            .clip(RoundedCornerShape(16.dp)),
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
-        if (avatarRes != null) {
-            Image(
-                painter = painterResource(avatarRes),
-                contentDescription = "Charakterbild von $characterName",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit
-            )
+        /*
+         * Das bisherige Seitenverhältnis war auf Tablets zu flach.
+         * Der Bildbereich erhält deshalb dort deutlich mehr Höhe.
+         * ContentScale.Fit stellt sicher, dass oben und unten nichts
+         * abgeschnitten wird.
+         */
+        val imageHeight = if (maxWidth >= 600.dp) {
+            470.dp
         } else {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = "Kein Charakterbild",
-                modifier = Modifier.size(112.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            330.dp
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(imageHeight)
+                .clip(RoundedCornerShape(14.dp))
+                .background(LunarimCharacterColors.imageBackground),
+            contentAlignment = Alignment.Center
+        ) {
+            if (avatarRes != null) {
+                Image(
+                    painter = painterResource(avatarRes),
+                    contentDescription = "Charakterbild von $characterName",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(6.dp),
+                    contentScale = ContentScale.Fit
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Kein Charakterbild",
+                    modifier = Modifier.size(112.dp),
+                    tint = LunarimCharacterColors.secondaryText
+                )
+            }
         }
     }
 }
@@ -173,36 +246,23 @@ private fun CharacterImage(
 private fun CharacterLevelCard(
     selectedChild: Child?
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
+    CharacterSectionCard(
+        title = "LEVEL UND FORTSCHRITT"
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                text = "Level und Fortschritt",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+        CharacterValueRow(
+            label = "Level",
+            value = "${selectedChild?.level ?: 1}"
+        )
 
-            HorizontalDivider()
+        CharacterValueRow(
+            label = "Erfahrung",
+            value = "${selectedChild?.experience ?: 0} EP"
+        )
 
-            CharacterValueRow(
-                label = "Level",
-                value = "${selectedChild?.level ?: 1}"
-            )
-
-            CharacterValueRow(
-                label = "Erfahrung",
-                value = "${selectedChild?.experience ?: 0} EP"
-            )
-
-            CharacterValueRow(
-                label = "Freie Skillpunkte",
-                value = "${selectedChild?.availableSkillPoints ?: 0}"
-            )
-        }
+        CharacterValueRow(
+            label = "Freie Skillpunkte",
+            value = "${selectedChild?.availableSkillPoints ?: 0}"
+        )
     }
 }
 
@@ -210,29 +270,16 @@ private fun CharacterLevelCard(
 private fun CharacterSkillsCard(
     selectedChild: Child?
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
+    CharacterSectionCard(
+        title = "ATTRIBUTE"
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                text = "Attribute",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            HorizontalDivider()
-
-            CharacterValueRow("Stärke", selectedChild?.strength ?: 1)
-            CharacterValueRow("Wahrnehmung", selectedChild?.perception ?: 1)
-            CharacterValueRow("Ausdauer", selectedChild?.endurance ?: 1)
-            CharacterValueRow("Charisma", selectedChild?.charisma ?: 1)
-            CharacterValueRow("Intelligenz", selectedChild?.intelligence ?: 1)
-            CharacterValueRow("Beweglichkeit", selectedChild?.agility ?: 1)
-            CharacterValueRow("Glück", selectedChild?.luck ?: 1)
-        }
+        CharacterValueRow("Stärke", selectedChild?.strength ?: 1)
+        CharacterValueRow("Wahrnehmung", selectedChild?.perception ?: 1)
+        CharacterValueRow("Ausdauer", selectedChild?.endurance ?: 1)
+        CharacterValueRow("Charisma", selectedChild?.charisma ?: 1)
+        CharacterValueRow("Intelligenz", selectedChild?.intelligence ?: 1)
+        CharacterValueRow("Beweglichkeit", selectedChild?.agility ?: 1)
+        CharacterValueRow("Glück", selectedChild?.luck ?: 1)
     }
 }
 
@@ -242,40 +289,56 @@ private fun LunarimStatusCard(
 ) {
     val character = gameState?.character
 
-    Card(
-        modifier = Modifier.fillMaxWidth()
+    CharacterSectionCard(
+        title = "AKTUELLER ZUSTAND"
     ) {
+        CharacterValueRow(
+            label = "Lebenspunkte",
+            value = "${character?.currentHealth ?: 100}"
+        )
+
+        CharacterValueRow(
+            label = "Mana",
+            value = "${character?.currentMana ?: 50}"
+        )
+
+        CharacterValueRow(
+            label = "Aktionspunkte",
+            value = "${character?.currentActionPoints ?: 5}"
+        )
+
+        CharacterValueRow(
+            label = "Inventarplätze",
+            value = "${character?.inventory?.size ?: 0}"
+        )
+    }
+}
+
+@Composable
+private fun CharacterSectionCard(
+    title: String,
+    content: @Composable () -> Unit
+) {
+    LunarimCharacterCard {
         Column(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "Aktueller Zustand",
+                text = title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = LunarimCharacterColors.parchment
             )
 
-            HorizontalDivider()
-
-            CharacterValueRow(
-                label = "Lebenspunkte",
-                value = "${character?.currentHealth ?: 100}"
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = LunarimCharacterColors.runeGoldMuted.copy(alpha = 0.58f)
             )
 
-            CharacterValueRow(
-                label = "Mana",
-                value = "${character?.currentMana ?: 50}"
-            )
-
-            CharacterValueRow(
-                label = "Aktionspunkte",
-                value = "${character?.currentActionPoints ?: 5}"
-            )
-
-            CharacterValueRow(
-                label = "Inventarplätze",
-                value = "${character?.inventory?.size ?: 0}"
-            )
+            content()
         }
     }
 }
@@ -285,25 +348,66 @@ private fun CharacterInfoCard(
     title: String,
     text: String
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    LunarimCharacterCard {
         Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = LunarimCharacterColors.parchment
             )
 
-            HorizontalDivider()
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = LunarimCharacterColors.runeGoldMuted.copy(alpha = 0.58f)
+            )
 
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                color = LunarimCharacterColors.secondaryText
             )
+        }
+    }
+}
+
+@Composable
+private fun LunarimCharacterCard(
+    accentColor: Color = LunarimCharacterColors.runeGoldMuted,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = accentColor.copy(alpha = 0.72f)
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = LunarimCharacterColors.darkStone
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 8.dp
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            LunarimCharacterColors.darkStoneRaised,
+                            LunarimCharacterColors.darkStone
+                        )
+                    )
+                )
+        ) {
+            content()
         }
     }
 }
@@ -331,13 +435,27 @@ private fun CharacterValueRow(
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
+            color = LunarimCharacterColors.secondaryText
         )
 
         Text(
             text = value,
             style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.Bold,
+            color = LunarimCharacterColors.runeGold
         )
     }
+}
+
+private object LunarimCharacterColors {
+    val backgroundTop = Color(0xFF0B0C0E)
+    val backgroundBottom = Color(0xFF151719)
+    val darkStone = Color(0xFF17191C)
+    val darkStoneRaised = Color(0xFF24282C)
+    val imageBackground = Color(0xFF090A0B)
+    val runeGold = Color(0xFFD1AC62)
+    val runeGoldMuted = Color(0xFF9F824C)
+    val parchment = Color(0xFFE8E0CF)
+    val secondaryText = Color(0xFFB8B1A4)
 }
