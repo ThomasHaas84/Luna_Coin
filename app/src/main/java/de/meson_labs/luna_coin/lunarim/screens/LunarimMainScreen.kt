@@ -38,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
@@ -54,10 +55,12 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import de.meson_labs.luna_coin.R
 import de.meson_labs.luna_coin.lunarim.LunarimBottomBar
+import de.meson_labs.luna_coin.lunarim.data.LunarimCloudStorage
 import de.meson_labs.luna_coin.lunarim.data.LunarimGameStorage
 import de.meson_labs.luna_coin.lunarim.models.LunarimGameState
 import de.meson_labs.luna_coin.models.Child
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val RESET_COUNTDOWN_SECONDS = 5
 
@@ -69,9 +72,15 @@ fun LunarimMainScreen(
     onSave: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val storage = remember(context) {
+    val localStorage = remember(context) {
         LunarimGameStorage(context)
     }
+
+    val cloudStorage = remember {
+        LunarimCloudStorage()
+    }
+
+    val coroutineScope = rememberCoroutineScope()
 
     /*
      * Im aktuellen LunaGamesScreen wird bereits der echte ausgewählte
@@ -80,14 +89,22 @@ fun LunarimMainScreen(
      */
     val childId = selectedChild?.id.orEmpty()
 
+    /*
+     * Das lokale Backup wird sofort gelesen. Anschließend wird Firestore
+     * abgefragt und – sofern vorhanden – zum maßgeblichen Spielstand.
+     */
     var gameState by remember(childId) {
         mutableStateOf(
             if (childId.isBlank()) {
                 null
             } else {
-                storage.load(childId)
+                localStorage.load(childId)
             }
         )
+    }
+
+    var cloudLoadFinished by remember(childId) {
+        mutableStateOf(childId.isBlank())
     }
 
     var showStartDialog by rememberSaveable(childId) {
@@ -140,6 +157,50 @@ fun LunarimMainScreen(
         }
     }
 
+    LaunchedEffect(childId) {
+        if (childId.isBlank()) {
+            gameState = null
+            cloudLoadFinished = true
+            return@LaunchedEffect
+        }
+
+        val localState = localStorage.load(childId)
+
+        val cloudState = runCatching {
+            cloudStorage.load(childId)
+        }.getOrNull()
+
+        when {
+            cloudState != null -> {
+                /*
+                 * Firestore ist die maßgebliche Quelle. Der geladene Stand
+                 * wird gleichzeitig als lokales Backup aktualisiert.
+                 */
+                gameState = cloudState
+                localStorage.save(cloudState)
+            }
+
+            localState != null -> {
+                /*
+                 * Migration eines bereits vorhandenen lokalen Spielstands:
+                 * Wenn in Firestore noch nichts liegt, wird das lokale Backup
+                 * einmalig in die Cloud übernommen.
+                 */
+                gameState = localState
+
+                runCatching {
+                    cloudStorage.save(localState)
+                }
+            }
+
+            else -> {
+                gameState = null
+            }
+        }
+
+        cloudLoadFinished = true
+    }
+
     LaunchedEffect(showResetDialog) {
         if (!showResetDialog) {
             resetCountdown = RESET_COUNTDOWN_SECONDS
@@ -158,11 +219,17 @@ fun LunarimMainScreen(
         if (childId.isBlank()) return
 
         /*
-         * createNewGame() speichert synchron mit commit().
-         * Erst danach wird die Oberfläche geöffnet.
+         * Zuerst lokal anlegen, damit der neue Spielstand auch bei einer
+         * kurzzeitig fehlenden Verbindung nicht verloren geht.
          */
-        val createdGame = storage.createNewGame(childId)
+        val createdGame = localStorage.createNewGame(childId)
         gameState = createdGame
+
+        coroutineScope.launch {
+            runCatching {
+                cloudStorage.save(createdGame)
+            }
+        }
 
         currentDestination = LunarimDestination.CHARACTER
         showStartDialog = false
@@ -178,20 +245,51 @@ fun LunarimMainScreen(
         showStartDialog = false
     }
 
-    fun saveCurrentGame() {
-        gameState?.let(storage::save)
-        onSave()
+    fun saveCurrentGame(
+        afterSave: (() -> Unit)? = null
+    ) {
+        val stateToSave = gameState
+
+        if (stateToSave == null) {
+            afterSave?.invoke()
+            return
+        }
+
+        /*
+         * Das lokale Backup wird sofort geschrieben. Danach wird der gleiche
+         * Stand in Firestore gespeichert.
+         */
+        localStorage.save(stateToSave)
+
+        coroutineScope.launch {
+            runCatching {
+                cloudStorage.save(stateToSave)
+            }
+
+            onSave()
+            afterSave?.invoke()
+        }
     }
 
     fun saveAndExit() {
-        saveCurrentGame()
         showExitDialog = false
-        onExit()
+
+        saveCurrentGame {
+            onExit()
+        }
     }
 
     fun deleteCharacter() {
-        storage.delete(childId)
+        if (childId.isBlank()) return
+
+        localStorage.delete(childId)
         gameState = null
+
+        coroutineScope.launch {
+            runCatching {
+                cloudStorage.delete(childId)
+            }
+        }
 
         currentDestination = LunarimDestination.CAMP
         showFinalResetDialog = false
@@ -237,9 +335,13 @@ fun LunarimMainScreen(
         LunarimStartScreen(
             modifier = modifier,
             hasSavedCharacter = hasSavedCharacter,
-            canCreateCharacter = childId.isNotBlank(),
+            canCreateCharacter = childId.isNotBlank() && cloudLoadFinished,
             onCreateCharacter = ::createCharacter,
-            onContinueGame = ::continueGame,
+            onContinueGame = {
+                if (cloudLoadFinished) {
+                    continueGame()
+                }
+            },
             onResetCharacter = {
                 showResetDialog = true
             },
@@ -267,7 +369,29 @@ fun LunarimMainScreen(
                 LunarimDestination.CAMP -> {
                     LunarimCampScreen(
                         modifier = contentModifier,
-                        selectedChild = selectedChild
+                        selectedChild = selectedChild,
+                        gameState = gameState,
+                        onUpgradeCamp = {
+                            val currentState = gameState
+                                ?: return@LunarimCampScreen
+
+                            val updatedState = currentState.copy(
+                                camp = currentState.camp.copy(
+                                    campLevel = currentState.camp.campLevel + 1
+                                )
+                            )
+
+                            gameState = updatedState
+                            localStorage.save(updatedState)
+
+                            coroutineScope.launch {
+                                runCatching {
+                                    cloudStorage.save(updatedState)
+                                }
+
+                                onSave()
+                            }
+                        }
                     )
                 }
 
@@ -282,7 +406,10 @@ fun LunarimMainScreen(
                 LunarimDestination.SHOP -> {
                     LunarimShopScreen(
                         modifier = contentModifier,
-                        selectedChild = selectedChild
+                        selectedChild = selectedChild,
+                        onSaveCurrentPlayer = {
+                            saveCurrentGame()
+                        }
                     )
                 }
 
