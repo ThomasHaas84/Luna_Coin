@@ -1,5 +1,6 @@
 package de.meson_labs.luna_coin.lunarim.screens
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
@@ -212,6 +213,7 @@ private fun MapHeader(
     }
 }
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 private fun RegionMapCard(
     locations: List<LunarimMapLocation>,
