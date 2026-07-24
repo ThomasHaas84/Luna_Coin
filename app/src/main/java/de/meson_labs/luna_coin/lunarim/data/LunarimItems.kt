@@ -125,6 +125,46 @@ object LunarimItems {
         )
     )
 
+    val simpleDagger = LunarimItem(
+        id = "simple_dagger",
+        name = "Einfacher Dolch",
+        description = "Eine leichte Klinge für Reisende und angehende Abenteurer.",
+        type = LunarimItemType.WEAPON,
+        weightGrams = 650,
+        buyPriceSilver = 150,
+        sellPriceSilver = 60,
+        weaponType = LunarimWeaponType.DAGGER,
+        requirements = LunarimItemRequirements(
+            minimumStrength = 3,
+            minimumAgility = 5
+        ),
+        baseActionPointCost = 2,
+        baseHitChancePercent = 82,
+        weaponCombatStats = LunarimWeaponCombatStats(
+            speed = 82,
+            range = LunarimWeaponRange.MELEE,
+            balance = 8,
+            criticalChancePercent = 12,
+            criticalDamageMultiplier = 1.70f,
+            blockBreakerPercent = 2,
+            armorBreaker = 2,
+            durabilityLossPerUse = 1
+        ),
+        damage = LunarimDamageProfile(
+            parts = listOf(
+                LunarimDamagePart(LunarimDamageType.SLASH, 7),
+                LunarimDamagePart(LunarimDamageType.PUNCTURE, 9),
+                LunarimDamagePart(LunarimDamageType.IMPACT, 1)
+            ),
+            procs = listOf(
+                LunarimProc(LunarimEffects.BLEEDING_ID, 0.18f)
+            ),
+            penetration = LunarimPenetration(
+                puncture = 8
+            )
+        )
+    )
+
     val woodenShield = LunarimItem(
         id = "wooden_shield",
         name = "Holzschild",
@@ -140,6 +180,25 @@ object LunarimItems {
         armor = 12,
         resistances = LunarimResistances(
             impact = 10
+        )
+    )
+
+    val clothClothes = LunarimItem(
+        id = "cloth_clothes",
+        name = "Stoffkleidung",
+        description = "Schlichte Kleidung mit geringem Schutz vor Kälte und Schmutz.",
+        type = LunarimItemType.ARMOR,
+        weightGrams = 1_200,
+        buyPriceSilver = 120,
+        sellPriceSilver = 48,
+        requirements = LunarimItemRequirements(
+            minimumStrength = 1,
+            minimumAgility = 1
+        ),
+        armor = 3,
+        resistances = LunarimResistances(
+            slash = 1,
+            impact = 1
         )
     )
 
@@ -182,6 +241,30 @@ object LunarimItems {
         )
     )
 
+    val travelRations = LunarimItem(
+        id = "travel_rations",
+        name = "Reiseproviant",
+        description = "Ein haltbares Mahl für lange Wege durch Lunarim.",
+        type = LunarimItemType.CONSUMABLE,
+        weightGrams = 400,
+        buyPriceSilver = 25,
+        sellPriceSilver = 10,
+        stackable = true,
+        maxStackSize = 20
+    )
+
+    val waterFlask = LunarimItem(
+        id = "water_flask",
+        name = "Wasserflasche",
+        description = "Sauberes Wasser in einer einfachen Feldflasche.",
+        type = LunarimItemType.CONSUMABLE,
+        weightGrams = 750,
+        buyPriceSilver = 15,
+        sellPriceSilver = 6,
+        stackable = true,
+        maxStackSize = 10
+    )
+
     val healingPotion = LunarimItem(
         id = "healing_potion",
         name = "Heiltrank",
@@ -194,6 +277,31 @@ object LunarimItems {
         maxStackSize = 20
     )
 
+    val minorHealingPotion = LunarimItem(
+        id = "minor_healing_potion",
+        name = "Einfacher Heiltrank",
+        description = "Stellt später einen kleinen Teil der Gesundheit wieder her.",
+        type = LunarimItemType.CONSUMABLE,
+        weightGrams = 180,
+        buyPriceSilver = 80,
+        sellPriceSilver = 32,
+        stackable = true,
+        maxStackSize = 20
+    )
+
+    val healingHerbs = LunarimItem(
+        id = "healing_herbs",
+        name = "Heilkräuter",
+        description = "Getrocknete Kräuter für Tränke und einfache Heilmittel.",
+        type = LunarimItemType.RAW_MATERIAL,
+        rawMaterialType = LunarimRawMaterialType.HERB,
+        weightGrams = 40,
+        buyPriceSilver = 35,
+        sellPriceSilver = 14,
+        stackable = true,
+        maxStackSize = 50
+    )
+
     val wood = LunarimItem(
         id = "raw_wood",
         name = "Holz",
@@ -202,6 +310,19 @@ object LunarimItems {
         rawMaterialType = LunarimRawMaterialType.WOOD,
         weightGrams = 1_000,
         buyPriceSilver = 18,
+        sellPriceSilver = 8,
+        stackable = true,
+        maxStackSize = 100
+    )
+
+    val firewood = LunarimItem(
+        id = "firewood",
+        name = "Brennholz",
+        description = "Trockenes Holz für Lagerfeuer, Küche und Handwerk.",
+        type = LunarimItemType.RAW_MATERIAL,
+        rawMaterialType = LunarimRawMaterialType.WOOD,
+        weightGrams = 1_000,
+        buyPriceSilver = 20,
         sellPriceSilver = 8,
         stackable = true,
         maxStackSize = 100
@@ -229,6 +350,19 @@ object LunarimItems {
         weightGrams = 1_000,
         buyPriceSilver = 55,
         sellPriceSilver = 24,
+        stackable = true,
+        maxStackSize = 100
+    )
+
+    val ironChunk = LunarimItem(
+        id = "iron_chunk",
+        name = "Eisenbrocken",
+        description = "Ein roher Eisenklumpen für spätere Schmiedearbeiten.",
+        type = LunarimItemType.RAW_MATERIAL,
+        rawMaterialType = LunarimRawMaterialType.METAL,
+        weightGrams = 750,
+        buyPriceSilver = 45,
+        sellPriceSilver = 18,
         stackable = true,
         maxStackSize = 100
     )
@@ -285,21 +419,89 @@ object LunarimItems {
         maxStackSize = 50
     )
 
+    val simpleRope = LunarimItem(
+        id = "simple_rope",
+        name = "Einfaches Seil",
+        description = "Nützlich beim Erkunden, Klettern und Sichern von Lasten.",
+        type = LunarimItemType.MATERIAL,
+        weightGrams = 1_400,
+        buyPriceSilver = 40,
+        sellPriceSilver = 16,
+        stackable = true,
+        maxStackSize = 10
+    )
+
+    val torch = LunarimItem(
+        id = "torch",
+        name = "Fackel",
+        description = "Erhellt später Höhlen, Ruinen und dunkle Wege.",
+        type = LunarimItemType.CONSUMABLE,
+        weightGrams = 600,
+        buyPriceSilver = 30,
+        sellPriceSilver = 12,
+        stackable = true,
+        maxStackSize = 10
+    )
+
     val all = listOf(
         ironSword,
         warHammer,
         huntingBow,
+        simpleDagger,
         woodenShield,
+        clothClothes,
         leatherArmor,
         ironArmor,
+        travelRations,
+        waterFlask,
         healingPotion,
+        minorHealingPotion,
+        healingHerbs,
         wood,
+        firewood,
         stone,
         iron,
+        ironChunk,
         ironOre,
         copperOre,
         coal,
-        moonHerb
+        moonHerb,
+        simpleRope,
+        torch
+    )
+
+    /**
+     * Festes Sortiment des lokalen Händlers für die erste Shop-Phase.
+     * Die Reihenfolge entspricht der Darstellung im Shop.
+     */
+    val localShopItems = listOf(
+        travelRations,
+        waterFlask,
+        healingHerbs,
+        minorHealingPotion,
+        firewood,
+        ironChunk,
+        simpleRope,
+        torch,
+        simpleDagger,
+        clothClothes
+    )
+
+    /**
+     * Vorläufiger Händlerbestand. Später kann dieser Wert in einen eigenen
+     * Shop-State oder nach Firestore verschoben werden, ohne den Screen zu ändern.
+     */
+    val localShopStockByItemId = mapOf(
+        travelRations.id to 12,
+        waterFlask.id to 18,
+        healingHerbs.id to 9,
+        minorHealingPotion.id to 5,
+        firewood.id to 20,
+        ironChunk.id to 10,
+        simpleRope.id to 7,
+        torch.id to 14,
+        simpleDagger.id to 3,
+        clothClothes.id to 4
     )
 
     val weapons = all.filter { it.type == LunarimItemType.WEAPON }
@@ -316,4 +518,7 @@ object LunarimItems {
     private val byId = all.associateBy { it.id }
 
     fun getById(id: String): LunarimItem? = byId[id]
+
+    fun getLocalShopStock(itemId: String): Int =
+        localShopStockByItemId[itemId] ?: 0
 }
