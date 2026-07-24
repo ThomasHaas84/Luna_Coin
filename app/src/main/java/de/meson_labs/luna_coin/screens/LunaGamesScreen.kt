@@ -24,6 +24,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,9 +73,9 @@ fun LunaGamesScreen(
 ) {
     val data by viewModel.data.collectAsState()
 
-    var activeGame by remember { mutableStateOf(LunaGamesDestination.NONE) }
-    var selectedTab by remember { mutableStateOf(GamesToolsTab.GAMES) }
-    var showCoinTransferDialog by remember { mutableStateOf(false) }
+    var activeGame by rememberSaveable { mutableStateOf(LunaGamesDestination.NONE) }
+    var selectedTab by rememberSaveable { mutableStateOf(GamesToolsTab.GAMES) }
+    var showCoinTransferDialog by rememberSaveable { mutableStateOf(false) }
 
     fun leaveFullscreenDestination() {
         onFullscreenChanged(false)

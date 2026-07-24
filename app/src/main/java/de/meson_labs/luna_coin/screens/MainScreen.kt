@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -106,15 +107,15 @@ fun MainScreen(
                     ) == LOGIN_DESTINATION_DOG_PLAN
                 }
 
-                var selectedTab by remember(selectedChildId) {
+                var selectedTab by rememberSaveable(selectedChildId) {
                     mutableIntStateOf(0)
                 }
 
-                var klingonNavEnabled by remember {
+                var klingonNavEnabled by rememberSaveable {
                     mutableStateOf(false)
                 }
 
-                var gameFullscreen by remember {
+                var gameFullscreen by rememberSaveable {
                     mutableStateOf(false)
                 }
 
